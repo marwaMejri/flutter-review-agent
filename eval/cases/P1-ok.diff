@@ -1,0 +1,50 @@
+diff --git a/lib/core/data/releases.dart b/lib/core/data/releases.dart
+index 966af98..045d8d6 100644
+--- a/lib/core/data/releases.dart
++++ b/lib/core/data/releases.dart
+@@ -73,3 +73,9 @@ Release? releaseById(String id) {
+   }
+   return null;
+ }
++
++/// Reading time of each release, in minutes, computed once from its notes.
++final Map<String, int> readingMinutesById = <String, int>{
++  for (final Release release in releases)
++    release.id: (RegExp(r'\S+').allMatches(release.notes).length / 200).ceil(),
++};
+diff --git a/lib/features/releases/releases_page.dart b/lib/features/releases/releases_page.dart
+index f4970e6..c264c1e 100644
+--- a/lib/features/releases/releases_page.dart
++++ b/lib/features/releases/releases_page.dart
+@@ -29,7 +29,10 @@ class ReleasesPage extends StatelessWidget {
+                 child: const Icon(Icons.new_releases),
+               ),
+               title: Text('Version ${release.version}'),
+-              subtitle: Text('${release.date} · ${release.summary}'),
++              subtitle: Text(
++                '${release.date} · ${release.summary} · '
++                '${readingMinutesById[release.id]} min read',
++              ),
+               trailing: const Icon(Icons.chevron_right),
+               onTap: () => context.go('/releases/${release.id}'),
+             ),
+diff --git a/test/reading_time_test.dart b/test/reading_time_test.dart
+new file mode 100644
+index 0000000..6349461
+--- /dev/null
++++ b/test/reading_time_test.dart
+@@ -0,0 +1,14 @@
++import 'package:flutter_test/flutter_test.dart';
++
++import 'package:material_ui_packages_migration/app/app.dart';
++
++void main() {
++  testWidgets('each release shows its reading time', (
++    WidgetTester tester,
++  ) async {
++    await tester.pumpWidget(const ReleaseNotesApp());
++    await tester.pumpAndSettle();
++
++    expect(find.textContaining('1 min read'), findsNWidgets(3));
++  });
++}

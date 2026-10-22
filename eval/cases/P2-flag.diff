@@ -1,0 +1,75 @@
+diff --git a/lib/features/releases/releases_page.dart b/lib/features/releases/releases_page.dart
+index f4970e6..cb6590b 100644
+--- a/lib/features/releases/releases_page.dart
++++ b/lib/features/releases/releases_page.dart
+@@ -1,10 +1,36 @@
++import 'dart:async';
++
+ import 'package:go_router/go_router.dart';
+ import 'package:material_ui/material_ui.dart';
+ import 'package:material_ui_packages_migration/core/data/releases.dart';
+ 
+-class ReleasesPage extends StatelessWidget {
++class ReleasesPage extends StatefulWidget {
+   const ReleasesPage({super.key});
+ 
++  @override
++  State<ReleasesPage> createState() => _ReleasesPageState();
++}
++
++class _ReleasesPageState extends State<ReleasesPage> {
++  int _secondsSinceCheck = 0;
++  late final Timer _timer;
++
++  @override
++  void initState() {
++    super.initState();
++    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
++      setState(() {
++        _secondsSinceCheck++;
++      });
++    });
++  }
++
++  @override
++  void dispose() {
++    _timer.cancel();
++    super.dispose();
++  }
++
+   @override
+   Widget build(BuildContext context) {
+     final ColorScheme colors = Theme.of(context).colorScheme;
+@@ -21,6 +47,10 @@ class ReleasesPage extends StatelessWidget {
+       ),
+       body: ListView(
+         children: <Widget>[
++          Padding(
++            padding: const EdgeInsets.all(16),
++            child: Text('Checked $_secondsSinceCheck s ago'),
++          ),
+           for (final Release release in releases)
+             ListTile(
+               leading: CircleAvatar(
+diff --git a/test/last_checked_test.dart b/test/last_checked_test.dart
+new file mode 100644
+index 0000000..3ddd1c2
+--- /dev/null
++++ b/test/last_checked_test.dart
+@@ -0,0 +1,16 @@
++import 'package:flutter_test/flutter_test.dart';
++
++import 'package:material_ui_packages_migration/app/app.dart';
++
++void main() {
++  testWidgets('the list shows when it was last checked', (
++    WidgetTester tester,
++  ) async {
++    await tester.pumpWidget(const ReleaseNotesApp());
++    await tester.pump();
++    expect(find.text('Checked 0 s ago'), findsOneWidget);
++
++    await tester.pump(const Duration(seconds: 1));
++    expect(find.text('Checked 1 s ago'), findsOneWidget);
++  });
++}

@@ -1,0 +1,39 @@
+diff --git a/lib/features/releases/releases_page.dart b/lib/features/releases/releases_page.dart
+index f4970e6..5706e8e 100644
+--- a/lib/features/releases/releases_page.dart
++++ b/lib/features/releases/releases_page.dart
+@@ -22,19 +22,23 @@ class ReleasesPage extends StatelessWidget {
+       body: ListView(
+         children: <Widget>[
+           for (final Release release in releases)
+-            ListTile(
+-              leading: CircleAvatar(
+-                backgroundColor: colors.primary,
+-                foregroundColor: colors.onPrimary,
+-                child: const Icon(Icons.new_releases),
+-              ),
+-              title: Text('Version ${release.version}'),
+-              subtitle: Text('${release.date} · ${release.summary}'),
+-              trailing: const Icon(Icons.chevron_right),
+-              onTap: () => context.go('/releases/${release.id}'),
+-            ),
++            _buildTile(context, release, colors),
+         ],
+       ),
+     );
+   }
++
++  Widget _buildTile(BuildContext context, Release release, ColorScheme colors) {
++    return ListTile(
++      leading: CircleAvatar(
++        backgroundColor: colors.primary,
++        foregroundColor: colors.onPrimary,
++        child: const Icon(Icons.new_releases),
++      ),
++      title: Text('Version ${release.version}'),
++      subtitle: Text('${release.date} · ${release.summary}'),
++      trailing: const Icon(Icons.chevron_right),
++      onTap: () => context.go('/releases/${release.id}'),
++    );
++  }
+ }

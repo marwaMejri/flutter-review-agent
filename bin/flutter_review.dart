@@ -4,11 +4,6 @@ import 'dart:io';
 import 'package:args/args.dart';
 import 'package:flutter_review/flutter_review.dart';
 
-const String defaultBaseUrl =
-    'https://generativelanguage.googleapis.com/v1beta/openai/';
-const String defaultModel = 'gemini-3.8-flash';
-const String apiKeyVariable = 'FLUTTER_REVIEW_API_KEY';
-
 Future<void> main(List<String> arguments) async {
   final ArgParser parser = ArgParser()
     ..addOption('diff', help: 'Path of the diff to review, or - for stdin.')
@@ -20,8 +15,22 @@ Future<void> main(List<String> arguments) async {
     ..addOption('packs', defaultsTo: 'packs', help: 'Folder of the packs.')
     ..addMultiOption('pack', help: 'Optional pack to turn on, by file name.')
     ..addOption('conventions', help: 'Path of the project CONVENTIONS.md.')
-    ..addOption('base-url', defaultsTo: defaultBaseUrl)
-    ..addOption('model', defaultsTo: defaultModel)
+    ..addOption(
+      'provider',
+      help:
+          'Provider with a preset (${providerPresets.keys.join(', ')}). '
+          'Overrides $providerVariable.',
+    )
+    ..addOption(
+      'base-url',
+      help: 'Address of an OpenAI-compatible API. Overrides $baseUrlVariable.',
+    )
+    ..addOption(
+      'model',
+      help:
+          'Model name, or several separated by commas, in order of '
+          'preference. Overrides $modelVariable.',
+    )
     ..addOption('json', help: 'Also write the result as JSON to this path.')
     ..addFlag('help', abbr: 'h', negatable: false);
 
@@ -37,14 +46,26 @@ Future<void> main(List<String> arguments) async {
     stdout
       ..writeln('Usage: dart run flutter_review --diff <file>')
       ..writeln()
-      ..writeln('The API key is read from $apiKeyVariable.')
+      ..writeln('Settings are read from environment variables:')
+      ..writeln('  $apiKeyVariable   the API key (required)')
+      ..writeln('  $providerVariable  ${providerPresets.keys.join(', ')}')
+      ..writeln('  $baseUrlVariable and $modelVariable  for another provider')
       ..writeln(parser.usage);
     return;
   }
 
-  final String? apiKey = Platform.environment[apiKeyVariable];
-  if (apiKey == null || apiKey.isEmpty) {
-    stderr.writeln('Set the API key in the $apiKeyVariable variable.');
+  final ReviewConfig config;
+  try {
+    config = resolveConfig(<String, String>{
+      ...Platform.environment,
+      if (options.option('provider') case final String value)
+        providerVariable: value,
+      if (options.option('base-url') case final String value)
+        baseUrlVariable: value,
+      if (options.option('model') case final String value) modelVariable: value,
+    });
+  } on ConfigException catch (error) {
+    stderr.writeln(error);
     exitCode = 78;
     return;
   }
@@ -69,9 +90,11 @@ Future<void> main(List<String> arguments) async {
       : null;
 
   final ModelClient client = ModelClient(
-    baseUrl: options.option('base-url')!,
-    model: options.option('model')!,
-    apiKey: apiKey,
+    provider: config.provider,
+    baseUrl: config.baseUrl,
+    models: config.models,
+    apiKey: config.apiKey,
+    modelPattern: config.modelPattern,
   );
   final ReviewResult result;
   try {
@@ -93,13 +116,27 @@ Future<void> main(List<String> arguments) async {
     client.close();
   }
 
+  stdout.writeln('Model: ${client.answeredBy} (${config.provider})');
+  if (client.answeredByDiscoveredModel) {
+    stdout.writeln(
+      'Note: this model was found in the list of ${config.provider}. '
+      'It was not measured by the evaluation of the agent.',
+    );
+  } else if (!config.tested) {
+    stdout.writeln(
+      'Note: this provider or model was not measured by the evaluation of '
+      'the agent yet.',
+    );
+  }
   _printReport(result, rules);
 
   final String? jsonPath = options.option('json');
   if (jsonPath != null) {
     await File(jsonPath).writeAsString(
       const JsonEncoder.withIndent('  ').convert(<String, Object>{
-        'model': options.option('model')!,
+        'provider': config.provider,
+        'model': client.answeredBy ?? '',
+        'measured': config.tested && !client.answeredByDiscoveredModel,
         'files': result.reviewedFiles,
         'findings': <Map<String, Object>>[
           for (final Finding finding in result.accepted) finding.toJson(),

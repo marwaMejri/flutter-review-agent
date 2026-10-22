@@ -7,6 +7,7 @@ import 'src/model_client.dart';
 import 'src/prompt.dart';
 import 'src/rules.dart';
 
+export 'src/config.dart';
 export 'src/diff.dart';
 export 'src/findings.dart';
 export 'src/model_client.dart';
@@ -31,7 +32,7 @@ class ReviewResult {
   final List<String> reviewedFiles;
 }
 
-/// Returns true for the files the agent reviews: Dart code and the pub spec.
+/// Returns true for the files the agent reviews: Dart code and the pubspec.
 bool isReviewed(String path) =>
     path.endsWith('.dart') || path == 'pubspec.yaml';
 

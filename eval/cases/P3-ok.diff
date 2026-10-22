@@ -1,0 +1,70 @@
+diff --git a/lib/features/releases/release_tile.dart b/lib/features/releases/release_tile.dart
+new file mode 100644
+index 0000000..1693355
+--- /dev/null
++++ b/lib/features/releases/release_tile.dart
+@@ -0,0 +1,25 @@
++import 'package:go_router/go_router.dart';
++import 'package:material_ui/material_ui.dart';
++import 'package:material_ui_packages_migration/core/data/releases.dart';
++
++class ReleaseTile extends StatelessWidget {
++  const ReleaseTile({required this.release, super.key});
++
++  final Release release;
++
++  @override
++  Widget build(BuildContext context) {
++    final ColorScheme colors = Theme.of(context).colorScheme;
++    return ListTile(
++      leading: CircleAvatar(
++        backgroundColor: colors.primary,
++        foregroundColor: colors.onPrimary,
++        child: const Icon(Icons.new_releases),
++      ),
++      title: Text('Version ${release.version}'),
++      subtitle: Text('${release.date} · ${release.summary}'),
++      trailing: const Icon(Icons.chevron_right),
++      onTap: () => context.go('/releases/${release.id}'),
++    );
++  }
++}
+diff --git a/lib/features/releases/releases_page.dart b/lib/features/releases/releases_page.dart
+index f4970e6..10a43a5 100644
+--- a/lib/features/releases/releases_page.dart
++++ b/lib/features/releases/releases_page.dart
+@@ -1,13 +1,13 @@
+ import 'package:go_router/go_router.dart';
+ import 'package:material_ui/material_ui.dart';
+ import 'package:material_ui_packages_migration/core/data/releases.dart';
++import 'package:material_ui_packages_migration/features/releases/release_tile.dart';
+ 
+ class ReleasesPage extends StatelessWidget {
+   const ReleasesPage({super.key});
+ 
+   @override
+   Widget build(BuildContext context) {
+-    final ColorScheme colors = Theme.of(context).colorScheme;
+     return Scaffold(
+       appBar: AppBar(
+         title: const Text('$appName releases'),
+@@ -21,18 +21,7 @@ class ReleasesPage extends StatelessWidget {
+       ),
+       body: ListView(
+         children: <Widget>[
+-          for (final Release release in releases)
+-            ListTile(
+-              leading: CircleAvatar(
+-                backgroundColor: colors.primary,
+-                foregroundColor: colors.onPrimary,
+-                child: const Icon(Icons.new_releases),
+-              ),
+-              title: Text('Version ${release.version}'),
+-              subtitle: Text('${release.date} · ${release.summary}'),
+-              trailing: const Icon(Icons.chevron_right),
+-              onTap: () => context.go('/releases/${release.id}'),
+-            ),
++          for (final Release release in releases) ReleaseTile(release: release),
+         ],
+       ),
+     );

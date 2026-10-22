@@ -1,0 +1,88 @@
+diff --git a/lib/features/releases/last_checked.dart b/lib/features/releases/last_checked.dart
+new file mode 100644
+index 0000000..63f3bf3
+--- /dev/null
++++ b/lib/features/releases/last_checked.dart
+@@ -0,0 +1,40 @@
++import 'dart:async';
++
++import 'package:material_ui/material_ui.dart';
++
++/// Shows how long ago the list was checked, updated every second.
++class LastChecked extends StatefulWidget {
++  const LastChecked({super.key});
++
++  @override
++  State<LastChecked> createState() => _LastCheckedState();
++}
++
++class _LastCheckedState extends State<LastChecked> {
++  int _secondsSinceCheck = 0;
++  late final Timer _timer;
++
++  @override
++  void initState() {
++    super.initState();
++    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
++      setState(() {
++        _secondsSinceCheck++;
++      });
++    });
++  }
++
++  @override
++  void dispose() {
++    _timer.cancel();
++    super.dispose();
++  }
++
++  @override
++  Widget build(BuildContext context) {
++    return Padding(
++      padding: const EdgeInsets.all(16),
++      child: Text('Checked $_secondsSinceCheck s ago'),
++    );
++  }
++}
+diff --git a/lib/features/releases/releases_page.dart b/lib/features/releases/releases_page.dart
+index f4970e6..2af5bb1 100644
+--- a/lib/features/releases/releases_page.dart
++++ b/lib/features/releases/releases_page.dart
+@@ -1,6 +1,7 @@
+ import 'package:go_router/go_router.dart';
+ import 'package:material_ui/material_ui.dart';
+ import 'package:material_ui_packages_migration/core/data/releases.dart';
++import 'package:material_ui_packages_migration/features/releases/last_checked.dart';
+ 
+ class ReleasesPage extends StatelessWidget {
+   const ReleasesPage({super.key});
+@@ -21,6 +22,7 @@ class ReleasesPage extends StatelessWidget {
+       ),
+       body: ListView(
+         children: <Widget>[
++          const LastChecked(),
+           for (final Release release in releases)
+             ListTile(
+               leading: CircleAvatar(
+diff --git a/test/last_checked_test.dart b/test/last_checked_test.dart
+new file mode 100644
+index 0000000..3ddd1c2
+--- /dev/null
++++ b/test/last_checked_test.dart
+@@ -0,0 +1,16 @@
++import 'package:flutter_test/flutter_test.dart';
++
++import 'package:material_ui_packages_migration/app/app.dart';
++
++void main() {
++  testWidgets('the list shows when it was last checked', (
++    WidgetTester tester,
++  ) async {
++    await tester.pumpWidget(const ReleaseNotesApp());
++    await tester.pump();
++    expect(find.text('Checked 0 s ago'), findsOneWidget);
++
++    await tester.pump(const Duration(seconds: 1));
++    expect(find.text('Checked 1 s ago'), findsOneWidget);
++  });
++}

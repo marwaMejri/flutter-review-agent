@@ -1,0 +1,102 @@
+diff --git a/lib/app/router.dart b/lib/app/router.dart
+index 98f6614..b66bd61 100644
+--- a/lib/app/router.dart
++++ b/lib/app/router.dart
+@@ -1,6 +1,7 @@
+ import 'package:flutter/widgets.dart';
+ import 'package:go_router/go_router.dart';
+ 
++import 'package:material_ui_packages_migration/features/changelog/changelog_page.dart';
+ import 'package:material_ui_packages_migration/features/release_detail/release_detail_page.dart';
+ import 'package:material_ui_packages_migration/features/releases/releases_page.dart';
+ import 'package:material_ui_packages_migration/features/settings/settings_page.dart';
+@@ -18,6 +19,11 @@ GoRouter createRouter() {
+             builder: (BuildContext context, GoRouterState state) =>
+                 ReleaseDetailPage(id: state.pathParameters['id']!),
+           ),
++          GoRoute(
++            path: 'changelog',
++            builder: (BuildContext context, GoRouterState state) =>
++                const ChangelogPage(),
++          ),
+           GoRoute(
+             path: 'settings',
+             builder: (BuildContext context, GoRouterState state) =>
+diff --git a/lib/core/data/releases.dart b/lib/core/data/releases.dart
+index 966af98..664574b 100644
+--- a/lib/core/data/releases.dart
++++ b/lib/core/data/releases.dart
+@@ -73,3 +73,8 @@ Release? releaseById(String id) {
+   }
+   return null;
+ }
++
++/// Every line of every release note, computed once.
++final List<String> changelogLines = <String>[
++  for (final Release release in releases) ...release.notes.split('\n'),
++];
+diff --git a/lib/features/changelog/changelog_page.dart b/lib/features/changelog/changelog_page.dart
+new file mode 100644
+index 0000000..b9c213b
+--- /dev/null
++++ b/lib/features/changelog/changelog_page.dart
+@@ -0,0 +1,19 @@
++import 'package:material_ui/material_ui.dart';
++import 'package:material_ui_packages_migration/core/data/releases.dart';
++
++class ChangelogPage extends StatelessWidget {
++  const ChangelogPage({super.key});
++
++  @override
++  Widget build(BuildContext context) {
++    return Scaffold(
++      appBar: AppBar(title: const Text('Changelog')),
++      body: ListView.builder(
++        padding: const EdgeInsets.all(16),
++        itemCount: changelogLines.length,
++        itemBuilder: (BuildContext context, int index) =>
++            Text(changelogLines[index]),
++      ),
++    );
++  }
++}
+diff --git a/lib/features/releases/releases_page.dart b/lib/features/releases/releases_page.dart
+index f4970e6..ea76655 100644
+--- a/lib/features/releases/releases_page.dart
++++ b/lib/features/releases/releases_page.dart
+@@ -12,6 +12,11 @@ class ReleasesPage extends StatelessWidget {
+       appBar: AppBar(
+         title: const Text('$appName releases'),
+         actions: <Widget>[
++          IconButton(
++            icon: const Icon(Icons.history),
++            tooltip: 'Changelog',
++            onPressed: () => context.go('/changelog'),
++          ),
+           IconButton(
+             icon: const Icon(Icons.settings),
+             tooltip: 'Settings',
+diff --git a/test/changelog_test.dart b/test/changelog_test.dart
+new file mode 100644
+index 0000000..7e28c57
+--- /dev/null
++++ b/test/changelog_test.dart
+@@ -0,0 +1,18 @@
++import 'package:flutter_test/flutter_test.dart';
++
++import 'package:material_ui_packages_migration/app/app.dart';
++
++void main() {
++  testWidgets('the changelog lists the release notes', (
++    WidgetTester tester,
++  ) async {
++    await tester.pumpWidget(const ReleaseNotesApp());
++    await tester.pumpAndSettle();
++
++    await tester.tap(find.byTooltip('Changelog'));
++    await tester.pumpAndSettle();
++
++    expect(find.text('Changelog'), findsOneWidget);
++    expect(find.text('## Background sync'), findsOneWidget);
++  });
++}
