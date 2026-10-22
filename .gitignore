@@ -1,0 +1,4 @@
+.dart_tool/
+build/
+# Local results of the evaluation.
+eval/results/
