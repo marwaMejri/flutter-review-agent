@@ -1,0 +1,12 @@
+diff --git a/lib/core/data/releases.dart b/lib/core/data/releases.dart
+index 966af98..19a8741 100644
+--- a/lib/core/data/releases.dart
++++ b/lib/core/data/releases.dart
+@@ -73,3 +73,7 @@ Release? releaseById(String id) {
+   }
+   return null;
+ }
++
++/// Loads the latest release, or null when the server has none.
++Future<Release?> fetchLatest() async =>
++    releases.isEmpty ? null : releases.first;

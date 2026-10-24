@@ -1,0 +1,13 @@
+diff --git a/pubspec.yaml b/pubspec.yaml
+index eb9eed2..189b4d0 100644
+--- a/pubspec.yaml
++++ b/pubspec.yaml
+@@ -39,7 +39,7 @@ dependencies:
+   dropdown_button2: 3.1.0
+   flutter_markdown_plus: 1.0.12
+ 
+-  material_ui: 1.7.0
++  material_ui: any
+ dev_dependencies:
+   flutter_test:
+     sdk: flutter

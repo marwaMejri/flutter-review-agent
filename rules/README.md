@@ -18,6 +18,10 @@ Every rule has the same parts:
 - **Source:** where the rule comes from.
 - **Level:** `issue` (a real cost: a bug, a leak, slower frames) or
   `suggestion` (an improvement the author can decide on).
+- **Triggers:** the rule is sent to the model only when a line added by the
+  pull request contains one of these texts, or, for `file:…`, when a changed
+  file path starts with it. A rule with no triggers is always sent. Fewer
+  rules make a shorter request, and leave fewer chances for a false remark.
 
 ## Rules in v1
 
@@ -26,8 +30,8 @@ Every rule has the same parts:
 | P1 | Expensive work in `build()` | performance.md | issue |
 | P2 | `setState` higher in the tree than needed | performance.md | suggestion |
 | P3 | A method that returns a widget tree instead of a widget | performance.md | suggestion |
-| P5 | A long list built without a builder | performance.md | issue |
-| P9 | `AnimatedBuilder` that rebuilds a subtree that does not animate | performance.md | issue |
+| P5 | A long list built without a builder | performance.md | suggestion |
+| P9 | A builder (`AnimatedBuilder`, `ListenableBuilder`, `ValueListenableBuilder`) that rebuilds a subtree that does not change | performance.md | issue |
 | B2 | A resource created in `build()` | memory.md | issue |
 | MEM1 | An object with `dispose()` that is never disposed | memory.md | issue |
 | MEM2 | A `BuildContext` stored in a field | memory.md | issue |

@@ -8,11 +8,17 @@ a test **verifies** the change.
 
 - **Check:** code added under `lib/`, and the tests in the same pull request.
 - **Flag when:** the pull request adds a behavior (a new public method, a new
-  branch of an `if` or `switch`, a new screen state, a fixed bug) and no test
-  in the pull request has an `expect` on that behavior.
-- **Do not flag when:** the change has no behavior to test (a rename, a
-  comment, a style change), or an existing test already checks it and the
-  pull request shows that test.
+  branch of an `if` or `switch`, a new screen state, a changed condition or
+  computation) and no test in the pull request has an `expect` on that
+  behavior. Judge from the pull
+  request only: you do not need to see the other tests of the project.
+- **Do not flag when:**
+  - the change has no behavior to test: a rename, a comment, or a change of
+    padding, color or text style only;
+  - the pull request moves existing code without changing what it does, for
+    example a part of a screen extracted into a new widget;
+  - an existing test already checks it and the pull request shows that test;
+  - the file is generated (`*.g.dart`, `*.freezed.dart`, localizations).
 - **Bad:** a pull request adds an `if (release.isBeta)` branch that shows a
   "Beta" badge. The tests render the screen with a stable release only: the
   new line runs in no test, or it runs but nothing checks the badge.
@@ -22,15 +28,22 @@ a test **verifies** the change.
 - **Source:** team rule of this project: every case needs a unit test or a
   widget test.
 - **Level:** issue
+- **Triggers:** `file:lib/`
 
 ## T4. An appearance test that reads the wrong widget
 
-- **Check:** tests that check a font, a color or a style.
-- **Flag when:** the test reads the style from a wrapper (a
-  `DefaultTextStyle`, the root `TextSpan` of a `RichText`, a parent
-  `Container`) instead of the widget or the span that draws the content.
-- **Do not flag when:** the test finds the exact span or widget that holds the
-  content, for example by its text.
+- **Check:** tests with an `expect` on a style property: `fontFamily`,
+  `fontSize`, `fontWeight`, `color` or `decoration`. Tests that only find a
+  widget to tap it or count it are not concerned.
+- **Flag when:** the test finds the widget by its type or its position
+  instead of by its content, for example `find.byType(RichText).first` or
+  `find.byType(DefaultTextStyle)`, and reads the style there: that widget may
+  not be the one that draws the text.
+- **Do not flag when:** the test finds the widget from its content, for
+  example `find.descendant(of: find.text('Settings'), matching:
+  find.byType(RichText))`, or finds the span that contains the text. For a
+  `Text` built from a string, the root `TextSpan` of its `RichText` holds the
+  text and its style, so reading `text.style` there is correct.
 - **Bad:**
 
   ```dart
@@ -55,17 +68,23 @@ a test **verifies** the change.
 
 - **Why:** a style on a wrapper can be correct while the text inside uses
   another one. The test passes on a broken screen.
-- **Source:** measured in [Your packages haven't migrated to material_ui. Can you?](https://github.com/marwaMejri/material_ui_packages_migration), section "The test that lied"
+- **Source:** measured in [Your packages haven't migrated to material_ui. Can you?](https://github.com/marwaMejri/material_ui_packages_migration), section "The test that lied", and [Text.build](https://api.flutter.dev/flutter/widgets/Text/build.html) (the root `TextSpan` holds `data` and the text style)
 - **Level:** issue
+- **Triggers:** `fontFamily`, `fontSize`, `fontWeight`, `TextStyle`, `.style`, `.color`, `decoration`
 
 ## T5. An animated navigation tested only at the end
 
 - **Check:** tests for navigation between pages, when the pull request
-  changes routing, the router package or the app widget.
-- **Flag when:** the only navigation tests tap and then call `pumpAndSettle()`
-  before checking the new page.
-- **Do not flag when:** a test also checks the screen in the middle of the
-  transition.
+  changes a line that contains `GoRouter`, `GoRoute`, `routes:`,
+  `MaterialApp` or `CupertinoApp`, or changes the version of a router package
+  (`go_router`, `auto_route`, `beamer`) in `pubspec.yaml`.
+- **Flag when:** every navigation test of the pull request calls
+  `pumpAndSettle()` right after the tap, and checks only the new page.
+- **Do not flag when:**
+  - a test also checks the screen in the middle of the transition, after a
+    `pump()` with a duration;
+  - the pull request changes none of the lines above. A test that navigates is
+    not enough to apply this rule.
 - **Bad:**
 
   ```dart
@@ -89,3 +108,4 @@ a test **verifies** the change.
   that only checks the end cannot see a transition that disappeared.
 - **Source:** measured with `go_router` 17.5.0 in a migrated app, in [Your packages haven't migrated to material_ui. Can you?](https://github.com/marwaMejri/material_ui_packages_migration)
 - **Level:** suggestion
+- **Triggers:** `GoRoute`, `GoRouter`, `Navigator`, `MaterialApp`, `CupertinoApp`, `routes:`, `go_router:`, `auto_route:`, `beamer:`

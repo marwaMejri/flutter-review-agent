@@ -34,4 +34,58 @@ void main() {
     expect(rule.text, contains('**Do not flag when:**'));
     expect(rule.text, isNot(contains('## P2.')));
   });
+
+  test('reads the triggers and leaves them out of the text', () {
+    final Rule rule = parseRules(
+      File('rules/performance.md').readAsStringSync(),
+    ).firstWhere((Rule r) => r.id == 'P5');
+
+    expect(rule.triggers, <String>[
+      'ListView(',
+      'GridView(',
+      'Column(',
+      'SliverChildListDelegate(',
+      'SingleChildScrollView(',
+    ]);
+    expect(rule.text, isNot(contains('Triggers')));
+  });
+
+  test('applies a rule only when a trigger matches', () {
+    final Rule rule = Rule(
+      id: 'X1',
+      title: 't',
+      text: 't',
+      triggers: <String>['AnimatedBuilder', 'file:test/'],
+    );
+
+    expect(
+      rule.isTriggeredBy(
+        paths: <String>['lib/a.dart'],
+        addedCode: <String>['return AnimatedBuilder('],
+      ),
+      isTrue,
+    );
+    expect(
+      rule.isTriggeredBy(
+        paths: <String>['test/a_test.dart'],
+        addedCode: <String>['expect(x, 1);'],
+      ),
+      isTrue,
+    );
+    expect(
+      rule.isTriggeredBy(
+        paths: <String>['lib/a.dart'],
+        addedCode: <String>['Text(title)'],
+      ),
+      isFalse,
+    );
+    expect(
+      Rule(
+        id: 'X2',
+        title: 't',
+        text: 't',
+      ).isTriggeredBy(paths: <String>[], addedCode: <String>[]),
+      isTrue,
+    );
+  });
 }

@@ -1,0 +1,18 @@
+diff --git a/lib/features/releases/releases_page.dart b/lib/features/releases/releases_page.dart
+index f4970e6..d2c9c4d 100644
+--- a/lib/features/releases/releases_page.dart
++++ b/lib/features/releases/releases_page.dart
+@@ -12,6 +12,13 @@ class ReleasesPage extends StatelessWidget {
+       appBar: AppBar(
+         title: const Text('$appName releases'),
+         actions: <Widget>[
++          IconButton(
++            icon: const Icon(Icons.done_all),
++            tooltip: 'Mark all as read',
++            onPressed: () => ScaffoldMessenger.of(
++              context,
++            ).showSnackBar(const SnackBar(content: Text('All read'))),
++          ),
+           IconButton(
+             icon: const Icon(Icons.settings),
+             tooltip: 'Settings',

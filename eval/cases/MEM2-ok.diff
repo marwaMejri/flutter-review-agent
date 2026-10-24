@@ -1,0 +1,29 @@
+diff --git a/lib/features/settings/settings_page.dart b/lib/features/settings/settings_page.dart
+index 046a039..48b5b7c 100644
+--- a/lib/features/settings/settings_page.dart
++++ b/lib/features/settings/settings_page.dart
+@@ -24,6 +24,12 @@ class _SettingsPageState extends State<SettingsPage> {
+     super.dispose();
+   }
+ 
++  void _showSaved(BuildContext context) {
++    ScaffoldMessenger.of(
++      context,
++    ).showSnackBar(const SnackBar(content: Text('Channel saved')));
++  }
++
+   @override
+   Widget build(BuildContext context) {
+     return Scaffold(
+@@ -42,7 +48,10 @@ class _SettingsPageState extends State<SettingsPage> {
+               DropdownItem<String>(value: 'stable', child: Text('Stable')),
+               DropdownItem<String>(value: 'beta', child: Text('Beta')),
+             ],
+-            onChanged: (String? value) => _channel.value = value,
++            onChanged: (String? value) {
++              _channel.value = value;
++              _showSaved(context);
++            },
+           ),
+         ),
+       ),

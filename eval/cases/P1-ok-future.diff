@@ -1,0 +1,61 @@
+diff --git a/lib/core/data/releases.dart b/lib/core/data/releases.dart
+index 966af98..a165896 100644
+--- a/lib/core/data/releases.dart
++++ b/lib/core/data/releases.dart
+@@ -73,3 +73,6 @@ Release? releaseById(String id) {
+   }
+   return null;
+ }
++
++/// Counts the releases that the user has not opened yet.
++Future<int> countUnread() async => releases.length;
+diff --git a/lib/features/releases/releases_page.dart b/lib/features/releases/releases_page.dart
+index f4970e6..71feccb 100644
+--- a/lib/features/releases/releases_page.dart
++++ b/lib/features/releases/releases_page.dart
+@@ -1,6 +1,7 @@
+ import 'package:go_router/go_router.dart';
+ import 'package:material_ui/material_ui.dart';
+ import 'package:material_ui_packages_migration/core/data/releases.dart';
++import 'package:material_ui_packages_migration/features/releases/unread_header.dart';
+ 
+ class ReleasesPage extends StatelessWidget {
+   const ReleasesPage({super.key});
+@@ -21,6 +22,7 @@ class ReleasesPage extends StatelessWidget {
+       ),
+       body: ListView(
+         children: <Widget>[
++          const UnreadHeader(),
+           for (final Release release in releases)
+             ListTile(
+               leading: CircleAvatar(
+diff --git a/lib/features/releases/unread_header.dart b/lib/features/releases/unread_header.dart
+new file mode 100644
+index 0000000..747d35e
+--- /dev/null
++++ b/lib/features/releases/unread_header.dart
+@@ -0,0 +1,24 @@
++import 'package:material_ui/material_ui.dart';
++import 'package:material_ui_packages_migration/core/data/releases.dart';
++
++/// Shows how many releases the user has not opened yet.
++class UnreadHeader extends StatefulWidget {
++  const UnreadHeader({super.key});
++
++  @override
++  State<UnreadHeader> createState() => _UnreadHeaderState();
++}
++
++class _UnreadHeaderState extends State<UnreadHeader> {
++  late final Future<int> _unread = countUnread();
++
++  @override
++  Widget build(BuildContext context) {
++    return FutureBuilder<int>(
++      future: _unread,
++      builder: (BuildContext context, AsyncSnapshot<int> snapshot) {
++        return ListTile(title: Text('${snapshot.data ?? 0} new releases'));
++      },
++    );
++  }
++}

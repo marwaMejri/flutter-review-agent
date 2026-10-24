@@ -1,0 +1,17 @@
+diff --git a/test/release_list_test.dart b/test/release_list_test.dart
+new file mode 100644
+index 0000000..74578a5
+--- /dev/null
++++ b/test/release_list_test.dart
+@@ -0,0 +1,11 @@
++import 'package:flutter_test/flutter_test.dart';
++
++import 'package:material_ui_packages_migration/app/app.dart';
++
++void main() {
++  testWidgets('the list shows every release', (WidgetTester tester) async {
++    tester.pumpWidget(const ReleaseNotesApp());
++
++    expect(find.text('Version 3.0.0'), findsOneWidget);
++  });
++}

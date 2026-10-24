@@ -1,0 +1,69 @@
+diff --git a/lib/core/data/releases.dart b/lib/core/data/releases.dart
+index 966af98..e250f89 100644
+--- a/lib/core/data/releases.dart
++++ b/lib/core/data/releases.dart
+@@ -73,3 +73,12 @@ Release? releaseById(String id) {
+   }
+   return null;
+ }
++
++/// The releases whose version starts with 0, or null when there is none.
++List<Release>? betaReleases() {
++  final List<Release> found = <Release>[
++    for (final Release release in releases)
++      if (release.version.startsWith('0.')) release,
++  ];
++  return found.isEmpty ? null : found;
++}
+diff --git a/lib/features/releases/note_search.dart b/lib/features/releases/note_search.dart
+new file mode 100644
+index 0000000..3eacba1
+--- /dev/null
++++ b/lib/features/releases/note_search.dart
+@@ -0,0 +1,24 @@
++import 'package:material_ui/material_ui.dart';
++
++/// A field to search the release notes.
++class NoteSearch extends StatefulWidget {
++  const NoteSearch({required this.onSearch, super.key});
++
++  final ValueChanged<String> onSearch;
++
++  @override
++  State<NoteSearch> createState() => _NoteSearchState();
++}
++
++class _NoteSearchState extends State<NoteSearch> {
++  final TextEditingController _controller = TextEditingController();
++
++  @override
++  Widget build(BuildContext context) {
++    return TextField(
++      controller: _controller,
++      decoration: const InputDecoration(labelText: 'Search'),
++      onSubmitted: widget.onSearch,
++    );
++  }
++}
+diff --git a/lib/features/releases/releases_page.dart b/lib/features/releases/releases_page.dart
+index f4970e6..e8c1954 100644
+--- a/lib/features/releases/releases_page.dart
++++ b/lib/features/releases/releases_page.dart
+@@ -8,6 +8,8 @@ class ReleasesPage extends StatelessWidget {
+   @override
+   Widget build(BuildContext context) {
+     final ColorScheme colors = Theme.of(context).colorScheme;
++    final List<Release> sorted = List<Release>.of(releases)
++      ..sort((Release a, Release b) => a.date.compareTo(b.date));
+     return Scaffold(
+       appBar: AppBar(
+         title: const Text('$appName releases'),
+@@ -21,7 +23,7 @@ class ReleasesPage extends StatelessWidget {
+       ),
+       body: ListView(
+         children: <Widget>[
+-          for (final Release release in releases)
++          for (final Release release in sorted)
+             ListTile(
+               leading: CircleAvatar(
+                 backgroundColor: colors.primary,

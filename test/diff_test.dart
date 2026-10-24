@@ -34,4 +34,12 @@ void main() {
 
     expect(files.single.addedLines, <int>{11, 12});
   });
+
+  test('keeps the code of each line of the new version', () {
+    final DiffFile file = parseDiff(sampleDiff).single;
+
+    expect(file.newLineText[10], '  final int x;');
+    expect(file.newLineText[12], '  final int w;');
+    expect(file.newLineText.containsKey(14), isFalse);
+  });
 }

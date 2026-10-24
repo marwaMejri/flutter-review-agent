@@ -16,6 +16,12 @@ Future<void> main(List<String> arguments) async {
     ..addMultiOption('pack', help: 'Optional pack to turn on, by file name.')
     ..addOption('conventions', help: 'Path of the project CONVENTIONS.md.')
     ..addOption(
+      'project',
+      help:
+          'Folder of the reviewed project. The full changed files are read '
+          'from it and sent with the diff.',
+    )
+    ..addOption(
       'provider',
       help:
           'Provider with a preset (${providerPresets.keys.join(', ')}). '
@@ -32,6 +38,11 @@ Future<void> main(List<String> arguments) async {
           'preference. Overrides $modelVariable.',
     )
     ..addOption('json', help: 'Also write the result as JSON to this path.')
+    ..addFlag(
+      'list-models',
+      negatable: false,
+      help: 'Print the models of the provider, then stop.',
+    )
     ..addFlag('help', abbr: 'h', negatable: false);
 
   final ArgResults options;
@@ -42,7 +53,8 @@ Future<void> main(List<String> arguments) async {
     exitCode = 64;
     return;
   }
-  if (options.flag('help') || options.option('diff') == null) {
+  if (options.flag('help') ||
+      (options.option('diff') == null && !options.flag('list-models'))) {
     stdout
       ..writeln('Usage: dart run flutter_review --diff <file>')
       ..writeln()
@@ -50,6 +62,10 @@ Future<void> main(List<String> arguments) async {
       ..writeln('  $apiKeyVariable   the API key (required)')
       ..writeln('  $providerVariable  ${providerPresets.keys.join(', ')}')
       ..writeln('  $baseUrlVariable and $modelVariable  for another provider')
+      ..writeln(
+        '  $timeoutVariable  longest time for one review, in seconds '
+        '(default ${defaultReviewTimeout.inSeconds})',
+      )
       ..writeln(parser.usage);
     return;
   }
@@ -70,18 +86,37 @@ Future<void> main(List<String> arguments) async {
     return;
   }
 
+  if (options.flag('list-models')) {
+    final ModelClient lister = ModelClient(
+      provider: config.provider,
+      baseUrl: config.baseUrl,
+      models: config.models,
+      apiKey: config.apiKey,
+    );
+    final List<String> available = await lister.listModels();
+    lister.close();
+    if (available.isEmpty) {
+      stderr.writeln(
+        'The list of models of ${config.provider} is empty or '
+        'cannot be read.',
+      );
+      exitCode = 1;
+      return;
+    }
+    (available..sort()).forEach(stdout.writeln);
+    return;
+  }
+
   final String diffPath = options.option('diff')!;
   final String diff = diffPath == '-'
       ? await stdin.transform(utf8.decoder).join()
       : await File(diffPath).readAsString();
 
-  final List<Rule> rules = <Rule>[
-    ...await _readRules(Directory(options.option('rules')!)),
-    for (final String pack in options.multiOption('pack'))
-      ...parseRules(
-        await File('${options.option('packs')}/$pack.md').readAsString(),
-      ),
-  ];
+  final List<Rule> rules = readRules(
+    rulesFolder: options.option('rules')!,
+    packsFolder: options.option('packs')!,
+    packs: options.multiOption('pack'),
+  );
 
   final String? conventionsPath = options.option('conventions');
   final String? conventions =
@@ -95,6 +130,7 @@ Future<void> main(List<String> arguments) async {
     models: config.models,
     apiKey: config.apiKey,
     modelPattern: config.modelPattern,
+    totalTimeout: config.timeout,
   );
   final ReviewResult result;
   try {
@@ -103,6 +139,13 @@ Future<void> main(List<String> arguments) async {
       rules: rules,
       client: client,
       conventions: conventions,
+      readSource: switch (options.option('project')) {
+        final String project => (String path) {
+          final File file = File('$project/$path');
+          return file.existsSync() ? file.readAsStringSync() : null;
+        },
+        null => null,
+      },
     );
   } on ModelException catch (error) {
     stderr.writeln(error);
@@ -116,7 +159,13 @@ Future<void> main(List<String> arguments) async {
     client.close();
   }
 
-  stdout.writeln('Model: ${client.answeredBy} (${config.provider})');
+  if (result.sentRules.isEmpty) {
+    stdout.writeln('No rule applies to this change: the model was not called.');
+  } else {
+    stdout
+      ..writeln('Model: ${client.answeredBy} (${config.provider})')
+      ..writeln('Rules applied: ${result.sentRules.join(', ')}');
+  }
   if (client.answeredByDiscoveredModel) {
     stdout.writeln(
       'Note: this model was found in the list of ${config.provider}. '
@@ -141,6 +190,9 @@ Future<void> main(List<String> arguments) async {
         'findings': <Map<String, Object>>[
           for (final Finding finding in result.accepted) finding.toJson(),
         ],
+        'checks': <Map<String, Object>>[
+          for (final RuleCheck check in result.checks) check.toJson(),
+        ],
         'rejected': <Map<String, Object>>[
           for (final RejectedFinding item in result.rejected)
             <String, Object>{...item.finding.toJson(), 'reason': item.reason},
@@ -148,23 +200,6 @@ Future<void> main(List<String> arguments) async {
       }),
     );
   }
-}
-
-/// Reads every rules file of a folder, except its README.
-Future<List<Rule>> _readRules(Directory folder) async {
-  final List<File> files =
-      folder
-          .listSync()
-          .whereType<File>()
-          .where(
-            (File file) =>
-                file.path.endsWith('.md') && !file.path.endsWith('README.md'),
-          )
-          .toList()
-        ..sort((File a, File b) => a.path.compareTo(b.path));
-  return <Rule>[
-    for (final File file in files) ...parseRules(await file.readAsString()),
-  ];
 }
 
 void _printReport(ReviewResult result, List<Rule> rules) {

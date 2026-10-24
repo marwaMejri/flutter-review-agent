@@ -1,0 +1,30 @@
+diff --git a/lib/features/settings/settings_page.dart b/lib/features/settings/settings_page.dart
+index 046a039..a7fbc4c 100644
+--- a/lib/features/settings/settings_page.dart
++++ b/lib/features/settings/settings_page.dart
+@@ -17,6 +17,7 @@ class SettingsPage extends StatefulWidget {
+ 
+ class _SettingsPageState extends State<SettingsPage> {
+   final ValueNotifier<String?> _channel = ValueNotifier<String?>('stable');
++  bool _showHelp = false;
+ 
+   @override
+   void dispose() {
+@@ -27,7 +28,16 @@ class _SettingsPageState extends State<SettingsPage> {
+   @override
+   Widget build(BuildContext context) {
+     return Scaffold(
+-      appBar: AppBar(title: const Text('Settings')),
++      appBar: AppBar(
++        title: const Text('Settings'),
++        actions: <Widget>[
++          IconButton(
++            icon: Icon(_showHelp ? Icons.help : Icons.help_outline),
++            tooltip: 'Help',
++            onPressed: () => setState(() => _showHelp = !_showHelp),
++          ),
++        ],
++      ),
+       body: Padding(
+         padding: const EdgeInsets.all(16),
+         child: legacy.Material(

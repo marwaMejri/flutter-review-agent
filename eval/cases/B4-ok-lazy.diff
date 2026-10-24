@@ -1,0 +1,13 @@
+diff --git a/lib/core/data/release_index.dart b/lib/core/data/release_index.dart
+new file mode 100644
+index 0000000..aee35a7
+--- /dev/null
++++ b/lib/core/data/release_index.dart
+@@ -0,0 +1,7 @@
++import 'package:material_ui_packages_migration/core/data/releases.dart';
++
++/// The releases, newest first. They are sorted the first time they are read.
++class ReleaseIndex {
++  late final List<Release> newestFirst = List<Release>.of(releases)
++    ..sort((Release a, Release b) => b.id.compareTo(a.id));
++}

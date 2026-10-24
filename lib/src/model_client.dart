@@ -22,7 +22,8 @@ class ModelException implements Exception {
 /// - when none of [models] can answer, the provider's own list of models is
 ///   read, and the newest model that matches [modelPattern] is used;
 /// - a setting the model refuses (`temperature`, `response_format`) is
-///   removed and the request is sent again.
+///   removed and the request is sent again;
+/// - the whole call never takes longer than [totalTimeout].
 class ModelClient {
   ModelClient({
     required this.provider,
@@ -31,9 +32,11 @@ class ModelClient {
     required this.apiKey,
     this.modelPattern,
     http.Client? httpClient,
-    this.maxAttempts = 4,
+    this.maxAttempts = 3,
     this.firstDelay = const Duration(seconds: 2),
     this.requestTimeout = const Duration(seconds: 90),
+    this.maxRetryWait = const Duration(seconds: 60),
+    this.totalTimeout = const Duration(minutes: 3),
   }) : _http = httpClient ?? http.Client();
 
   /// The provider name, used in messages.
@@ -54,9 +57,18 @@ class ModelClient {
   /// Wait before the second attempt. It doubles after each attempt.
   final Duration firstDelay;
 
+  /// Longest wait before trying a busy model again, even when the provider
+  /// asks for more.
+  final Duration maxRetryWait;
+
   /// Longest wait for one answer. A request that takes longer counts as a
   /// busy attempt, so a stuck connection never blocks the review.
   final Duration requestTimeout;
+
+  /// Longest time for one call of [complete], waits and other models
+  /// included. After it, the call stops with a [ModelException], so a busy
+  /// provider never blocks the pull request.
+  final Duration totalTimeout;
 
   /// The model that gave the last answer.
   String? answeredBy;
@@ -64,6 +76,16 @@ class ModelClient {
   /// Whether that model was found in the provider's list, and not one of
   /// [models]. Such a model was not measured by the evaluation.
   bool answeredByDiscoveredModel = false;
+
+  /// Tokens of the last call, as the provider counted them: the question
+  /// (`prompt_tokens`) and the answer (`completion_tokens`). Null when the
+  /// provider does not say.
+  int? promptTokens;
+  int? answerTokens;
+
+  /// How long the model took to give the last answer, without the waits for
+  /// a busy provider.
+  Duration? answerTime;
 
   /// "Busy, try again later": too many requests (429) and service
   /// unavailable (503).
@@ -91,13 +113,19 @@ class ModelClient {
     required String system,
     required String user,
   }) async {
+    answeredBy = null;
+    answeredByDiscoveredModel = false;
+    promptTokens = null;
+    answerTokens = null;
+    answerTime = null;
+    final DateTime deadline = DateTime.now().add(totalTimeout);
     final List<String> skipped = <String>[];
     final Set<String> tried = <String>{};
 
     Future<String?> tryModel(String model) async {
       tried.add(model);
       try {
-        final String text = await _completeWith(model, system, user);
+        final String text = await _completeWith(model, system, user, deadline);
         answeredBy = model;
         return text;
       } on _SkipModelException catch (error) {
@@ -114,6 +142,9 @@ class ModelClient {
     }
 
     if (modelPattern != null) {
+      if (!DateTime.now().isBefore(deadline)) {
+        throw _timeOut(skipped);
+      }
       final RegExp pattern = RegExp(modelPattern!);
       final List<String> discovered =
           (await listModels())
@@ -167,7 +198,18 @@ class ModelClient {
     ];
   }
 
-  Future<String> _completeWith(String model, String system, String user) async {
+  ModelException _timeOut(List<String> skipped) => ModelException(
+    'No answer from $provider within ${totalTimeout.inSeconds} s'
+    '${skipped.isEmpty ? '' : ' (${skipped.join('; ')})'}. '
+    'The review stops here so that it never blocks the pull request.',
+  );
+
+  Future<String> _completeWith(
+    String model,
+    String system,
+    String user,
+    DateTime deadline,
+  ) async {
     final Map<String, Object> request = <String, Object>{
       'model': model,
       'temperature': 0,
@@ -181,7 +223,12 @@ class ModelClient {
     Duration delay = firstDelay;
     int busyAttempts = 0;
     while (true) {
+      final Duration remaining = deadline.difference(DateTime.now());
+      if (remaining <= Duration.zero) {
+        throw _timeOut(<String>['$model: still busy']);
+      }
       final http.Response response;
+      final Stopwatch watch = Stopwatch()..start();
       try {
         response = await _http
             .post(
@@ -189,8 +236,11 @@ class ModelClient {
               headers: _headers,
               body: jsonEncode(request),
             )
-            .timeout(requestTimeout);
+            .timeout(remaining < requestTimeout ? remaining : requestTimeout);
       } on TimeoutException {
+        if (!DateTime.now().isBefore(deadline)) {
+          throw _timeOut(<String>['$model: no answer']);
+        }
         busyAttempts++;
         if (busyAttempts >= maxAttempts) {
           throw _SkipModelException(
@@ -206,6 +256,7 @@ class ModelClient {
       final int status = response.statusCode;
 
       if (status == 200) {
+        answerTime = watch.elapsed;
         return _readContent(body);
       }
       if (_refusedStatus.contains(status) || _isKeyError(status, body)) {
@@ -223,18 +274,49 @@ class ModelClient {
           request.remove(refused);
           continue;
         }
+        if (body.contains('json_validate_failed') &&
+            request.containsKey('response_format')) {
+          // The provider refused an answer that was not valid JSON in JSON
+          // mode (Groq does this). The agent can read JSON without that mode,
+          // so the request is sent again without it.
+          request.remove('response_format');
+          continue;
+        }
         throw ModelException('HTTP 400 from $provider ($model): $body');
       }
       if (!_busyStatus.contains(status)) {
         throw ModelException('HTTP $status from $provider ($model): $body');
       }
+      final Duration? retryDelay = parseRetryDelay(response);
+      if (status == 429 &&
+          retryDelay == null &&
+          body.toLowerCase().contains('quota')) {
+        // A quota that is used up, with no time to try again: waiting would
+        // not help.
+        throw _SkipModelException('quota used up: ${_short(body)}');
+      }
+      if (retryDelay != null && retryDelay > maxRetryWait) {
+        // Waiting less than the provider asks would only get another refusal,
+        // for example when the tokens of the day are used up.
+        throw _SkipModelException(
+          'the provider asks to wait ${retryDelay.inSeconds} s: '
+          '${_short(body)}',
+        );
+      }
       busyAttempts++;
       if (busyAttempts >= maxAttempts) {
         throw _SkipModelException(
-          'busy, HTTP $status after $busyAttempts attempts',
+          'busy, HTTP $status after $busyAttempts attempts: ${_short(body)}',
         );
       }
-      await Future<void>.delayed(delay);
+      // Wait as long as the provider asks, when it says so, but never more
+      // than [maxRetryWait], and never past the deadline.
+      final Duration asked = retryDelay ?? delay;
+      final Duration wait = asked > maxRetryWait ? maxRetryWait : asked;
+      if (!DateTime.now().add(wait).isBefore(deadline)) {
+        throw _timeOut(<String>['$model: busy, HTTP $status']);
+      }
+      await Future<void>.delayed(wait);
       delay *= 2;
     }
   }
@@ -262,6 +344,17 @@ class ModelClient {
   String _readContent(String body) {
     final Object? decoded = jsonDecode(body);
     if (decoded is Map<String, Object?> &&
+        decoded['usage'] is Map<String, Object?>) {
+      final Map<String, Object?> usage =
+          decoded['usage']! as Map<String, Object?>;
+      promptTokens = usage['prompt_tokens'] is int
+          ? usage['prompt_tokens']! as int
+          : null;
+      answerTokens = usage['completion_tokens'] is int
+          ? usage['completion_tokens']! as int
+          : null;
+    }
+    if (decoded is Map<String, Object?> &&
         decoded['choices'] is List<Object?> &&
         (decoded['choices']! as List<Object?>).isNotEmpty) {
       final Object? choice = (decoded['choices']! as List<Object?>).first;
@@ -278,6 +371,32 @@ class ModelClient {
   }
 
   void close() => _http.close();
+}
+
+/// How long the provider asks to wait before trying again, if it says so.
+///
+/// Reads the standard `Retry-After` header (in seconds), then the
+/// `"retryDelay": "32s"` field that Gemini puts in its error body.
+Duration? parseRetryDelay(http.Response response) {
+  final int? header = int.tryParse(response.headers['retry-after'] ?? '');
+  if (header != null) {
+    return Duration(seconds: header);
+  }
+  final Match? match = RegExp(
+    r'"retryDelay"\s*:\s*"(\d+(?:\.\d+)?)s"',
+  ).firstMatch(utf8.decode(response.bodyBytes));
+  if (match != null) {
+    return Duration(
+      milliseconds: (double.parse(match.group(1)!) * 1000).round(),
+    );
+  }
+  return null;
+}
+
+/// The start of an error body, on one line, for messages.
+String _short(String body) {
+  final String line = body.replaceAll(RegExp(r'\s+'), ' ').trim();
+  return line.length > 160 ? '${line.substring(0, 160)}…' : line;
 }
 
 /// Sorts model names so that the highest version numbers come first:

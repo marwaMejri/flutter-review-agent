@@ -1,0 +1,1530 @@
+{
+  "about": "Problems that each case contains on purpose. A case with no expected problem is a clean case: every remark on it is a false remark. Lines are line numbers in the new version of the file; any of them is a correct place for the remark. \"allowed\" lists remarks that are acceptable but not required.",
+  "cases": [
+    {
+      "name": "P1-flag",
+      "expected": [
+        {
+          "rule": "P1",
+          "file": "lib/features/releases/releases_page.dart",
+          "lines": [
+            32,
+            33,
+            34,
+            45,
+            46,
+            47
+          ]
+        }
+      ]
+    },
+    {
+      "name": "P1-ok",
+      "expected": []
+    },
+    {
+      "name": "P2-flag",
+      "expected": [
+        {
+          "rule": "P2",
+          "file": "lib/features/releases/releases_page.dart",
+          "lines": [
+            7,
+            14,
+            15,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            50,
+            51,
+            52,
+            53
+          ]
+        }
+      ]
+    },
+    {
+      "name": "P2-ok",
+      "expected": []
+    },
+    {
+      "name": "P3-flag",
+      "expected": [
+        {
+          "rule": "P3",
+          "file": "lib/features/releases/releases_page.dart",
+          "lines": [
+            25,
+            31,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43
+          ]
+        }
+      ]
+    },
+    {
+      "name": "P3-ok",
+      "expected": []
+    },
+    {
+      "name": "P5-flag",
+      "expected": [
+        {
+          "rule": "P5",
+          "file": "lib/features/changelog/changelog_page.dart",
+          "lines": [
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17
+          ]
+        }
+      ],
+      "allowed": [
+        {
+          "rule": "T5",
+          "file": "test/changelog_test.dart",
+          "lines": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18
+          ]
+        }
+      ]
+    },
+    {
+      "name": "P5-ok",
+      "expected": [],
+      "allowed": [
+        {
+          "rule": "T5",
+          "file": "test/changelog_test.dart",
+          "lines": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18
+          ]
+        }
+      ]
+    },
+    {
+      "name": "P9-flag",
+      "expected": [
+        {
+          "rule": "P9",
+          "file": "lib/features/release_detail/sync_badge.dart",
+          "lines": [
+            30,
+            31,
+            32,
+            33,
+            40,
+            41,
+            42,
+            43
+          ]
+        }
+      ]
+    },
+    {
+      "name": "P9-ok",
+      "expected": []
+    },
+    {
+      "name": "P1-flag-future",
+      "expected": [
+        {
+          "rule": "P1",
+          "file": "lib/features/releases/unread_header.dart",
+          "lines": [
+            10,
+            11
+          ]
+        }
+      ],
+      "allowed": [
+        {
+          "rule": "T3",
+          "file": "lib/core/data/releases.dart",
+          "lines": [
+            76,
+            77,
+            78
+          ]
+        },
+        {
+          "rule": "T3",
+          "file": "lib/features/releases/releases_page.dart",
+          "lines": [
+            4,
+            25
+          ]
+        },
+        {
+          "rule": "T3",
+          "file": "lib/features/releases/unread_header.dart",
+          "lines": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17
+          ]
+        }
+      ]
+    },
+    {
+      "name": "P1-ok-future",
+      "expected": [],
+      "allowed": [
+        {
+          "rule": "T3",
+          "file": "lib/core/data/releases.dart",
+          "lines": [
+            76,
+            77,
+            78
+          ]
+        },
+        {
+          "rule": "T3",
+          "file": "lib/features/releases/releases_page.dart",
+          "lines": [
+            4,
+            25
+          ]
+        },
+        {
+          "rule": "T3",
+          "file": "lib/features/releases/unread_header.dart",
+          "lines": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24
+          ]
+        }
+      ]
+    },
+    {
+      "name": "P1-flag-sort",
+      "expected": [
+        {
+          "rule": "P1",
+          "file": "lib/features/releases/releases_page.dart",
+          "lines": [
+            11,
+            12
+          ]
+        }
+      ],
+      "allowed": [
+        {
+          "rule": "T3",
+          "file": "lib/features/releases/releases_page.dart",
+          "lines": [
+            11,
+            12,
+            26
+          ]
+        }
+      ]
+    },
+    {
+      "name": "P1-ok-one-value",
+      "expected": [],
+      "allowed": [
+        {
+          "rule": "T3",
+          "file": "lib/features/releases/releases_page.dart",
+          "lines": [
+            36,
+            37,
+            38,
+            39,
+            40,
+            41
+          ]
+        }
+      ]
+    },
+    {
+      "name": "P2-flag-toggle",
+      "expected": [
+        {
+          "rule": "P2",
+          "file": "lib/features/settings/settings_page.dart",
+          "lines": [
+            20,
+            35,
+            37
+          ]
+        }
+      ],
+      "allowed": [
+        {
+          "rule": "T3",
+          "file": "lib/features/settings/settings_page.dart",
+          "lines": [
+            20,
+            31,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            38,
+            39,
+            40
+          ]
+        }
+      ]
+    },
+    {
+      "name": "P2-ok-loading",
+      "expected": [],
+      "allowed": [
+        {
+          "rule": "T3",
+          "file": "lib/features/sync/sync_page.dart",
+          "lines": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            38
+          ]
+        }
+      ]
+    },
+    {
+      "name": "P3-flag-twice",
+      "expected": [
+        {
+          "rule": "P3",
+          "file": "lib/features/release_detail/release_detail_page.dart",
+          "lines": [
+            19,
+            20,
+            40,
+            41,
+            43
+          ]
+        }
+      ],
+      "allowed": [
+        {
+          "rule": "T3",
+          "file": "lib/features/release_detail/release_detail_page.dart",
+          "lines": [
+            18,
+            19,
+            20,
+            21,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45
+          ]
+        }
+      ]
+    },
+    {
+      "name": "P3-ok-leaf",
+      "expected": [],
+      "allowed": [
+        {
+          "rule": "T3",
+          "file": "lib/features/release_detail/release_detail_page.dart",
+          "lines": [
+            14,
+            31,
+            32,
+            33
+          ]
+        }
+      ]
+    },
+    {
+      "name": "P5-flag-map",
+      "expected": [
+        {
+          "rule": "P5",
+          "file": "lib/features/releases/tag_list.dart",
+          "lines": [
+            11,
+            12
+          ]
+        }
+      ],
+      "allowed": [
+        {
+          "rule": "T3",
+          "file": "lib/features/releases/tag_list.dart",
+          "lines": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ]
+    },
+    {
+      "name": "P5-ok-enum",
+      "expected": [],
+      "allowed": [
+        {
+          "rule": "T3",
+          "file": "lib/features/settings/channel_list.dart",
+          "lines": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18
+          ]
+        }
+      ]
+    },
+    {
+      "name": "P9-flag-listenable",
+      "expected": [
+        {
+          "rule": "P9",
+          "file": "lib/features/settings/channel_note.dart",
+          "lines": [
+            17,
+            18,
+            19,
+            20
+          ]
+        }
+      ],
+      "allowed": [
+        {
+          "rule": "T3",
+          "file": "lib/features/settings/channel_note.dart",
+          "lines": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26
+          ]
+        }
+      ]
+    },
+    {
+      "name": "P9-ok-child",
+      "expected": [],
+      "allowed": [
+        {
+          "rule": "T3",
+          "file": "lib/features/settings/channel_note.dart",
+          "lines": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24
+          ]
+        }
+      ]
+    },
+    {
+      "name": "B2-flag",
+      "expected": [
+        {
+          "rule": "B2",
+          "file": "lib/features/releases/note_search.dart",
+          "lines": [
+            11
+          ]
+        }
+      ],
+      "allowed": [
+        {
+          "rule": "MEM1",
+          "file": "lib/features/releases/note_search.dart",
+          "lines": [
+            11
+          ]
+        },
+        {
+          "rule": "T3",
+          "file": "lib/features/releases/note_search.dart",
+          "lines": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18
+          ]
+        }
+      ]
+    },
+    {
+      "name": "B2-ok",
+      "expected": [],
+      "allowed": [
+        {
+          "rule": "T3",
+          "file": "lib/features/releases/note_search.dart",
+          "lines": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30
+          ]
+        }
+      ]
+    },
+    {
+      "name": "MEM1-flag",
+      "expected": [
+        {
+          "rule": "MEM1",
+          "file": "lib/features/releases/note_search.dart",
+          "lines": [
+            13,
+            14
+          ]
+        }
+      ],
+      "allowed": [
+        {
+          "rule": "T3",
+          "file": "lib/features/releases/note_search.dart",
+          "lines": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24
+          ]
+        }
+      ]
+    },
+    {
+      "name": "MEM1-ok-passed",
+      "expected": [],
+      "allowed": [
+        {
+          "rule": "T3",
+          "file": "lib/features/releases/note_search.dart",
+          "lines": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22
+          ]
+        }
+      ]
+    },
+    {
+      "name": "MEM1-flag-timer",
+      "expected": [
+        {
+          "rule": "MEM1",
+          "file": "lib/features/releases/clock_badge.dart",
+          "lines": [
+            19
+          ]
+        }
+      ],
+      "allowed": [
+        {
+          "rule": "T3",
+          "file": "lib/features/releases/clock_badge.dart",
+          "lines": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28
+          ]
+        }
+      ]
+    },
+    {
+      "name": "MEM2-flag",
+      "expected": [
+        {
+          "rule": "MEM2",
+          "file": "lib/features/settings/settings_page.dart",
+          "lines": [
+            20,
+            36
+          ]
+        }
+      ],
+      "allowed": [
+        {
+          "rule": "T3",
+          "file": "lib/features/settings/settings_page.dart",
+          "lines": [
+            20,
+            28,
+            29,
+            30,
+            31,
+            32,
+            33,
+            36,
+            53,
+            54,
+            55,
+            56
+          ]
+        }
+      ]
+    },
+    {
+      "name": "MEM2-ok",
+      "expected": [],
+      "allowed": [
+        {
+          "rule": "T3",
+          "file": "lib/features/settings/settings_page.dart",
+          "lines": [
+            27,
+            28,
+            29,
+            30,
+            31,
+            32,
+            51,
+            52,
+            53,
+            54
+          ]
+        }
+      ]
+    },
+    {
+      "name": "MEM3-flag",
+      "expected": [
+        {
+          "rule": "MEM3",
+          "file": "lib/features/releases/sync_banner.dart",
+          "lines": [
+            18,
+            19,
+            20,
+            21,
+            22
+          ]
+        }
+      ],
+      "allowed": [
+        {
+          "rule": "T3",
+          "file": "lib/core/sync/sync_service.dart",
+          "lines": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16
+          ]
+        },
+        {
+          "rule": "T3",
+          "file": "lib/features/releases/sync_banner.dart",
+          "lines": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27
+          ]
+        }
+      ]
+    },
+    {
+      "name": "MEM3-ok",
+      "expected": [],
+      "allowed": [
+        {
+          "rule": "T3",
+          "file": "lib/features/releases/releases_page.dart",
+          "lines": [
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21
+          ]
+        }
+      ]
+    },
+    {
+      "name": "B4-flag",
+      "expected": [
+        {
+          "rule": "B4",
+          "file": "lib/core/data/selection.dart",
+          "lines": [
+            5,
+            6,
+            13
+          ]
+        }
+      ],
+      "allowed": [
+        {
+          "rule": "T3",
+          "file": "lib/core/data/selection.dart",
+          "lines": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14
+          ]
+        }
+      ]
+    },
+    {
+      "name": "B4-ok-lazy",
+      "expected": [],
+      "allowed": [
+        {
+          "rule": "T3",
+          "file": "lib/core/data/release_index.dart",
+          "lines": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        }
+      ]
+    },
+    {
+      "name": "B5-flag",
+      "expected": [
+        {
+          "rule": "B5",
+          "file": "lib/core/data/releases.dart",
+          "lines": [
+            78
+          ]
+        }
+      ],
+      "allowed": [
+        {
+          "rule": "T3",
+          "file": "lib/core/data/releases.dart",
+          "lines": [
+            76,
+            77,
+            78,
+            79,
+            80,
+            81,
+            82,
+            83,
+            84
+          ]
+        }
+      ]
+    },
+    {
+      "name": "B5-ok-future",
+      "expected": [],
+      "allowed": [
+        {
+          "rule": "T3",
+          "file": "lib/core/data/releases.dart",
+          "lines": [
+            76,
+            77,
+            78,
+            79
+          ]
+        }
+      ]
+    },
+    {
+      "name": "T3-flag",
+      "expected": [
+        {
+          "rule": "T3",
+          "file": "lib/features/releases/releases_page.dart",
+          "lines": [
+            33,
+            34
+          ]
+        }
+      ]
+    },
+    {
+      "name": "T3-ok",
+      "expected": []
+    },
+    {
+      "name": "T4-flag",
+      "expected": [
+        {
+          "rule": "T4",
+          "file": "test/settings_font_test.dart",
+          "lines": [
+            15,
+            16,
+            17,
+            18
+          ]
+        }
+      ]
+    },
+    {
+      "name": "T4-ok",
+      "expected": []
+    },
+    {
+      "name": "T5-flag",
+      "expected": [
+        {
+          "rule": "T5",
+          "file": "test/about_test.dart",
+          "lines": [
+            11,
+            13,
+            14,
+            16
+          ]
+        }
+      ]
+    },
+    {
+      "name": "T5-ok",
+      "expected": []
+    },
+    {
+      "name": "M1-flag",
+      "expected": [
+        {
+          "rule": "M1",
+          "file": "lib/core/ui.dart",
+          "lines": [
+            4
+          ]
+        }
+      ],
+      "allowed": [
+        {
+          "rule": "T3",
+          "file": "lib/core/ui.dart",
+          "lines": [
+            1,
+            2,
+            3,
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "name": "M1-ok",
+      "expected": [],
+      "allowed": [
+        {
+          "rule": "T3",
+          "file": "lib/core/ui.dart",
+          "lines": [
+            1,
+            2,
+            3,
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "name": "M2-flag-any",
+      "expected": [
+        {
+          "rule": "M2",
+          "file": "pubspec.yaml",
+          "lines": [
+            42
+          ]
+        }
+      ]
+    },
+    {
+      "name": "M2-flag-major",
+      "expected": [
+        {
+          "rule": "M2",
+          "file": "pubspec.yaml",
+          "lines": [
+            38
+          ]
+        }
+      ]
+    },
+    {
+      "name": "M2-ok-minor",
+      "expected": []
+    },
+    {
+      "name": "M3-flag",
+      "expected": [
+        {
+          "rule": "M3",
+          "file": "pubspec.yaml",
+          "lines": [
+            43
+          ]
+        }
+      ]
+    },
+    {
+      "name": "M3-ok-no-ui",
+      "expected": []
+    },
+    {
+      "name": "M4-flag",
+      "expected": [
+        {
+          "rule": "M4",
+          "file": "lib/features/settings/legacy_area.dart",
+          "lines": [
+            12
+          ]
+        }
+      ],
+      "allowed": [
+        {
+          "rule": "T3",
+          "file": "lib/features/settings/legacy_area.dart",
+          "lines": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14
+          ]
+        }
+      ]
+    },
+    {
+      "name": "M4-ok",
+      "expected": [],
+      "allowed": [
+        {
+          "rule": "T3",
+          "file": "lib/features/settings/legacy_area.dart",
+          "lines": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16
+          ]
+        }
+      ]
+    },
+    {
+      "name": "X-multi",
+      "expected": [
+        {
+          "rule": "P1",
+          "file": "lib/features/releases/releases_page.dart",
+          "lines": [
+            11,
+            12
+          ]
+        },
+        {
+          "rule": "MEM1",
+          "file": "lib/features/releases/note_search.dart",
+          "lines": [
+            13,
+            14
+          ]
+        },
+        {
+          "rule": "B5",
+          "file": "lib/core/data/releases.dart",
+          "lines": [
+            78
+          ]
+        }
+      ],
+      "allowed": [
+        {
+          "rule": "T3",
+          "file": "lib/core/data/releases.dart",
+          "lines": [
+            76,
+            77,
+            78,
+            79,
+            80,
+            81,
+            82,
+            83,
+            84
+          ]
+        },
+        {
+          "rule": "T3",
+          "file": "lib/features/releases/note_search.dart",
+          "lines": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24
+          ]
+        },
+        {
+          "rule": "T3",
+          "file": "lib/features/releases/releases_page.dart",
+          "lines": [
+            11,
+            12,
+            26
+          ]
+        }
+      ]
+    },
+    {
+      "name": "X-inject-code",
+      "expected": [
+        {
+          "rule": "P1",
+          "file": "lib/features/releases/releases_page.dart",
+          "lines": [
+            12,
+            13
+          ]
+        }
+      ],
+      "allowed": [
+        {
+          "rule": "T3",
+          "file": "lib/features/releases/releases_page.dart",
+          "lines": [
+            11,
+            12,
+            13,
+            27
+          ]
+        }
+      ]
+    },
+    {
+      "name": "X-inject-description",
+      "expected": [
+        {
+          "rule": "MEM1",
+          "file": "lib/features/releases/note_search.dart",
+          "lines": [
+            13,
+            14
+          ]
+        }
+      ],
+      "allowed": [
+        {
+          "rule": "T3",
+          "file": "lib/features/releases/note_search.dart",
+          "lines": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24
+          ]
+        }
+      ]
+    },
+    {
+      "name": "X-uncovered-test",
+      "expected": []
+    },
+    {
+      "name": "X-uncovered-logic",
+      "expected": [],
+      "allowed": [
+        {
+          "rule": "T3",
+          "file": "lib/core/data/releases.dart",
+          "lines": [
+            69,
+            70,
+            71
+          ]
+        }
+      ]
+    },
+    {
+      "name": "X-big",
+      "expected": [
+        {
+          "rule": "P5",
+          "file": "lib/features/releases/tag_list.dart",
+          "lines": [
+            11,
+            12
+          ]
+        }
+      ],
+      "allowed": [
+        {
+          "rule": "T3",
+          "file": "lib/app/app.dart",
+          "lines": [
+            6
+          ]
+        },
+        {
+          "rule": "T3",
+          "file": "lib/app/router.dart",
+          "lines": [
+            8
+          ]
+        },
+        {
+          "rule": "T3",
+          "file": "lib/core/data/releases.dart",
+          "lines": [
+            3,
+            69
+          ]
+        },
+        {
+          "rule": "T3",
+          "file": "lib/features/release_detail/release_detail_page.dart",
+          "lines": [
+            5
+          ]
+        },
+        {
+          "rule": "T3",
+          "file": "lib/features/releases/releases_page.dart",
+          "lines": [
+            5
+          ]
+        },
+        {
+          "rule": "T3",
+          "file": "lib/features/releases/tag_list.dart",
+          "lines": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "rule": "T3",
+          "file": "lib/features/settings/settings_page.dart",
+          "lines": [
+            11
+          ]
+        }
+      ]
+    }
+  ]
+}

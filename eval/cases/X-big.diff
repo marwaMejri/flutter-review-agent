@@ -1,0 +1,100 @@
+diff --git a/lib/app/app.dart b/lib/app/app.dart
+index 8503d05..354a1a9 100644
+--- a/lib/app/app.dart
++++ b/lib/app/app.dart
+@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
+ import 'package:material_ui_packages_migration/app/router.dart';
+ import 'package:material_ui_packages_migration/core/theme/app_theme.dart';
+ 
++/// The root of the app: theme, router and the compatibility bridge.
+ class ReleaseNotesApp extends StatefulWidget {
+   const ReleaseNotesApp({super.key});
+ 
+diff --git a/lib/app/router.dart b/lib/app/router.dart
+index 98f6614..d703492 100644
+--- a/lib/app/router.dart
++++ b/lib/app/router.dart
+@@ -5,6 +5,7 @@ import 'package:material_ui_packages_migration/features/release_detail/release_d
+ import 'package:material_ui_packages_migration/features/releases/releases_page.dart';
+ import 'package:material_ui_packages_migration/features/settings/settings_page.dart';
+ 
++/// Creates the router of the app. Every page is a child of the list.
+ GoRouter createRouter() {
+   return GoRouter(
+     routes: <RouteBase>[
+diff --git a/lib/core/data/releases.dart b/lib/core/data/releases.dart
+index 966af98..819b6a2 100644
+--- a/lib/core/data/releases.dart
++++ b/lib/core/data/releases.dart
+@@ -1,5 +1,6 @@
+ const String appName = 'Notely';
+ 
++/// One version of the app, with its notes in Markdown.
+ class Release {
+   const Release({
+     required this.id,
+@@ -65,6 +66,7 @@ Write notes, sort them into folders, and search them.
+   ),
+ ];
+ 
++/// The release with this [id], or null when there is none.
+ Release? releaseById(String id) {
+   for (final Release release in releases) {
+     if (release.id == id) {
+diff --git a/lib/features/release_detail/release_detail_page.dart b/lib/features/release_detail/release_detail_page.dart
+index 141586b..d7f2394 100644
+--- a/lib/features/release_detail/release_detail_page.dart
++++ b/lib/features/release_detail/release_detail_page.dart
+@@ -2,6 +2,7 @@ import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
+ import 'package:material_ui/material_ui.dart';
+ import 'package:material_ui_packages_migration/core/data/releases.dart';
+ 
++/// The notes of one release, rendered as Markdown.
+ class ReleaseDetailPage extends StatelessWidget {
+   const ReleaseDetailPage({required this.id, super.key});
+ 
+diff --git a/lib/features/releases/releases_page.dart b/lib/features/releases/releases_page.dart
+index f4970e6..97cc86a 100644
+--- a/lib/features/releases/releases_page.dart
++++ b/lib/features/releases/releases_page.dart
+@@ -2,6 +2,7 @@ import 'package:go_router/go_router.dart';
+ import 'package:material_ui/material_ui.dart';
+ import 'package:material_ui_packages_migration/core/data/releases.dart';
+ 
++/// The list of every release, newest first.
+ class ReleasesPage extends StatelessWidget {
+   const ReleasesPage({super.key});
+ 
+diff --git a/lib/features/releases/tag_list.dart b/lib/features/releases/tag_list.dart
+new file mode 100644
+index 0000000..2224775
+--- /dev/null
++++ b/lib/features/releases/tag_list.dart
+@@ -0,0 +1,15 @@
++import 'package:material_ui/material_ui.dart';
++
++/// Lists the tags of a note.
++class TagList extends StatelessWidget {
++  const TagList({required this.tags, super.key});
++
++  final List<String> tags;
++
++  @override
++  Widget build(BuildContext context) {
++    return ListView(
++      children: tags.map((String tag) => ListTile(title: Text(tag))).toList(),
++    );
++  }
++}
+diff --git a/lib/features/settings/settings_page.dart b/lib/features/settings/settings_page.dart
+index 046a039..96c4811 100644
+--- a/lib/features/settings/settings_page.dart
++++ b/lib/features/settings/settings_page.dart
+@@ -8,6 +8,7 @@ import 'package:flutter/material.dart'
+     show InputDecoration, Material, MaterialType, OutlineInputBorder;
+ import 'package:material_ui/material_ui.dart';
+ 
++/// Lets the user choose the update channel.
+ class SettingsPage extends StatefulWidget {
+   const SettingsPage({super.key});
+ 

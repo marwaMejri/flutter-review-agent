@@ -9,6 +9,7 @@ import 'src/rules.dart';
 
 export 'src/config.dart';
 export 'src/diff.dart';
+export 'src/evaluation.dart';
 export 'src/findings.dart';
 export 'src/model_client.dart';
 export 'src/prompt.dart';
@@ -20,6 +21,8 @@ class ReviewResult {
     required this.accepted,
     required this.rejected,
     required this.reviewedFiles,
+    this.sentRules = const <String>[],
+    this.checks = const <RuleCheck>[],
   });
 
   /// Remarks that cite a known rule and a line of the diff.
@@ -30,11 +33,31 @@ class ReviewResult {
 
   /// Files the agent looked at.
   final List<String> reviewedFiles;
+
+  /// Rules sent to the model, after the triggers. Empty when no rule applies:
+  /// then the model is not called at all.
+  final List<String> sentRules;
+
+  /// The model's answer for each rule sent, with its reason.
+  final List<RuleCheck> checks;
 }
 
-/// Returns true for the files the agent reviews: Dart code and the pubspec.
+/// Suffixes of generated Dart files: nobody writes them by hand, so nobody
+/// should review them.
+const List<String> generatedSuffixes = <String>[
+  '.g.dart',
+  '.freezed.dart',
+  '.gr.dart',
+  '.config.dart',
+  '.mocks.dart',
+];
+
+/// Returns true for the files the agent reviews: Dart code written by hand,
+/// and the pubspec.
 bool isReviewed(String path) =>
-    path.endsWith('.dart') || path == 'pubspec.yaml';
+    path == 'pubspec.yaml' ||
+    (path.endsWith('.dart') &&
+        !generatedSuffixes.any((String suffix) => path.endsWith(suffix)));
 
 /// Reviews a diff with the given rules.
 Future<ReviewResult> review({
@@ -42,34 +65,65 @@ Future<ReviewResult> review({
   required List<Rule> rules,
   required ModelClient client,
   String? conventions,
+  String? Function(String path)? readSource,
 }) async {
   final List<DiffFile> files = parseDiff(
     diff,
   ).where((DiffFile file) => isReviewed(file.path)).toList();
 
-  if (files.isEmpty) {
+  final List<Rule> sent = rules
+      .where(
+        (Rule rule) => rule.isTriggeredBy(
+          paths: <String>[for (final DiffFile file in files) file.path],
+          addedCode: <String>[
+            for (final DiffFile file in files) ...file.addedCode,
+          ],
+        ),
+      )
+      .toList();
+
+  if (files.isEmpty || sent.isEmpty) {
     return ReviewResult(
       accepted: <Finding>[],
       rejected: <RejectedFinding>[],
-      reviewedFiles: <String>[],
+      reviewedFiles: <String>[for (final DiffFile file in files) file.path],
     );
   }
 
-  final String answer = await client.complete(
-    system: systemPrompt,
-    user: buildUserPrompt(rules: rules, files: files, conventions: conventions),
+  final String user = buildUserPrompt(
+    rules: sent,
+    files: files,
+    conventions: conventions,
+    sources: <String, String>{
+      if (readSource != null)
+        for (final DiffFile file in files)
+          if (readSource(file.path) case final String source) file.path: source,
+    },
   );
 
+  // A model sometimes answers text that is not the expected JSON. The same
+  // question usually gets a correct answer the second time.
+  String answer = await client.complete(system: systemPrompt, user: user);
+  List<Finding> findings;
+  try {
+    findings = parseFindings(answer);
+  } on InvalidAnswerException {
+    answer = await client.complete(system: systemPrompt, user: user);
+    findings = parseFindings(answer);
+  }
+
   final Set<String> ruleIds = <String>{
-    for (final Rule rule in rules) rule.id,
+    for (final Rule rule in sent) rule.id,
     if (conventions != null && conventions.trim().isNotEmpty) conventionRuleId,
   };
   final ({List<Finding> accepted, List<RejectedFinding> rejected}) checked =
-      validateFindings(parseFindings(answer), files: files, ruleIds: ruleIds);
+      validateFindings(findings, files: files, ruleIds: ruleIds);
 
   return ReviewResult(
     accepted: checked.accepted,
     rejected: checked.rejected,
     reviewedFiles: <String>[for (final DiffFile file in files) file.path],
+    sentRules: <String>[for (final Rule rule in sent) rule.id],
+    checks: parseChecks(answer),
   );
 }

@@ -1,0 +1,17 @@
+diff --git a/lib/core/data/releases.dart b/lib/core/data/releases.dart
+index 966af98..e250f89 100644
+--- a/lib/core/data/releases.dart
++++ b/lib/core/data/releases.dart
+@@ -73,3 +73,12 @@ Release? releaseById(String id) {
+   }
+   return null;
+ }
++
++/// The releases whose version starts with 0, or null when there is none.
++List<Release>? betaReleases() {
++  final List<Release> found = <Release>[
++    for (final Release release in releases)
++      if (release.version.startsWith('0.')) release,
++  ];
++  return found.isEmpty ? null : found;
++}

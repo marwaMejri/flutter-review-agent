@@ -1,0 +1,12 @@
+diff --git a/pubspec.yaml b/pubspec.yaml
+index eb9eed2..3afe42b 100644
+--- a/pubspec.yaml
++++ b/pubspec.yaml
+@@ -40,6 +40,7 @@ dependencies:
+   flutter_markdown_plus: 1.0.12
+ 
+   material_ui: 1.7.0
++  flutter_slidable: ^4.0.0
+ dev_dependencies:
+   flutter_test:
+     sdk: flutter

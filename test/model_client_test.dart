@@ -68,7 +68,7 @@ void main() {
       client.complete(system: 's', user: 'u'),
       throwsA(isA<ModelException>()),
     );
-    expect(calls, 4);
+    expect(calls, 3);
   });
 
   test('does not try again on other errors', () async {
@@ -105,7 +105,6 @@ void main() {
     expect(await client.complete(system: 's', user: 'u'), 'ok');
     expect(client.answeredBy, 'free-model');
     expect(asked, <String>[
-      'busy-model',
       'busy-model',
       'busy-model',
       'busy-model',
@@ -285,5 +284,137 @@ void main() {
 
     expect(await client.complete(system: 's', user: 'u'), 'ok');
     expect(calls, 2);
+  });
+
+  test('reads how long the provider asks to wait', () {
+    expect(
+      parseRetryDelay(
+        http.Response('', 429, headers: <String, String>{'retry-after': '7'}),
+      ),
+      const Duration(seconds: 7),
+    );
+    expect(
+      parseRetryDelay(
+        http.Response('{"details": [{"retryDelay": "32s"}]}', 429),
+      ),
+      const Duration(seconds: 32),
+    );
+    expect(parseRetryDelay(http.Response('busy', 503)), isNull);
+  });
+
+  test(
+    'sends again without JSON mode when the provider refuses the JSON',
+    () async {
+      final List<Map<String, Object?>> sent = <Map<String, Object?>>[];
+      final ModelClient client = clientWith(
+        MockClient((http.Request request) async {
+          sent.add(jsonDecode(request.body) as Map<String, Object?>);
+          return sent.length == 1
+              ? http.Response(
+                  '{"error": {"code": "json_validate_failed"}}',
+                  400,
+                )
+              : answer('ok');
+        }),
+      );
+
+      expect(await client.complete(system: 's', user: 'u'), 'ok');
+      expect(sent.first.containsKey('response_format'), isTrue);
+      expect(sent.last.containsKey('response_format'), isFalse);
+    },
+  );
+
+  test('skips at once a model whose quota is used up', () async {
+    final List<String> asked = <String>[];
+    final ModelClient client = clientWith(
+      MockClient((http.Request request) async {
+        final String model =
+            (jsonDecode(request.body) as Map<String, Object?>)['model']!
+                as String;
+        asked.add(model);
+        return model == 'empty-model'
+            ? http.Response('You exceeded your current quota', 429)
+            : answer('ok');
+      }),
+      models: <String>['empty-model', 'free-model'],
+    );
+
+    expect(await client.complete(system: 's', user: 'u'), 'ok');
+    expect(asked, <String>['empty-model', 'free-model']);
+  });
+
+  test('stops when the whole call takes too long', () async {
+    final ModelClient client = ModelClient(
+      provider: 'test-provider',
+      baseUrl: 'https://example.com/v1/',
+      models: <String>['test-model'],
+      apiKey: 'test-key',
+      maxAttempts: 100,
+      firstDelay: const Duration(milliseconds: 30),
+      totalTimeout: const Duration(milliseconds: 100),
+      httpClient: MockClient(
+        (http.Request request) async => http.Response('busy', 503),
+      ),
+    );
+
+    await expectLater(
+      client.complete(system: 's', user: 'u'),
+      throwsA(
+        isA<ModelException>().having(
+          (ModelException e) => e.message,
+          'message',
+          contains('No answer from test-provider within'),
+        ),
+      ),
+    );
+  });
+
+  test('skips at once a model that asks to wait longer than allowed', () async {
+    final List<String> asked = <String>[];
+    final ModelClient client = clientWith(
+      MockClient((http.Request request) async {
+        final String model =
+            (jsonDecode(request.body) as Map<String, Object?>)['model']!
+                as String;
+        asked.add(model);
+        return model == 'tired-model'
+            ? http.Response(
+                'limit reached',
+                429,
+                headers: <String, String>{'retry-after': '600'},
+              )
+            : answer('ok');
+      }),
+      models: <String>['tired-model', 'free-model'],
+    );
+
+    expect(await client.complete(system: 's', user: 'u'), 'ok');
+    expect(asked, <String>['tired-model', 'free-model']);
+  });
+
+  test('reads how many tokens the call used', () async {
+    final ModelClient client = clientWith(
+      MockClient(
+        (http.Request request) async => http.Response(
+          jsonEncode(<String, Object>{
+            'choices': <Object>[
+              <String, Object>{
+                'message': <String, String>{'content': 'ok'},
+              },
+            ],
+            'usage': <String, int>{
+              'prompt_tokens': 1200,
+              'completion_tokens': 300,
+            },
+          }),
+          200,
+        ),
+      ),
+    );
+
+    await client.complete(system: 's', user: 'u');
+
+    expect(client.promptTokens, 1200);
+    expect(client.answerTokens, 300);
   });
 }

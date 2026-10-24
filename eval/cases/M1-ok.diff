@@ -1,0 +1,10 @@
+diff --git a/lib/core/ui.dart b/lib/core/ui.dart
+new file mode 100644
+index 0000000..e3cedc9
+--- /dev/null
++++ b/lib/core/ui.dart
+@@ -0,0 +1,4 @@
++/// Everything the screens need from the design library.
++library;
++
++export 'package:material_ui/material_ui.dart';

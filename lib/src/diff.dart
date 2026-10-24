@@ -13,6 +13,13 @@ class DiffFile {
   /// Lines of the new version added by the pull request.
   final Set<int> addedLines = <int>{};
 
+  /// The code of the added lines, without the leading `+`.
+  final List<String> addedCode = <String>[];
+
+  /// The code of each line of the new version shown in the diff, by line
+  /// number, without the leading `+` or space.
+  final Map<int, String> newLineText = <int, String>{};
+
   /// The diff of this file, with the line number of the new version in front
   /// of each line, so the model can cite exact lines.
   final List<String> annotated = <String>[];
@@ -68,12 +75,15 @@ List<DiffFile> parseDiff(String diff) {
 
     if (line.startsWith('+')) {
       current.addedLines.add(newLine);
+      current.addedCode.add(line.substring(1));
+      current.newLineText[newLine] = line.substring(1);
       current.commentableLines.add(newLine);
       current.annotated.add('${_number(newLine)} |$line');
       newLine++;
     } else if (line.startsWith('-')) {
       current.annotated.add('      |$line');
     } else if (line.startsWith(' ')) {
+      current.newLineText[newLine] = line.substring(1);
       current.commentableLines.add(newLine);
       current.annotated.add('${_number(newLine)} |$line');
       newLine++;

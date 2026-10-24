@@ -1,6 +1,10 @@
 include: package:lints/recommended.yaml
 
 analyzer:
+  # Copies of the example Flutter app used by the evaluation. They are not
+  # code of this package, and they need Flutter to be analyzed.
+  exclude:
+    - eval/files/**
   language:
     strict-casts: true
     strict-inference: true

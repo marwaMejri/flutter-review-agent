@@ -1,0 +1,26 @@
+diff --git a/test/settings_font_test.dart b/test/settings_font_test.dart
+new file mode 100644
+index 0000000..26da6dd
+--- /dev/null
++++ b/test/settings_font_test.dart
+@@ -0,0 +1,20 @@
++import 'package:flutter/widgets.dart';
++import 'package:flutter_test/flutter_test.dart';
++
++import 'package:material_ui_packages_migration/app/app.dart';
++
++void main() {
++  testWidgets('the settings title uses the Google font', (
++    WidgetTester tester,
++  ) async {
++    await tester.pumpWidget(const ReleaseNotesApp());
++    await tester.pumpAndSettle();
++    await tester.tap(find.byTooltip('Settings'));
++    await tester.pumpAndSettle();
++
++    final DefaultTextStyle style = tester.widget<DefaultTextStyle>(
++      find.byType(DefaultTextStyle).first,
++    );
++    expect(style.style.fontFamily, startsWith('Merriweather'));
++  });
++}

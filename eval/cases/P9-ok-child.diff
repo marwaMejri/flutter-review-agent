@@ -1,0 +1,30 @@
+diff --git a/lib/features/settings/channel_note.dart b/lib/features/settings/channel_note.dart
+new file mode 100644
+index 0000000..1f8b458
+--- /dev/null
++++ b/lib/features/settings/channel_note.dart
+@@ -0,0 +1,24 @@
++import 'package:material_ui/material_ui.dart';
++
++/// Shows the chosen update channel, and a note about restarts.
++class ChannelNote extends StatelessWidget {
++  const ChannelNote({required this.channel, super.key});
++
++  final ValueListenable<String?> channel;
++
++  @override
++  Widget build(BuildContext context) {
++    return ValueListenableBuilder<String?>(
++      valueListenable: channel,
++      child: Text(
++        'Changes apply after a restart.',
++        style: Theme.of(context).textTheme.bodySmall,
++      ),
++      builder: (BuildContext context, String? value, Widget? child) {
++        return Column(
++          children: <Widget>[Text('Channel: ${value ?? 'none'}'), child!],
++        );
++      },
++    );
++  }
++}

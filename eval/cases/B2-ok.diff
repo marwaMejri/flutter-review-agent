@@ -1,0 +1,36 @@
+diff --git a/lib/features/releases/note_search.dart b/lib/features/releases/note_search.dart
+new file mode 100644
+index 0000000..cb7c704
+--- /dev/null
++++ b/lib/features/releases/note_search.dart
+@@ -0,0 +1,30 @@
++import 'package:material_ui/material_ui.dart';
++
++/// A field to search the release notes.
++class NoteSearch extends StatefulWidget {
++  const NoteSearch({required this.onSearch, super.key});
++
++  final ValueChanged<String> onSearch;
++
++  @override
++  State<NoteSearch> createState() => _NoteSearchState();
++}
++
++class _NoteSearchState extends State<NoteSearch> {
++  final TextEditingController _controller = TextEditingController();
++
++  @override
++  void dispose() {
++    _controller.dispose();
++    super.dispose();
++  }
++
++  @override
++  Widget build(BuildContext context) {
++    return TextField(
++      controller: _controller,
++      decoration: const InputDecoration(labelText: 'Search'),
++      onSubmitted: widget.onSearch,
++    );
++  }
++}

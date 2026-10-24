@@ -6,6 +6,10 @@ const String apiKeyVariable = 'FLUTTER_REVIEW_API_KEY';
 const String providerVariable = 'FLUTTER_REVIEW_PROVIDER';
 const String baseUrlVariable = 'FLUTTER_REVIEW_BASE_URL';
 const String modelVariable = 'FLUTTER_REVIEW_MODEL';
+const String timeoutVariable = 'FLUTTER_REVIEW_TIMEOUT';
+
+/// Longest time for one review when [timeoutVariable] is not set.
+const Duration defaultReviewTimeout = Duration(minutes: 3);
 
 /// What the agent knows about a provider.
 class ProviderPreset {
@@ -39,21 +43,19 @@ const Map<String, ProviderPreset> providerPresets = <String, ProviderPreset>{
       'gemini-3.8-flash',
       'gemini-3.7-flash',
       'gemini-3.5-flash',
-      'gemini-2.5-flash',
     ],
     // Stable Flash models only: no preview, lite, image, audio or live model.
     modelPattern: r'^gemini-\d+(\.\d+)?-flash$',
     tested: true,
   ),
-  // https://console.groq.com/docs/models (production models)
+  // https://console.groq.com/docs/models (production models). The Llama
+  // models were shut down on 16 August 2026, except for Enterprise plans:
+  // https://console.groq.com/docs/deprecations
   'groq': ProviderPreset(
     baseUrl: 'https://api.groq.com/openai/v1/',
-    models: <String>[
-      'openai/gpt-oss-120b',
-      'llama-3.3-70b-versatile',
-      'openai/gpt-oss-20b',
-    ],
-    modelPattern: r'^(openai/gpt-oss-\d+b|llama-\d+(\.\d+)?-\d+b-versatile)$',
+    models: <String>['openai/gpt-oss-120b', 'openai/gpt-oss-20b'],
+    // GPT-OSS chat models only: not the safeguard (moderation) models.
+    modelPattern: r'^openai/gpt-oss-\d+b$',
     tested: false,
   ),
   // https://developers.openai.com/api/docs/models/gpt-5.6-terra
@@ -84,6 +86,7 @@ class ReviewConfig {
     required this.apiKey,
     this.modelPattern,
     this.tested = false,
+    this.timeout = defaultReviewTimeout,
   });
 
   /// The provider name, used in messages. `custom` when none is given.
@@ -97,6 +100,9 @@ class ReviewConfig {
 
   /// Whether this provider was measured on the evaluation cases.
   final bool tested;
+
+  /// Longest time for one review, waits for a busy provider included.
+  final Duration timeout;
 }
 
 /// Builds the settings from environment variables (or command options with the
@@ -123,6 +129,19 @@ ReviewConfig resolveConfig(Map<String, String> settings) {
     throw ConfigException('$apiKeyVariable is not set.');
   }
 
+  final String? timeoutText = read(timeoutVariable);
+  final int? timeoutSeconds = timeoutText == null
+      ? null
+      : int.tryParse(timeoutText);
+  if (timeoutText != null && (timeoutSeconds == null || timeoutSeconds <= 0)) {
+    throw ConfigException(
+      '$timeoutVariable must be a number of seconds, for example 180.',
+    );
+  }
+  final Duration timeout = timeoutSeconds == null
+      ? defaultReviewTimeout
+      : Duration(seconds: timeoutSeconds);
+
   final ProviderPreset? preset = provider == null
       ? null
       : providerPresets[provider];
@@ -135,6 +154,7 @@ ReviewConfig resolveConfig(Map<String, String> settings) {
       apiKey: apiKey,
       modelPattern: preset.modelPattern,
       tested: preset.tested && models == null && baseUrl == null,
+      timeout: timeout,
     );
   }
 
@@ -144,6 +164,7 @@ ReviewConfig resolveConfig(Map<String, String> settings) {
       baseUrl: baseUrl,
       models: models,
       apiKey: apiKey,
+      timeout: timeout,
     );
   }
 

@@ -1,0 +1,84 @@
+diff --git a/lib/app/router.dart b/lib/app/router.dart
+index 98f6614..70d9c9f 100644
+--- a/lib/app/router.dart
++++ b/lib/app/router.dart
+@@ -1,6 +1,7 @@
+ import 'package:flutter/widgets.dart';
+ import 'package:go_router/go_router.dart';
+ 
++import 'package:material_ui_packages_migration/features/about/about_page.dart';
+ import 'package:material_ui_packages_migration/features/release_detail/release_detail_page.dart';
+ import 'package:material_ui_packages_migration/features/releases/releases_page.dart';
+ import 'package:material_ui_packages_migration/features/settings/settings_page.dart';
+@@ -23,6 +24,11 @@ GoRouter createRouter() {
+             builder: (BuildContext context, GoRouterState state) =>
+                 const SettingsPage(),
+           ),
++          GoRoute(
++            path: 'about',
++            builder: (BuildContext context, GoRouterState state) =>
++                const AboutPage(),
++          ),
+         ],
+       ),
+     ],
+diff --git a/lib/features/about/about_page.dart b/lib/features/about/about_page.dart
+new file mode 100644
+index 0000000..7209901
+--- /dev/null
++++ b/lib/features/about/about_page.dart
+@@ -0,0 +1,14 @@
++import 'package:material_ui/material_ui.dart';
++
++/// Says what the app is and who makes it.
++class AboutPage extends StatelessWidget {
++  const AboutPage({super.key});
++
++  @override
++  Widget build(BuildContext context) {
++    return Scaffold(
++      appBar: AppBar(title: const Text('About')),
++      body: const Center(child: Text('$appName, by the Notely team.')),
++    );
++  }
++}
+diff --git a/lib/features/releases/releases_page.dart b/lib/features/releases/releases_page.dart
+index f4970e6..ce23e59 100644
+--- a/lib/features/releases/releases_page.dart
++++ b/lib/features/releases/releases_page.dart
+@@ -12,6 +12,11 @@ class ReleasesPage extends StatelessWidget {
+       appBar: AppBar(
+         title: const Text('$appName releases'),
+         actions: <Widget>[
++          IconButton(
++            icon: const Icon(Icons.info_outline),
++            tooltip: 'About',
++            onPressed: () => context.go('/about'),
++          ),
+           IconButton(
+             icon: const Icon(Icons.settings),
+             tooltip: 'Settings',
+diff --git a/test/about_test.dart b/test/about_test.dart
+new file mode 100644
+index 0000000..8aadc11
+--- /dev/null
++++ b/test/about_test.dart
+@@ -0,0 +1,18 @@
++import 'package:flutter_test/flutter_test.dart';
++
++import 'package:material_ui_packages_migration/app/app.dart';
++import 'package:material_ui_packages_migration/features/about/about_page.dart';
++
++void main() {
++  testWidgets('the About button opens the About page', (
++    WidgetTester tester,
++  ) async {
++    await tester.pumpWidget(const ReleaseNotesApp());
++    await tester.pumpAndSettle();
++
++    await tester.tap(find.byTooltip('About'));
++    await tester.pumpAndSettle();
++
++    expect(find.byType(AboutPage), findsOneWidget);
++  });
++}

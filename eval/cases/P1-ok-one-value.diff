@@ -1,0 +1,17 @@
+diff --git a/lib/features/releases/releases_page.dart b/lib/features/releases/releases_page.dart
+index f4970e6..ad5385b 100644
+--- a/lib/features/releases/releases_page.dart
++++ b/lib/features/releases/releases_page.dart
+@@ -33,6 +33,12 @@ class ReleasesPage extends StatelessWidget {
+               trailing: const Icon(Icons.chevron_right),
+               onTap: () => context.go('/releases/${release.id}'),
+             ),
++          ListTile(
++            title: Text(
++              '${releases.length} releases',
++              style: Theme.of(context).textTheme.bodySmall,
++            ),
++          ),
+         ],
+       ),
+     );

@@ -1,0 +1,20 @@
+diff --git a/lib/core/data/selection.dart b/lib/core/data/selection.dart
+new file mode 100644
+index 0000000..73cf6e3
+--- /dev/null
++++ b/lib/core/data/selection.dart
+@@ -0,0 +1,14 @@
++import 'package:material_ui_packages_migration/core/data/releases.dart';
++
++/// The release the user opened last.
++class Selection {
++  late Release _release;
++  bool _hasRelease = false;
++
++  void select(Release release) {
++    _release = release;
++    _hasRelease = true;
++  }
++
++  String get title => _hasRelease ? _release.version : 'No release';
++}

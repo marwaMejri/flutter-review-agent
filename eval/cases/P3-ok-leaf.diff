@@ -1,0 +1,25 @@
+diff --git a/lib/features/release_detail/release_detail_page.dart b/lib/features/release_detail/release_detail_page.dart
+index 141586b..05989e6 100644
+--- a/lib/features/release_detail/release_detail_page.dart
++++ b/lib/features/release_detail/release_detail_page.dart
+@@ -11,11 +11,7 @@ class ReleaseDetailPage extends StatelessWidget {
+   Widget build(BuildContext context) {
+     final Release? release = releaseById(id);
+     return Scaffold(
+-      appBar: AppBar(
+-        title: Text(
+-          release == null ? 'Not found' : 'Version ${release.version}',
+-        ),
+-      ),
++      appBar: AppBar(title: _title(release)),
+       body: release == null
+           ? const Center(child: Text('This release does not exist.'))
+           : Markdown(
+@@ -32,4 +28,7 @@ class ReleaseDetailPage extends StatelessWidget {
+             ),
+     );
+   }
++
++  Widget _title(Release? release) =>
++      Text(release == null ? 'Not found' : 'Version ${release.version}');
+ }

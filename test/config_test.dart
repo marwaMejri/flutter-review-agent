@@ -76,4 +76,24 @@ void main() {
       expect(config.models, isNotEmpty, reason: provider);
     }
   });
+
+  test('reads the longest time for one review', () {
+    final Map<String, String> settings = <String, String>{
+      apiKeyVariable: 'key',
+      providerVariable: 'groq',
+    };
+
+    expect(resolveConfig(settings).timeout, defaultReviewTimeout);
+    expect(
+      resolveConfig(<String, String>{
+        ...settings,
+        timeoutVariable: '60',
+      }).timeout,
+      const Duration(seconds: 60),
+    );
+    expect(
+      () => resolveConfig(<String, String>{...settings, timeoutVariable: 'x'}),
+      throwsA(isA<ConfigException>()),
+    );
+  });
 }

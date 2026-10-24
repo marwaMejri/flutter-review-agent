@@ -1,0 +1,15 @@
+diff --git a/lib/features/releases/releases_page.dart b/lib/features/releases/releases_page.dart
+index f4970e6..869876e 100644
+--- a/lib/features/releases/releases_page.dart
++++ b/lib/features/releases/releases_page.dart
+@@ -30,7 +30,9 @@ class ReleasesPage extends StatelessWidget {
+               ),
+               title: Text('Version ${release.version}'),
+               subtitle: Text('${release.date} · ${release.summary}'),
+-              trailing: const Icon(Icons.chevron_right),
++              trailing: release.summary.toLowerCase().contains('fix')
++                  ? const Chip(label: Text('Fix'))
++                  : const Icon(Icons.chevron_right),
+               onTap: () => context.go('/releases/${release.id}'),
+             ),
+         ],

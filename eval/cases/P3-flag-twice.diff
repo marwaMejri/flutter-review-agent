@@ -1,0 +1,27 @@
+diff --git a/lib/features/release_detail/release_detail_page.dart b/lib/features/release_detail/release_detail_page.dart
+index 141586b..403b9ed 100644
+--- a/lib/features/release_detail/release_detail_page.dart
++++ b/lib/features/release_detail/release_detail_page.dart
+@@ -15,6 +15,10 @@ class ReleaseDetailPage extends StatelessWidget {
+         title: Text(
+           release == null ? 'Not found' : 'Version ${release.version}',
+         ),
++        actions: <Widget>[
++          if (release != null) _buildTag(context, release.date),
++          if (release != null) _buildTag(context, release.summary),
++        ],
+       ),
+       body: release == null
+           ? const Center(child: Text('This release does not exist.'))
+@@ -32,4 +36,11 @@ class ReleaseDetailPage extends StatelessWidget {
+             ),
+     );
+   }
++
++  Widget _buildTag(BuildContext context, String label) {
++    return Padding(
++      padding: const EdgeInsets.symmetric(horizontal: 4),
++      child: Chip(label: Text(label)),
++    );
++  }
+ }

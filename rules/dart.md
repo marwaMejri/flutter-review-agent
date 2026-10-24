@@ -8,8 +8,10 @@ rules need a reviewer.
 - **Check:** `late` fields and variables.
 - **Flag when:** the code tracks whether a `late` variable was set, with a
   flag such as `_isInitialized`, or catches `LateInitializationError`.
-- **Do not flag when:** the variable is always set before it is read, for
-  example in `initState`.
+- **Do not flag when:**
+  - the code never checks whether the variable is set: it is assigned in its
+    declaration (lazy initialization), in the constructor or in `initState`,
+    before any read.
 - **Bad:**
 
   ```dart
@@ -38,28 +40,38 @@ rules need a reviewer.
   nullable type says the same thing, and the compiler checks it.
 - **Source:** [Effective Dart, Usage: AVOID late variables if you need to check whether they are initialized](https://dart.dev/effective-dart/usage)
 - **Level:** issue
+- **Triggers:** `late `
 
 ## B5. A nullable `Future`, `Stream` or collection returned
 
 - **Check:** return types of functions, methods and getters.
 - **Flag when:** the return type is `Future<T>?`, `Stream<T>?`, `List<T>?`,
-  `Set<T>?`, `Map<K, V>?`, or a `Future` of a nullable collection, such as
-  `Future<List<T>?>`.
-- **Do not flag when:** `null` has a meaning that is different from empty,
-  and this meaning is documented on the member.
+  `Set<T>?`, `Map<K, V>?` or `Iterable<T>?`.
+- **Do not flag when:**
+  - `null` has a meaning that is different from empty, and a `///` comment
+    on the member says what `null` means. A comment that says `null` means
+    "none", "no result" or "empty" does not count: that is what an empty
+    collection means;
+  - the `Future` itself is not nullable and only its value is, such as
+    `Future<User?>`: the guide recommends this form;
+  - only the elements are nullable, for example `List<String?>` or
+    `Map<String, Object?>`;
+  - it is a parameter, a field or a local variable: this rule is about return
+    types only.
 - **Bad:**
 
   ```dart
-  Future<List<Release>?> fetchReleases() async { /* ... */ }
+  List<Release>? betaReleases() { /* returns null when there is none */ }
   ```
 
 - **Good:**
 
   ```dart
-  Future<List<Release>> fetchReleases() async { /* returns [] when empty */ }
+  List<Release> betaReleases() { /* returns [] when there is none */ }
   ```
 
 - **Why:** every caller must handle both `null` and an empty collection. An
   empty collection is enough.
-- **Source:** [Effective Dart, Design: AVOID returning nullable Future, Stream, and collection types](https://dart.dev/effective-dart/design)
+- **Source:** [Effective Dart, Design: AVOID returning nullable Future, Stream, and collection types](https://dart.dev/effective-dart/design) ("Users generally assume and prefer that you use an empty container to indicate "no data".")
 - **Level:** suggestion
+- **Triggers:** `?>`, `>?`

@@ -1,0 +1,35 @@
+diff --git a/lib/features/releases/releases_page.dart b/lib/features/releases/releases_page.dart
+index f4970e6..869876e 100644
+--- a/lib/features/releases/releases_page.dart
++++ b/lib/features/releases/releases_page.dart
+@@ -30,7 +30,9 @@ class ReleasesPage extends StatelessWidget {
+               ),
+               title: Text('Version ${release.version}'),
+               subtitle: Text('${release.date} · ${release.summary}'),
+-              trailing: const Icon(Icons.chevron_right),
++              trailing: release.summary.toLowerCase().contains('fix')
++                  ? const Chip(label: Text('Fix'))
++                  : const Icon(Icons.chevron_right),
+               onTap: () => context.go('/releases/${release.id}'),
+             ),
+         ],
+diff --git a/test/fix_badge_test.dart b/test/fix_badge_test.dart
+new file mode 100644
+index 0000000..219491e
+--- /dev/null
++++ b/test/fix_badge_test.dart
+@@ -0,0 +1,14 @@
++import 'package:flutter_test/flutter_test.dart';
++
++import 'package:material_ui_packages_migration/app/app.dart';
++
++void main() {
++  testWidgets('a release that fixes a bug shows a Fix badge', (
++    WidgetTester tester,
++  ) async {
++    await tester.pumpWidget(const ReleaseNotesApp());
++    await tester.pumpAndSettle();
++
++    expect(find.text('Fix'), findsOneWidget);
++  });
++}

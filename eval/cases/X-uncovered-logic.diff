@@ -1,0 +1,17 @@
+diff --git a/lib/core/data/releases.dart b/lib/core/data/releases.dart
+index 966af98..f2830d3 100644
+--- a/lib/core/data/releases.dart
++++ b/lib/core/data/releases.dart
+@@ -66,9 +66,9 @@ Write notes, sort them into folders, and search them.
+ ];
+ 
+ Release? releaseById(String id) {
+-  for (final Release release in releases) {
+-    if (release.id == id) {
+-      return release;
++  for (int index = 1; index < releases.length; index++) {
++    if (releases[index].id == id) {
++      return releases[index];
+     }
+   }
+   return null;
