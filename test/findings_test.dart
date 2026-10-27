@@ -136,4 +136,105 @@ void main() {
     expect(checks.single.applies, isTrue);
     expect(parseChecks('{"findings": []}'), isEmpty);
   });
+
+  test('ignores the trailing commas that the formatter adds', () {
+    final List<DiffFile> files = parseDiff('''
+diff --git a/lib/c.dart b/lib/c.dart
+new file mode 100644
+--- /dev/null
++++ b/lib/c.dart
+@@ -0,0 +1,3 @@
++    onPressed: () => show(
++      context,
++    ),
+''');
+    final Finding finding = Finding(
+      rule: 'P1',
+      file: 'lib/c.dart',
+      line: 1,
+      message: 'm',
+      evidence: 'onPressed: () => show(context)',
+    );
+
+    expect(
+      validateFindings(
+        <Finding>[finding],
+        files: files,
+        ruleIds: <String>{'P1'},
+      ).accepted,
+      hasLength(1),
+    );
+  });
+
+  test('fixes a wrong folder when one file of the diff has the same name', () {
+    final List<DiffFile> files = parseDiff(sampleDiff);
+    final List<Finding> findings = <Finding>[
+      Finding(
+        rule: 'P1',
+        file: 'lib/widgets/a.dart',
+        line: 11,
+        message: 'wrong folder',
+        evidence: 'final int z;',
+      ),
+      Finding(
+        rule: 'P1',
+        file: 'lib/widgets/a.dart',
+        line: 11,
+        message: 'wrong folder, invented code',
+        evidence: 'final int q;',
+      ),
+    ];
+
+    final ({List<Finding> accepted, List<RejectedFinding> rejected}) result =
+        validateFindings(findings, files: files, ruleIds: <String>{'P1'});
+
+    expect(result.accepted.single.file, 'lib/a.dart');
+    expect(result.rejected.single.reason, 'file not in the diff');
+  });
+
+  test(
+    'refuses a remark outside the files of a rule that has a file scope',
+    () {
+      final List<DiffFile> files = parseDiff(sampleDiff);
+      final Finding finding = Finding(
+        rule: 'T3',
+        file: 'lib/a.dart',
+        line: 11,
+        message: 'm',
+        evidence: 'final int z;',
+      );
+
+      expect(
+        validateFindings(
+          <Finding>[finding],
+          files: files,
+          ruleIds: <String>{'T3'},
+          fileScopes: <String, List<String>>{
+            'T3': <String>['test/'],
+          },
+        ).rejected.single.reason,
+        'file outside the scope of T3',
+      );
+      expect(
+        validateFindings(
+          <Finding>[finding],
+          files: files,
+          ruleIds: <String>{'T3'},
+          fileScopes: <String, List<String>>{
+            'T3': <String>['lib/'],
+          },
+        ).accepted,
+        hasLength(1),
+      );
+    },
+  );
+
+  test('reads the JSON even when the model writes text around it', () {
+    final List<Finding> findings = parseFindings(
+      'Here is my review:\n{"findings": [{"rule": "P1", "file": "lib/a.dart", '
+      '"line": 11, "message": "m"}]}\nI hope this helps.',
+    );
+
+    expect(findings.single.rule, 'P1');
+  });
 }

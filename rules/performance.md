@@ -16,6 +16,8 @@
     looks cheap: the documentation asks for a `Future` obtained earlier, for
     example in `initState`.
 - **Do not flag when:**
+  - `future:` reads a `Future` stored in a field, such as `future: _unread`,
+    and the field is set in `initState`;
   - the code works on one value, with no loop: formatting one date,
     `items[index]`, a string interpolation;
   - the result is computed outside `build()` (in `initState`,
@@ -27,6 +29,21 @@
   - while the tree is built, each item gets one simple operation: a
     comparison, `contains`, `toLowerCase`, a string interpolation. Parsing
     each item (a `RegExp`, `DateTime.parse`, `jsonDecode`) is flagged.
+- **Decide:**
+  1. Does code in `build()`, or in a method it calls, create the `Future` given
+     to a `FutureBuilder`, such as `future: load()` or `future: api.fetch()`?
+     `future: _unread`, which reads a field, answers no. If yes, flag, whatever
+     the function does. If no, go to step 2.
+  2. Does code in `build()`, or in a method it calls, sort, filter or group a
+     collection, loop over a collection to compute a value (a sum, a count, a
+     search), decode JSON, compile a `RegExp`, read a file, or parse each item
+     of a collection? A `for` or a `.map` that only creates one widget for each
+     item answers no: that is rule P5. If yes, go to step 3. If no, do not flag.
+  3. Is that result computed outside `build()` (in `initState`,
+     `didUpdateWidget` or a field) and only read in `build()`? Or is it one
+     simple operation, such as `contains`, a comparison or `toLowerCase`?
+     Calling, for each item, a function that compiles a `RegExp` or parses the
+     item is not simple. If yes, do not flag. If no, flag.
 - **Bad:**
 
   ```dart
@@ -62,8 +79,9 @@
 
 ## P2. `setState` higher in the tree than needed
 
-- **Check:** a `State` that calls `setState`, and whose `build()` returns a
-  whole screen: a `Scaffold`, or the body of a page.
+- **Check:** a `State` that calls `setState`, and whose `build()` returns
+  several widgets, such as a `Scaffold` with an app bar and a body, or a
+  `Column` with several sections.
 - **Flag when:** the field changed by `setState` is read by one part of
   `build()` only (one widget and its children), and the other widgets of
   `build()` do not read it. For example a counter, a timer or a toggle shown in
@@ -73,9 +91,21 @@
     `Scaffold` shows, for example `if (_loading) return const Spinner();` or
     `body: _loading ? const Spinner() : const Content()`. The whole screen
     changes, so this is not a small part, even if the app bar does not read
-    the field;
+    the field. A field that changes only one widget (a `Text` that shows its
+    value, one `Icon`) does not choose what the screen shows;
   - `build()` returns only widgets that read the field, or that wrap one that
     does (a `Padding`, a `Center`): there is nothing to move out.
+- **Decide:**
+  1. Does this `State` call `setState`, and does its `build()` return a
+     `Scaffold`, or a `Column` or a `ListView` with several sections? If yes, go
+     to step 2. If no (it returns one widget, or a `Padding` or a `Center`
+     around one widget), do not flag.
+  2. Does the field changed by `setState` change only one part of `build()`: one
+     widget and its children, such as a `Text` that shows its value or one
+     `Icon`, while the other widgets do not read it? If yes, flag. If no (the
+     field chooses what `build()` returns, or what the `body:` shows, with an
+     `if`, a `? :` or a `switch`, as in `body: _loading ? const Spinner() :
+     const Content()`), do not flag.
 - **Bad:** a whole screen rebuilds every second for a clock.
 
   ```dart
@@ -134,6 +164,16 @@
   - it is a function written directly as the argument of a builder, such as
     `itemBuilder: (context, index) => ...`. A method called from inside that
     function is not a callback: apply the rule to it.
+- **Decide:**
+  1. Is it a method that returns a `Widget`? Answer no for `build()`, for a
+     method marked `@override`, and for a function written directly as the
+     argument of a builder (`itemBuilder: (context, index) => ...`). A method
+     called from inside that function answers yes. If yes, go to step 2. If no,
+     do not flag.
+  2. Does the returned widget have a `child:` or `children:` argument, or is the
+     method called from two places or more? If yes, flag, even when the method
+     uses values from `build()`: they can be passed to the constructor of a new
+     widget. If no (one `Text`, `Icon` or `SizedBox`, called once), do not flag.
 - **Bad:**
 
   ```dart
@@ -190,6 +230,18 @@
   - the loop over the collection was already there before the pull request
     (shown as unchanged lines), and the pull request only changes an item
     inside it.
+- **Decide:**
+  1. Is it `ListView(children: ...)`, `GridView(children: ...)`,
+     `SliverChildListDelegate(...)`, or a `Column` or `Row` inside a
+     `SingleChildScrollView`? If yes, go to step 2. If no, do not flag.
+  2. Are the children made by a `for` loop or a `.map` over a collection? If
+     yes, go to step 3. If no (the children are written one by one), do not
+     flag.
+  3. Is the collection a `const` literal with its items written one by one, or
+     the values of an enum? Or was the loop already there before the pull
+     request (unchanged lines)? If yes, do not flag. If no (a field, a
+     parameter, data from an API, a database or a provider, or a list computed
+     from data), flag.
 - **Bad:**
 
   ```dart
@@ -235,7 +287,28 @@
   - every subtree in the `builder` depends on the animation, the listenable
     or the value;
   - the subtrees that do not depend on them are `const`: Flutter reuses the
-    same instance and skips rebuilding them.
+    same instance and skips rebuilding them;
+  - the widget is given to the `child:` argument of the `AnimatedBuilder`,
+    `ListenableBuilder` or `ValueListenableBuilder` itself: it is outside the
+    `builder`, and built once. This is the fix the rule asks for.
+- **Decide:**
+  1. Does the pull request add or change the `builder` of an `AnimatedBuilder`,
+     a `ListenableBuilder` or a `ValueListenableBuilder`? If yes, go to step 2.
+     If no, do not flag.
+  2. Look only inside the `builder` function. The widget given to the `child:`
+     argument of the `AnimatedBuilder`, `ListenableBuilder` or
+     `ValueListenableBuilder` itself is outside the `builder`: it is built once,
+     so skip it. Do not judge the `builder` as a whole either: it always uses
+     the animation somewhere. Search inside it for one widget whose arguments
+     use only fields of the widget (`widget.version`), constants or `context`,
+     and not the animation, the listenable or `value`. For example, in
+     `Row(children: [Transform.rotate(angle: _controller.value, ...),
+     Padding(child: Text(widget.version))])`, the `Padding` is such a widget,
+     and so is `Text('Saved.', style: Theme.of(context).textTheme.bodySmall)`.
+     If you found one, go to step 3. If not, do not flag.
+  3. Is that widget marked `const`? If yes, do not flag. If no, flag it, even
+     when it is small and even when it reads `context`: it can be built once,
+     outside the `builder`, and passed through the `child` parameter.
 - **Bad:**
 
   ```dart
@@ -267,6 +340,6 @@
 
 - **Why:** the `builder` runs on every tick of the animation, or on every
   change of the value. A subtree passed as `child` is built once.
-- **Source:** [Performance best practices, Control build() cost](https://docs.flutter.dev/perf/best-practices#control-build-cost) (the rebuild stops at "the same instance of the child widget"), [Pitfalls](https://docs.flutter.dev/perf/best-practices#pitfalls), [AnimatedBuilder, Performance optimizations](https://api.flutter.dev/flutter/widgets/AnimatedBuilder-class.html#performance-optimizations), [ValueListenableBuilder](https://api.flutter.dev/flutter/widgets/ValueListenableBuilder-class.html) and [ListenableBuilder.child](https://api.flutter.dev/flutter/widgets/ListenableBuilder/child.html)
+- **Source:** [Performance best practices, Control build() cost](https://docs.flutter.dev/perf/best-practices#control-build-cost) (the rebuild stops at "the same instance of the child widget"), [StatefulWidget, Performance considerations](https://api.flutter.dev/flutter/widgets/StatefulWidget-class.html#performance-considerations) ("If a subtree does not change, cache the widget that represents that subtree"), [Pitfalls](https://docs.flutter.dev/perf/best-practices#pitfalls), [AnimatedBuilder, Performance optimizations](https://api.flutter.dev/flutter/widgets/AnimatedBuilder-class.html#performance-optimizations), [ValueListenableBuilder](https://api.flutter.dev/flutter/widgets/ValueListenableBuilder-class.html) and [ListenableBuilder.child](https://api.flutter.dev/flutter/widgets/ListenableBuilder/child.html)
 - **Level:** issue
 - **Triggers:** `AnimatedBuilder`, `ListenableBuilder`, `ValueListenableBuilder`

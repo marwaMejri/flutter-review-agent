@@ -13,6 +13,12 @@ These rules target leaks.
   `StreamController`, or starts a subscription with `stream.listen(...)`.
 - **Do not flag when:** the object is created in `initState` (or a field
   initializer of the `State`) and only used in `build()`.
+- **Decide:**
+  1. Does `build()` create an object whose class has a `dispose()`, `close()` or
+     `cancel()` method (a `TextEditingController`, a `ScrollController`, an
+     `AnimationController`, a `FocusNode`, a `StreamController`), or call
+     `.listen(`? An object created in `initState` or in a field, and only used
+     in `build()`, answers no. If yes, flag. If no, do not flag.
 - **Bad:**
 
   ```dart
@@ -40,7 +46,7 @@ These rules target leaks.
 
 - **Why:** `build()` can run many times. A new controller each time loses the
   user's input and is never disposed.
-- **Source:** [StatefulWidget, Performance considerations](https://api.flutter.dev/flutter/widgets/StatefulWidget-class.html#performance-considerations) (allocate resources in `initState`, release them in `dispose`)
+- **Source:** [StatefulWidget, Performance considerations](https://api.flutter.dev/flutter/widgets/StatefulWidget-class.html#performance-considerations) (resources allocated in `initState` and disposed of in `dispose`), [State.dispose](https://api.flutter.dev/flutter/widgets/State/dispose.html) ("Subclasses should override this method to release any resources retained by this object") and [TextEditingController](https://api.flutter.dev/flutter/widgets/TextEditingController-class.html) ("Remember to dispose of the TextEditingController when it is no longer needed")
 - **Level:** issue
 - **Triggers:** `Controller(`, `FocusNode(`, `Subscription`, `.listen(`
 
@@ -62,6 +68,19 @@ These rules target leaks.
   - a library creates and disposes it, for example `useAnimationController`
     from `flutter_hooks`, or `ChangeNotifierProvider(create: ...)` from
     `provider`.
+- **Decide:**
+  1. Does a class create, in a field or in `initState`, an object that has a
+     `dispose()` method, or start a `Timer.periodic`? If yes, go to step 2. If
+     no, do not flag.
+  2. Was the object passed from outside (a constructor parameter,
+     `widget.controller`), or created by a library that disposes it
+     (`useAnimationController`, `ChangeNotifierProvider(create: ...)`)? Or is it
+     a `StreamSubscription` or a `Sink`? If yes, do not flag. If no, go to step
+     3.
+  3. Look at the full file for a line that disposes this object (such as
+     `_controller.dispose();`) or cancels this timer. If there is none, flag,
+     also when the class has no `dispose()` method at all. If there is one, do
+     not flag.
 - **Bad:**
 
   ```dart
@@ -107,6 +126,13 @@ These rules target leaks.
     call;
   - it is kept by an object created in `build()`, and that object is never
     stored in a field.
+- **Decide:**
+  1. Is there a field or a global variable of type `BuildContext` or
+     `BuildContext?`, or does the code assign `context` to a field, a global
+     variable or a collection? A `BuildContext` parameter or local variable
+     answers no. If yes, go to step 2. If no, do not flag.
+  2. Is the context only kept by an object created in `build()`, an object that
+     is never stored in a field? If yes, do not flag. If no, flag.
 - **Bad:**
 
   ```dart
@@ -127,7 +153,7 @@ These rules target leaks.
   old widget tree in memory.
 - **Source:** [DevTools, Memory view](https://docs.flutter.dev/tools/devtools/memory) ("The build context, owned by the widget, should never be referenced from the state's fields")
 - **Level:** issue
-- **Triggers:** `BuildContext`
+- **Triggers:** `BuildContext?`, `BuildContext _`, `BuildContext>`, `late BuildContext`, `final BuildContext`, `static BuildContext`, `this.context`, `= context`, `add(context`
 
 ## MEM3. A long-lived closure that captures `context`
 
@@ -144,6 +170,14 @@ These rules target leaks.
     `WidgetsBinding.instance.addPostFrameCallback`, which runs once;
   - the problem is `context` used after an `await`: the lint
     `use_build_context_synchronously` covers that.
+- **Decide:**
+  1. Is a closure that reads `context` given to a stream (`.listen(...)`), a
+     `Timer`, a service, a singleton or a global object (for example through
+     `addListener`, `onMessage` or `register`)? Answer no for a callback given
+     to a widget (`onPressed:`, `onTap:`, `builder:`) and for
+     `addPostFrameCallback`. If yes, go to step 2. If no, do not flag.
+  2. Is that object created and disposed by the same `State`? If yes, do not
+     flag. If no, flag.
 - **Bad:**
 
   ```dart

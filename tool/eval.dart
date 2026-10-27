@@ -153,13 +153,20 @@ Future<void> main(List<String> arguments) async {
           }
           continue;
         } on InvalidAnswerException catch (error) {
-          stdout.writeln('$label error: $error');
+          stdout.writeln(
+            '$label error: $error '
+            '(${client.promptTokens ?? '?'} + ${client.answerTokens ?? '?'} '
+            'tokens)',
+          );
           totals.errors++;
           results.add(<String, Object?>{
             'model': model,
             'case': evalCase.name,
             'run': run,
             'error': error.message,
+            'promptTokens': client.promptTokens,
+            'answerTokens': client.answerTokens,
+            'finishReason': client.finishReason,
           });
           continue;
         }

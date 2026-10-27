@@ -95,6 +95,18 @@ Object? _decodeAnswer(String answer) {
   try {
     return jsonDecode(text);
   } on FormatException catch (error) {
+    // Some models write a sentence before or after the JSON ("Here is my
+    // review: {...}"). The JSON object is then the text from the first `{`
+    // to the last `}`.
+    final int start = text.indexOf('{');
+    final int end = text.lastIndexOf('}');
+    if (start >= 0 && end > start) {
+      try {
+        return jsonDecode(text.substring(start, end + 1));
+      } on FormatException {
+        // Not JSON either: the error below explains the first failure.
+      }
+    }
     throw InvalidAnswerException('The answer is not JSON: ${error.message}');
   }
 }
@@ -170,6 +182,7 @@ const int evidenceWindow = 3;
   List<Finding> findings, {
   required List<DiffFile> files,
   required Set<String> ruleIds,
+  Map<String, List<String>> fileScopes = const <String, List<String>>{},
 }) {
   final Map<String, DiffFile> filesByPath = <String, DiffFile>{
     for (final DiffFile file in files) file.path: file,
@@ -177,12 +190,42 @@ const int evidenceWindow = 3;
   final List<Finding> accepted = <Finding>[];
   final List<RejectedFinding> rejected = <RejectedFinding>[];
 
-  for (final Finding finding in findings) {
-    final DiffFile? file = filesByPath[finding.file];
+  for (final Finding original in findings) {
+    Finding finding = original;
+    DiffFile? file = filesByPath[finding.file];
+    if (file == null) {
+      // Models sometimes get the folder wrong in a pull request with many
+      // files (`lib/widgets/a.dart` for `lib/features/a.dart`). When one file
+      // of the diff has the same name and holds the evidence, the remark is
+      // moved to it.
+      final String name = finding.file.split('/').last;
+      final List<DiffFile> sameName = <DiffFile>[
+        for (final DiffFile candidate in files)
+          if (candidate.path.split('/').last == name) candidate,
+      ];
+      if (sameName.length == 1 &&
+          _lineWithEvidence(sameName.single, finding) != null) {
+        file = sameName.single;
+        finding = Finding(
+          rule: finding.rule,
+          file: file.path,
+          line: finding.line,
+          message: finding.message,
+          evidence: finding.evidence,
+        );
+      }
+    }
     if (!ruleIds.contains(finding.rule)) {
       rejected.add(RejectedFinding(finding, 'unknown rule ${finding.rule}'));
     } else if (file == null) {
       rejected.add(RejectedFinding(finding, 'file not in the diff'));
+    } else if (fileScopes[finding.rule] case final List<String> scope
+        when !scope.any(file.path.startsWith)) {
+      // A rule that only applies to some files, such as T3 to `lib/`, cannot
+      // be reported anywhere else.
+      rejected.add(
+        RejectedFinding(finding, 'file outside the scope of ${finding.rule}'),
+      );
     } else if (_lineWithEvidence(file, finding) case final int line) {
       accepted.add(line == finding.line ? finding : finding.atLine(line));
     } else if (!file.commentableLines.contains(finding.line)) {
@@ -214,7 +257,9 @@ const int evidenceSpan = 6;
 /// Spaces and line breaks are ignored, so the evidence can be copied on one
 /// line or on several.
 int? _lineWithEvidence(DiffFile file, Finding finding) {
-  final String wanted = _cleanEvidence(finding.evidence);
+  final String wanted = _withoutTrailingCommas(
+    _cleanEvidence(finding.evidence),
+  );
   if (wanted.length < 3) {
     return null;
   }
@@ -234,7 +279,9 @@ int? _lineWithEvidence(DiffFile file, Finding finding) {
           break;
         }
         joined.write(_compact(text));
-        final int index = joined.toString().indexOf(wanted);
+        final int index = _withoutTrailingCommas(
+          joined.toString(),
+        ).indexOf(wanted);
         if (index >= 0) {
           // The evidence must start on this line, not on a later one.
           if (index < _compact(first).length) {
@@ -256,3 +303,9 @@ String _cleanEvidence(String evidence) => <String>[
 ].join();
 
 String _compact(String text) => text.replaceAll(RegExp(r'\s+'), '');
+
+/// The code without the trailing commas that `dart format` adds before `)`,
+/// `]` and `}`: models often leave them out when they copy code. Applied to
+/// code without spaces, after the lines are joined.
+String _withoutTrailingCommas(String code) =>
+    code.replaceAll(RegExp(r',(?=[)\]}])'), '');

@@ -20,6 +20,9 @@ class DiffFile {
   /// number, without the leading `+` or space.
   final Map<int, String> newLineText = <int, String>{};
 
+  /// The removed lines, by the number of the new line that follows them.
+  final Map<int, List<String>> removedBefore = <int, List<String>>{};
+
   /// The diff of this file, with the line number of the new version in front
   /// of each line, so the model can cite exact lines.
   final List<String> annotated = <String>[];
@@ -81,6 +84,9 @@ List<DiffFile> parseDiff(String diff) {
       current.annotated.add('${_number(newLine)} |$line');
       newLine++;
     } else if (line.startsWith('-')) {
+      current.removedBefore
+          .putIfAbsent(newLine, () => <String>[])
+          .add(line.substring(1));
       current.annotated.add('      |$line');
     } else if (line.startsWith(' ')) {
       current.newLineText[newLine] = line.substring(1);

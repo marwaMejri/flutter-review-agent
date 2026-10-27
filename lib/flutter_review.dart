@@ -102,14 +102,25 @@ Future<ReviewResult> review({
   );
 
   // A model sometimes answers text that is not the expected JSON. The same
-  // question usually gets a correct answer the second time.
+  // question usually gets a correct answer the second time. A cut answer
+  // would be cut again: asking again would only use the quota.
   String answer = await client.complete(system: systemPrompt, user: user);
   List<Finding> findings;
   try {
     findings = parseFindings(answer);
-  } on InvalidAnswerException {
+  } on InvalidAnswerException catch (error) {
+    if (client.finishReason == 'length') {
+      throw _cutAnswer(error);
+    }
     answer = await client.complete(system: systemPrompt, user: user);
-    findings = parseFindings(answer);
+    try {
+      findings = parseFindings(answer);
+    } on InvalidAnswerException catch (error) {
+      if (client.finishReason == 'length') {
+        throw _cutAnswer(error);
+      }
+      rethrow;
+    }
   }
 
   final Set<String> ruleIds = <String>{
@@ -117,7 +128,19 @@ Future<ReviewResult> review({
     if (conventions != null && conventions.trim().isNotEmpty) conventionRuleId,
   };
   final ({List<Finding> accepted, List<RejectedFinding> rejected}) checked =
-      validateFindings(findings, files: files, ruleIds: ruleIds);
+      validateFindings(
+        findings,
+        files: files,
+        ruleIds: ruleIds,
+        fileScopes: <String, List<String>>{
+          for (final Rule rule in sent)
+            if (rule.triggers.isNotEmpty &&
+                rule.triggers.every((String t) => t.startsWith('file:')))
+              rule.id: <String>[
+                for (final String t in rule.triggers) t.substring(5),
+              ],
+        },
+      );
 
   return ReviewResult(
     accepted: checked.accepted,
@@ -127,3 +150,9 @@ Future<ReviewResult> review({
     checks: parseChecks(answer),
   );
 }
+
+InvalidAnswerException _cutAnswer(InvalidAnswerException error) =>
+    InvalidAnswerException(
+      '${error.message} The answer was cut: the model reached its length '
+      'limit (finish_reason: length).',
+    );

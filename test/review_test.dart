@@ -56,4 +56,44 @@ void main() {
     expect(calls, 2);
     expect(result.accepted, isEmpty);
   });
+
+  test('does not ask again when the answer was cut', () async {
+    int calls = 0;
+    final ModelClient client = ModelClient(
+      provider: 'test-provider',
+      baseUrl: 'https://example.com/v1/',
+      models: <String>['test-model'],
+      apiKey: 'test-key',
+      httpClient: MockClient((http.Request request) async {
+        calls++;
+        return http.Response(
+          jsonEncode(<String, Object>{
+            'choices': <Object>[
+              <String, Object>{
+                'finish_reason': 'length',
+                'message': <String, String>{'content': '{"checks": ['},
+              },
+            ],
+          }),
+          200,
+        );
+      }),
+    );
+
+    await expectLater(
+      review(
+        diff: sampleDiff,
+        rules: <Rule>[Rule(id: 'P1', title: 't', text: '## P1. t')],
+        client: client,
+      ),
+      throwsA(
+        isA<InvalidAnswerException>().having(
+          (InvalidAnswerException e) => e.message,
+          'message',
+          contains('finish_reason: length'),
+        ),
+      ),
+    );
+    expect(calls, 1);
+  });
 }

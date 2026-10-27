@@ -87,9 +87,14 @@ class ModelClient {
   /// a busy provider.
   Duration? answerTime;
 
-  /// "Busy, try again later": too many requests (429) and service
-  /// unavailable (503).
-  static const Set<int> _busyStatus = <int>{429, 503};
+  /// Why the model stopped writing its last answer, as the provider says:
+  /// `stop` when it finished, `length` when it reached its length limit.
+  String? finishReason;
+
+  /// "Busy, try again later": too many requests (429), and the server errors
+  /// that usually pass after a moment: internal error (500), bad gateway
+  /// (502), service unavailable (503) and gateway timeout (504).
+  static const Set<int> _busyStatus = <int>{429, 500, 502, 503, 504};
 
   /// "The key is refused": unauthorized (401) and forbidden (403).
   static const Set<int> _refusedStatus = <int>{401, 403};
@@ -118,6 +123,7 @@ class ModelClient {
     promptTokens = null;
     answerTokens = null;
     answerTime = null;
+    finishReason = null;
     final DateTime deadline = DateTime.now().add(totalTimeout);
     final List<String> skipped = <String>[];
     final Set<String> tried = <String>{};
@@ -171,24 +177,47 @@ class ModelClient {
 
   /// Reads the provider's list of models: `GET {baseUrl}/models`.
   ///
-  /// Returns an empty list when the list cannot be read.
+  /// Returns an empty list when the list cannot be read. To know why, use
+  /// [fetchModels].
   Future<List<String>> listModels() async {
+    try {
+      return await fetchModels();
+    } on ModelException {
+      return <String>[];
+    }
+  }
+
+  /// Reads the provider's list of models, and explains why when it cannot.
+  Future<List<String>> fetchModels() async {
     final http.Response response;
     try {
       response = await _http
           .get(_endpoint('models'), headers: _headers)
           .timeout(requestTimeout);
     } on TimeoutException {
-      return <String>[];
-    } on http.ClientException {
-      return <String>[];
+      throw ModelException(
+        'No answer from $provider within ${requestTimeout.inSeconds} s.',
+      );
+    } on http.ClientException catch (error) {
+      throw ModelException('Cannot reach $provider: ${error.message}');
     }
-    if (response.statusCode != 200) {
-      return <String>[];
+    final String body = utf8.decode(response.bodyBytes);
+    final int status = response.statusCode;
+    if (_refusedStatus.contains(status) || _isKeyError(status, body)) {
+      throw ModelException(
+        'The key was refused by $provider (HTTP $status). '
+        'Check that the key comes from $provider.',
+      );
     }
-    final Object? decoded = jsonDecode(utf8.decode(response.bodyBytes));
+    if (status != 200) {
+      throw ModelException('HTTP $status from $provider: ${_short(body)}');
+    }
+    final Object? decoded = jsonDecode(body);
     if (decoded is! Map<String, Object?> || decoded['data'] is! List<Object?>) {
-      return <String>[];
+      throw ModelException(
+        'The list of models of $provider has an unexpected form: '
+        '${_short(body)}',
+      );
     }
     return <String>[
       for (final Object? item in decoded['data']! as List<Object?>)
@@ -250,7 +279,18 @@ class ModelClient {
         }
         continue;
       } on http.ClientException catch (error) {
-        throw ModelException('Cannot reach $provider: ${error.message}');
+        // A dropped connection ("Write failed", a reset) is often gone a
+        // moment later: it counts as a busy attempt.
+        busyAttempts++;
+        if (busyAttempts >= maxAttempts) {
+          throw ModelException('Cannot reach $provider: ${error.message}');
+        }
+        if (!DateTime.now().add(delay).isBefore(deadline)) {
+          throw _timeOut(<String>['$model: cannot reach $provider']);
+        }
+        await Future<void>.delayed(delay);
+        delay *= 2;
+        continue;
       }
       final String body = utf8.decode(response.bodyBytes);
       final int status = response.statusCode;
@@ -358,6 +398,9 @@ class ModelClient {
         decoded['choices'] is List<Object?> &&
         (decoded['choices']! as List<Object?>).isNotEmpty) {
       final Object? choice = (decoded['choices']! as List<Object?>).first;
+      if (choice is Map<String, Object?> && choice['finish_reason'] is String) {
+        finishReason = choice['finish_reason']! as String;
+      }
       if (choice is Map<String, Object?> &&
           choice['message'] is Map<String, Object?>) {
         final Object? content =

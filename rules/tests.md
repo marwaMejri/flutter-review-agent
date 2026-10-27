@@ -16,9 +16,23 @@ a test **verifies** the change.
   - the change has no behavior to test: a rename, a comment, or a change of
     padding, color or text style only;
   - the pull request moves existing code without changing what it does, for
-    example a part of a screen extracted into a new widget;
+    example a part of a screen extracted into a new widget. The call that
+    replaces the removed lines is part of the move;
   - an existing test already checks it and the pull request shows that test;
   - the file is generated (`*.g.dart`, `*.freezed.dart`, localizations).
+- **Decide:**
+  1. Does the pull request add a behavior under `lib/`: a new public method, a
+     new branch of an `if` or `switch`, a new screen state, a changed condition
+     or computation? Answer no for a rename, a comment, a style change (padding,
+     color, text style) and a generated file. Answer no for moved code too:
+     added code that the pull request removes from another place (lines marked
+     `-`), in the same file or in another one. A new method or widget made from
+     removed lines, and the call that replaces them, add no behavior. If yes, go
+     to step 2. If no, do not flag.
+  2. Does a test file of this pull request have an `expect` on that behavior?
+     You do not need to see the other tests of the project. If yes, do not flag.
+     If no, flag, and put the remark on the added line under `lib/`, never on a
+     test file.
 - **Bad:** a pull request adds an `if (release.isBeta)` branch that shows a
   "Beta" badge. The tests render the screen with a stable release only: the
   new line runs in no test, or it runs but nothing checks the badge.
@@ -44,6 +58,14 @@ a test **verifies** the change.
   find.byType(RichText))`, or finds the span that contains the text. For a
   `Text` built from a string, the root `TextSpan` of its `RichText` holds the
   text and its style, so reading `text.style` there is correct.
+- **Decide:**
+  1. Does a test of the pull request have an `expect` on `fontFamily`,
+     `fontSize`, `fontWeight`, `color` or `decoration`? If yes, go to step 2. If
+     no, do not flag.
+  2. Was the widget found by its type or its position, such as
+     `find.byType(RichText).first` or `find.byType(DefaultTextStyle)`? If yes,
+     flag. If no (it was found from its content, with `find.text(...)` or
+     `find.descendant(of: find.text(...), ...)`), do not flag.
 - **Bad:**
 
   ```dart
@@ -51,19 +73,16 @@ a test **verifies** the change.
   expect(text.text.style?.fontFamily, startsWith('Merriweather'));
   ```
 
-- **Good:** find the span that contains the text, and read its style.
+- **Good:** find the `RichText` from the text it shows.
 
   ```dart
-  TextStyle? styleOfText(InlineSpan span, String prefix) {
-    if (span is TextSpan) {
-      if (span.text != null && span.text!.startsWith(prefix)) return span.style;
-      for (final InlineSpan child in span.children ?? const <InlineSpan>[]) {
-        final TextStyle? style = styleOfText(child, prefix);
-        if (style != null) return style;
-      }
-    }
-    return null;
-  }
+  final RichText text = tester.widget(
+    find.descendant(
+      of: find.text('Settings'),
+      matching: find.byType(RichText),
+    ),
+  );
+  expect(text.text.style?.fontFamily, startsWith('Merriweather'));
   ```
 
 - **Why:** a style on a wrapper can be correct while the text inside uses
@@ -85,6 +104,16 @@ a test **verifies** the change.
     `pump()` with a duration;
   - the pull request changes none of the lines above. A test that navigates is
     not enough to apply this rule.
+- **Decide:**
+  1. Does the pull request change a line that contains `GoRouter`, `GoRoute`,
+     `routes:`, `MaterialApp` or `CupertinoApp`, or the version of a router
+     package (`go_router`, `auto_route`, `beamer`)? A test that navigates is not
+     enough. If yes, go to step 2. If no, do not flag.
+  2. Does every navigation test of the pull request call `pumpAndSettle()` right
+     after the tap, and check only the new page? If yes, flag, and put the
+     remark on the test line, not on the router. If no (a test checks the screen
+     in the middle of the transition, after a `pump()` with a duration), do not
+     flag.
 - **Bad:**
 
   ```dart

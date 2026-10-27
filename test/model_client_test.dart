@@ -417,4 +417,53 @@ void main() {
     expect(client.promptTokens, 1200);
     expect(client.answerTokens, 300);
   });
+
+  test('tries again when the connection drops', () async {
+    int calls = 0;
+    final ModelClient client = clientWith(
+      MockClient((http.Request request) async {
+        calls++;
+        if (calls == 1) {
+          throw http.ClientException('Write failed');
+        }
+        return answer('ok');
+      }),
+    );
+
+    expect(await client.complete(system: 's', user: 'u'), 'ok');
+    expect(calls, 2);
+  });
+
+  test('explains why the list of models cannot be read', () async {
+    final ModelClient client = clientWith(
+      MockClient((http.Request request) async => http.Response('no', 401)),
+    );
+
+    expect(await client.listModels(), isEmpty);
+    await expectLater(
+      client.fetchModels(),
+      throwsA(
+        isA<ModelException>().having(
+          (ModelException e) => e.message,
+          'message',
+          contains('refused by test-provider (HTTP 401)'),
+        ),
+      ),
+    );
+  });
+
+  test('tries again after an internal error of the provider', () async {
+    int calls = 0;
+    final ModelClient client = clientWith(
+      MockClient((http.Request request) async {
+        calls++;
+        return calls == 1
+            ? http.Response('{"error": {"code": 500}}', 500)
+            : answer('ok');
+      }),
+    );
+
+    expect(await client.complete(system: 's', user: 'u'), 'ok');
+    expect(calls, 2);
+  });
 }

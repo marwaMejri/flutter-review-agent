@@ -12,6 +12,10 @@ rules need a reviewer.
   - the code never checks whether the variable is set: it is assigned in its
     declaration (lazy initialization), in the constructor or in `initState`,
     before any read.
+- **Decide:**
+  1. Is there a `late` variable? If yes, go to step 2. If no, do not flag.
+  2. Does the code use a flag (such as `_isInitialized`) to know whether it is
+     set, or catch `LateInitializationError`? If yes, flag. If no, do not flag.
 - **Bad:**
 
   ```dart
@@ -58,6 +62,16 @@ rules need a reviewer.
     `Map<String, Object?>`;
   - it is a parameter, a field or a local variable: this rule is about return
     types only.
+- **Decide:**
+  1. Look at the return type of each function, method or getter. Does it end
+     with `>?`, as in `List<Release>?`, `Map<String, int>?` or `Future<int>?`? A
+     type that ends with `?>`, as in `Future<Release?>` or `List<String?>`,
+     answers no. Parameters, fields and variables answer no. If yes, go to step
+     2. If no, do not flag.
+  2. Read the `///` comment on the member. If there is no comment, flag. If it
+     says that `null` means "none", "no result" or "empty" (for example "null
+     when there is none"), flag: an empty collection says the same. If it gives
+     `null` another meaning, such as "not loaded yet", do not flag.
 - **Bad:**
 
   ```dart

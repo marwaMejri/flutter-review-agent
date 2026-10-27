@@ -7,37 +7,42 @@ void main() {
   final List<DiffFile> files = parseDiff(sampleDiff);
   final List<Rule> rules = <Rule>[Rule(id: 'P1', title: 't', text: '## P1. t')];
 
-  test('adds the full changed files with line numbers', () {
+  test('sends a changed file whole, with its added and removed lines', () {
     final String prompt = buildUserPrompt(
       rules: rules,
       files: files,
-      sources: <String, String>{'lib/a.dart': 'class A {\n  final int x;\n}'},
+      sources: <String, String>{
+        'lib/a.dart':
+            '${'// line\n' * 9}'
+            '  final int x;\n  final int z;\n  final int w;\n'
+            '  void run() {}\n}\n',
+      },
     );
 
-    expect(prompt, contains('# Full files'));
-    expect(prompt, contains('    2 |   final int x;'));
-    expect(prompt.indexOf('# Full files'), lessThan(prompt.indexOf('# Diff')));
+    expect(prompt, contains('## File: lib/a.dart (whole file)'));
+    expect(prompt, contains('    1 | // line'));
+    expect(prompt, contains('      |-  final int y;\n   11 |+  final int z;'));
+    expect(prompt, contains('   14 | }'));
+    expect(prompt, isNot(contains('@@')));
   });
 
-  test('does not send a file twice when the diff shows all of it', () {
-    final List<DiffFile> newFile = parseDiff('''
-diff --git a/lib/b.dart b/lib/b.dart
-new file mode 100644
---- /dev/null
-+++ b/lib/b.dart
-@@ -0,0 +1,2 @@
-+class B {}
-+
-''');
+  test('sends only the changed parts when the file is unknown', () {
+    final String prompt = buildUserPrompt(rules: rules, files: files);
 
-    expect(diffShowsWholeFile(newFile.single, 'class B {}\n\n'), isTrue);
-    expect(diffShowsWholeFile(files.single, 'a\n' * 20), isFalse);
+    expect(prompt, contains('## File: lib/a.dart (changed parts only)'));
+    expect(prompt, contains('   11 |+  final int z;'));
   });
 
-  test('leaves the source and the level of a rule out', () {
+  test('leaves out the fields the model does not need', () {
     const String text = '''
 ## X1. Title
 
+- **Check:** something.
+- **Flag when:** a case
+  on two lines.
+- **Do not flag when:** another case.
+- **Decide:** answer these questions in order.
+  1. Is it so? If yes, flag.
 - **Why:** because.
 - **Source:** a link that goes on
   on two lines
@@ -47,5 +52,23 @@ new file mode 100644
     expect(ruleForModel(text), isNot(contains('Source')));
     expect(ruleForModel(text), isNot(contains('on two lines')));
     expect(ruleForModel(text), isNot(contains('Level')));
+    expect(ruleForModel(text), isNot(contains('Flag when')));
+    expect(ruleForModel(text), isNot(contains('Check')));
+    expect(ruleForModel(text), contains('  1. Is it so? If yes, flag.'));
+  });
+
+  test('points at the added lines that contain a trigger of the rule', () {
+    final Rule rule = Rule(
+      id: 'X1',
+      title: 't',
+      text: 't',
+      triggers: <String>['int w', 'file:lib/'],
+    );
+
+    expect(triggerPlaces(rule, files), <String>['lib/a.dart:12']);
+    expect(
+      buildUserPrompt(rules: <Rule>[rule], files: files),
+      contains('Look first at:** lib/a.dart:12'),
+    );
   });
 }

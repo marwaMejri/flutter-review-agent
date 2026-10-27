@@ -93,13 +93,18 @@ Future<void> main(List<String> arguments) async {
       models: config.models,
       apiKey: config.apiKey,
     );
-    final List<String> available = await lister.listModels();
-    lister.close();
+    final List<String> available;
+    try {
+      available = await lister.fetchModels();
+    } on ModelException catch (error) {
+      stderr.writeln(error);
+      exitCode = 1;
+      return;
+    } finally {
+      lister.close();
+    }
     if (available.isEmpty) {
-      stderr.writeln(
-        'The list of models of ${config.provider} is empty or '
-        'cannot be read.',
-      );
+      stderr.writeln('The list of models of ${config.provider} is empty.');
       exitCode = 1;
       return;
     }

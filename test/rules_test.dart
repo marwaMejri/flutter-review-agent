@@ -88,4 +88,33 @@ void main() {
       isTrue,
     );
   });
+
+  test('every step of Decide says what to do when the answer is no', () {
+    final RegExp step = RegExp(r'\n  \d+\. ');
+    final RegExp whenNo = RegExp(
+      r'If\s+(no|not|there\s+is\s+none|there\s+is\s+no)\b',
+    );
+    for (final String name in <String>[
+      'rules/performance.md',
+      'rules/memory.md',
+      'rules/dart.md',
+      'rules/tests.md',
+      'packs/material_ui_migration.md',
+    ]) {
+      for (final Rule rule in parseRules(File(name).readAsStringSync())) {
+        final int start = rule.text.indexOf('- **Decide:**');
+        final int end = rule.text.indexOf('\n- **Bad', start);
+        expect(start, isNot(-1), reason: rule.id);
+        final List<String> steps = rule.text
+            .substring(start, end)
+            .split(step)
+            .skip(1)
+            .toList();
+        expect(steps, isNotEmpty, reason: rule.id);
+        for (int i = 0; i < steps.length; i++) {
+          expect(steps[i], matches(whenNo), reason: '${rule.id} step ${i + 1}');
+        }
+      }
+    }
+  });
 }

@@ -15,6 +15,10 @@ Official guide: [Material and Cupertino as packages](https://docs.flutter.dev/re
   `package:flutter/cupertino.dart`.
 - **Do not flag when:** the export is of `package:material_ui/...` or
   `package:cupertino_ui/...`.
+- **Decide:**
+  1. Does a file export `package:flutter/material.dart` or
+     `package:flutter/cupertino.dart`? An export of `package:material_ui/...` or
+     `package:cupertino_ui/...` answers no. If yes, flag. If no, do not flag.
 - **Bad:**
 
   ```dart
@@ -51,6 +55,14 @@ Official guide: [Material and Cupertino as packages](https://docs.flutter.dev/re
   - a package is added: M3 covers new packages;
   - the change only touches `dev_dependencies`, or the `version:` of the
     app.
+- **Decide:**
+  1. Does `material_ui` or `cupertino_ui` get the constraint `any`? If yes,
+     flag. If no, go to step 2.
+  2. Does a package under `dependencies:` move to a new major version: the first
+     number changes (`18.1.0` to `19.0.0`), or the second one when the first is
+     `0` (`0.1.2` to `0.2.0`)? A new package, a change in `dev_dependencies` and
+     a change of the `version:` of the app answer no. If yes, flag. If no, do
+     not flag.
 - **Bad:**
 
   ```yaml
@@ -82,6 +94,12 @@ Official guide: [Material and Cupertino as packages](https://docs.flutter.dev/re
 - **Do not flag when:**
   - the package has no UI (HTTP, storage, logging), or nothing in its name or
     in the code of the pull request shows that it has UI.
+- **Decide:**
+  1. Is a package added under `dependencies:` in `pubspec.yaml`? If yes, go to
+     step 2. If no, do not flag.
+  2. Does its name, or the code of the pull request, show that it provides
+     widgets or reads the theme (a UI kit, a form, a Markdown renderer, a
+     router)? If yes, flag. If no, or if you cannot tell, do not flag.
 - **Bad:** adding `flutter_markdown_plus: 1.0.12` to a migrated app, with no
   check.
 - **Good:** the author checks that the package uses `material_ui`, for example
@@ -99,6 +117,11 @@ Official guide: [Material and Cupertino as packages](https://docs.flutter.dev/re
 - **Flag when:** the bridge is added without a comment that says which
   package needs it and when to remove it.
 - **Do not flag when:** the comment is there.
+- **Decide:**
+  1. Does the pull request add `MaterialUiCompatibilityBridge`? If yes, go to
+     step 2. If no, do not flag.
+  2. Is there a comment right above it that names the package that needs it and
+     says when to remove it? If yes, do not flag. If no, flag.
 - **Bad:**
 
   ```dart
@@ -117,6 +140,6 @@ Official guide: [Material and Cupertino as packages](https://docs.flutter.dev/re
 
 - **Why:** the bridge is already deprecated, and it only copies part of the
   theme. Without a reason and a removal plan, it stays forever.
-- **Source:** measured in [Your packages haven't migrated to material_ui. Can you?](https://github.com/marwaMejri/material_ui_packages_migration)
+- **Source:** [MaterialUiCompatibilityBridge](https://pub.dev/documentation/material_ui/latest/material_ui/MaterialUiCompatibilityBridge-class.html) (marked `@Deprecated`: "it will be removed in a future release"), [Compatibility bridge](https://docs.flutter.dev/release/breaking-changes/material-ui-and-cupertino-ui#compatibility-bridge), and measured in [Your packages haven't migrated to material_ui. Can you?](https://github.com/marwaMejri/material_ui_packages_migration)
 - **Level:** issue
 - **Triggers:** `MaterialUiCompatibilityBridge`

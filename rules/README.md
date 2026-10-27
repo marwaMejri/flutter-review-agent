@@ -13,6 +13,11 @@ Every rule has the same parts:
 - **Check:** what to look for in the diff.
 - **Flag when:** the cases to report.
 - **Do not flag when:** the cases that look similar but are fine.
+- **Decide:** the same cases as numbered questions, answered in order. Each
+  question says what to do for "yes" and for "no": go to another step, flag,
+  or do not flag. Every model, small or large, follows the same steps, and its
+  answer names the step that decided, so a wrong answer shows which step to
+  make clearer.
 - **Bad / Good:** a short example of each.
 - **Why:** the cost of the problem, in one or two sentences.
 - **Source:** where the rule comes from.
