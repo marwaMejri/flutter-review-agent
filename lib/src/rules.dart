@@ -22,6 +22,21 @@ class Rule {
   /// When the rule is sent to the model. See [isTriggeredBy].
   final List<String> triggers;
 
+  /// `issue` or `suggestion`, from the `Level` line. Null when there is none.
+  String? get level => _field('Level');
+
+  /// Where the rule comes from, from the `Source` line, with its Markdown
+  /// links. Null when there is none.
+  String? get source => _field('Source');
+
+  String? _field(String name) {
+    final Match? match = RegExp(
+      '^- \\*\\*$name:\\*\\* (.+(?:\\n  .+)*)',
+      multiLine: true,
+    ).firstMatch(text);
+    return match?.group(1)!.replaceAll(RegExp(r'\n  '), ' ').trim();
+  }
+
   /// Whether the rule applies to a pull request that changes [paths] and adds
   /// the lines [addedCode].
   ///

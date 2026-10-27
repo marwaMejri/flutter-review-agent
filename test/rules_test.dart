@@ -117,4 +117,17 @@ void main() {
       }
     }
   });
+
+  test('reads the level and the source of a rule', () {
+    final Rule rule = parseRules(
+      File('rules/memory.md').readAsStringSync(),
+    ).firstWhere((Rule r) => r.id == 'B2');
+
+    expect(rule.level, 'issue');
+    expect(
+      rule.source,
+      startsWith('[StatefulWidget, Performance considerations]'),
+    );
+    expect(rule.source, contains('[TextEditingController]'));
+  });
 }

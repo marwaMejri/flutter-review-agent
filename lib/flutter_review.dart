@@ -11,6 +11,7 @@ export 'src/config.dart';
 export 'src/diff.dart';
 export 'src/evaluation.dart';
 export 'src/findings.dart';
+export 'src/github.dart';
 export 'src/model_client.dart';
 export 'src/prompt.dart';
 export 'src/rules.dart';

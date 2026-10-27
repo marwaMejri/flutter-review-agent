@@ -1,0 +1,122 @@
+# Reviews a pull request of a Flutter project and writes the remarks on its
+# lines. The review never blocks the pull request.
+#
+# Use it in a workflow of the reviewed project:
+#
+#   on:
+#     pull_request:
+#   permissions:
+#     contents: read
+#     pull-requests: write
+#   jobs:
+#     review:
+#       runs-on: ubuntu-latest
+#       steps:
+#         - uses: actions/checkout@v7
+#           with:
+#             ref: ${{ github.event.pull_request.head.sha }}
+#             fetch-depth: 0
+#         - uses: marwaMejri/flutter-review-agent@v1
+#           with:
+#             provider: gemini
+#             api-key: ${{ secrets.FLUTTER_REVIEW_API_KEY }}
+#
+# A pull request from a fork gets no review: GitHub does not pass secrets to
+# workflows triggered from a fork.
+
+name: Flutter review
+description: Reviews a Flutter pull request. Every remark cites a rule and its source.
+
+inputs:
+  api-key:
+    description: API key of the model provider. Keep it in a secret.
+    required: true
+  provider:
+    description: Provider with a preset (gemini, groq, openai), or a name for another provider.
+    required: true
+  model:
+    description: Model name, or several separated by commas. Empty uses the preset.
+    required: false
+    default: ''
+  base-url:
+    description: Address of an OpenAI-compatible API, for a provider with no preset.
+    required: false
+    default: ''
+  packs:
+    description: Optional packs to turn on, separated by spaces, for example material_ui_migration.
+    required: false
+    default: ''
+  conventions:
+    description: Path of the project conventions. They are read from the base branch, so a pull request cannot change them for its own review.
+    required: false
+    default: CONVENTIONS.md
+  github-token:
+    description: Token used to write the review.
+    required: false
+    default: ${{ github.token }}
+
+runs:
+  using: composite
+  steps:
+    - name: Check the event
+      if: github.event_name != 'pull_request'
+      shell: bash
+      run: |
+        echo "This action reviews pull requests: run it on the pull_request event."
+        exit 1
+
+    - uses: dart-lang/setup-dart@v1
+
+    - name: Install the agent
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      run: dart pub get
+
+    - name: Read the pull request
+      shell: bash
+      env:
+        BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        CONVENTIONS: ${{ inputs.conventions }}
+      run: |
+        # The same changes as the "Files changed" tab: from the point where the
+        # branch started to the last commit of the pull request.
+        git diff --no-color "$BASE_SHA...$HEAD_SHA" > "$RUNNER_TEMP/pull_request.diff"
+        if git show "$BASE_SHA:$CONVENTIONS" > "$RUNNER_TEMP/CONVENTIONS.md" 2> /dev/null; then
+          echo "Conventions read from the base branch: $CONVENTIONS"
+        else
+          rm -f "$RUNNER_TEMP/CONVENTIONS.md"
+          echo "No $CONVENTIONS on the base branch."
+        fi
+
+    - name: Review
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      env:
+        FLUTTER_REVIEW_API_KEY: ${{ inputs.api-key }}
+        FLUTTER_REVIEW_PROVIDER: ${{ inputs.provider }}
+        FLUTTER_REVIEW_MODEL: ${{ inputs.model }}
+        FLUTTER_REVIEW_BASE_URL: ${{ inputs.base-url }}
+        PACKS: ${{ inputs.packs }}
+      run: |
+        args=(--diff "$RUNNER_TEMP/pull_request.diff" --project "$GITHUB_WORKSPACE" --json "$RUNNER_TEMP/review.json")
+        if [ -f "$RUNNER_TEMP/CONVENTIONS.md" ]; then
+          args+=(--conventions "$RUNNER_TEMP/CONVENTIONS.md")
+        fi
+        for pack in $PACKS; do
+          args+=(--pack "$pack")
+        done
+        # A failed review must not fail the job: the next step writes why on
+        # the pull request.
+        dart run bin/flutter_review.dart "${args[@]}" || echo "The review did not finish."
+
+    - name: Write the review on the pull request
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        PULL_REQUEST: ${{ github.event.pull_request.number }}
+        HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      run: |
+        dart run bin/github_review.dart --result "$RUNNER_TEMP/review.json" \
+          --pull-request "$PULL_REQUEST" --commit "$HEAD_SHA"

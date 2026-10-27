@@ -70,6 +70,10 @@ Future<void> main(List<String> arguments) async {
     return;
   }
 
+  // With --json, a review that cannot run still writes why, so the GitHub
+  // Action can say it on the pull request.
+  final String? jsonPath = options.option('json');
+
   final ReviewConfig config;
   try {
     config = resolveConfig(<String, String>{
@@ -82,6 +86,7 @@ Future<void> main(List<String> arguments) async {
     });
   } on ConfigException catch (error) {
     stderr.writeln(error);
+    await _writeError(jsonPath, error.message);
     exitCode = 78;
     return;
   }
@@ -137,6 +142,7 @@ Future<void> main(List<String> arguments) async {
     modelPattern: config.modelPattern,
     totalTimeout: config.timeout,
   );
+  final Stopwatch watch = Stopwatch()..start();
   final ReviewResult result;
   try {
     result = await review(
@@ -154,15 +160,18 @@ Future<void> main(List<String> arguments) async {
     );
   } on ModelException catch (error) {
     stderr.writeln(error);
+    await _writeError(jsonPath, error.message);
     exitCode = 1;
     return;
   } on InvalidAnswerException catch (error) {
     stderr.writeln(error);
+    await _writeError(jsonPath, error.message);
     exitCode = 1;
     return;
   } finally {
     client.close();
   }
+  watch.stop();
 
   if (result.sentRules.isEmpty) {
     stdout.writeln('No rule applies to this change: the model was not called.');
@@ -184,16 +193,28 @@ Future<void> main(List<String> arguments) async {
   }
   _printReport(result, rules);
 
-  final String? jsonPath = options.option('json');
   if (jsonPath != null) {
+    final Map<String, Rule> rulesById = <String, Rule>{
+      for (final Rule rule in rules) rule.id: rule,
+    };
     await File(jsonPath).writeAsString(
       const JsonEncoder.withIndent('  ').convert(<String, Object>{
         'provider': config.provider,
         'model': client.answeredBy ?? '',
         'measured': config.tested && !client.answeredByDiscoveredModel,
+        'seconds': watch.elapsedMilliseconds / 1000,
         'files': result.reviewedFiles,
+        'rules': result.sentRules,
         'findings': <Map<String, Object>>[
-          for (final Finding finding in result.accepted) finding.toJson(),
+          for (final Finding finding in result.accepted)
+            <String, Object>{
+              ...finding.toJson(),
+              'title': rulesById[finding.rule]?.title ?? 'Project convention',
+              if (rulesById[finding.rule]?.level case final String level)
+                'level': level,
+              if (rulesById[finding.rule]?.source case final String source)
+                'source': source,
+            },
         ],
         'checks': <Map<String, Object>>[
           for (final RuleCheck check in result.checks) check.toJson(),
@@ -204,6 +225,14 @@ Future<void> main(List<String> arguments) async {
         ],
       }),
     );
+  }
+}
+
+Future<void> _writeError(String? jsonPath, String message) async {
+  if (jsonPath != null) {
+    await File(
+      jsonPath,
+    ).writeAsString(jsonEncode(<String, String>{'error': message}));
   }
 }
 
