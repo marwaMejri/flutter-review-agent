@@ -66,6 +66,11 @@ runs:
         exit 1
 
     - uses: dart-lang/setup-dart@v1
+      with:
+        # The problem matcher of setup-dart is a file next to its action. Inside
+        # this composite action, GITHUB_ACTION_PATH points here instead, so the
+        # file is not found and the step fails. The review does not need it.
+        problem-matcher: false
 
     - name: Install the agent
       shell: bash
