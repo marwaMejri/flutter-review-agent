@@ -29,6 +29,40 @@ class Rule {
   /// links. Null when there is none.
   String? get source => _field('Source');
 
+  /// Whether the agent keeps only the first remark of the rule, from the
+  /// `Remarks` line.
+  bool get onePerPullRequest => _field('Remarks') == 'one per pull request';
+
+  /// The rules that win on the same line, from the `Not on a line of` line,
+  /// for example `B2` for MEM1. Empty when there is none.
+  List<String> get notOnLineOf => <String>[
+    for (final Match id in RegExp(
+      r'[A-Z]+\d+',
+    ).allMatches(_field('Not on a line of') ?? ''))
+      id.group(0)!,
+  ];
+
+  /// The texts that the line of a remark must contain, from a
+  /// `Remark line: contains ...` line. Empty when there is none.
+  List<String> get remarkLine {
+    final String field = _field('Remark line') ?? '';
+    return <String>[
+      if (field.startsWith('contains'))
+        for (final Match code in _code.allMatches(field)) code.group(1)!,
+    ];
+  }
+
+  /// Whether the line of a remark must declare a method, a function or a
+  /// getter whose return type ends with `>?`, from a
+  /// `Remark line: a return type that ends with >?` line.
+  bool get remarkOnNullableReturn =>
+      _field('Remark line') == 'a return type that ends with `>?`';
+
+  /// Whether the first widget of the line of a remark must not be `const`,
+  /// from a `Remark line: a widget that is not const` line.
+  bool get remarkOnNonConstWidget =>
+      _field('Remark line') == 'a widget that is not `const`';
+
   String? _field(String name) {
     final Match? match = RegExp(
       '^- \\*\\*$name:\\*\\* (.+(?:\\n  .+)*)',
@@ -38,14 +72,17 @@ class Rule {
   }
 
   /// Whether the rule applies to a pull request that changes [paths] and adds
-  /// the lines [addedCode].
+  /// the lines [addedCode]. [aroundCode] is the code of the hunks that add a
+  /// line, unchanged lines included.
   ///
   /// A trigger `file:test/` matches a changed path that starts with `test/`.
-  /// Any other trigger matches an added line that contains it. A rule without
-  /// triggers always applies.
+  /// A trigger `around:GoRoute` matches a hunk that adds a line and contains
+  /// `GoRoute`, on an added or an unchanged line. Any other trigger matches an
+  /// added line that contains it. A rule without triggers always applies.
   bool isTriggeredBy({
     required List<String> paths,
     required List<String> addedCode,
+    List<String> aroundCode = const <String>[],
   }) {
     if (triggers.isEmpty) {
       return true;
@@ -54,6 +91,11 @@ class Rule {
       if (trigger.startsWith('file:')) {
         final String prefix = trigger.substring('file:'.length);
         if (paths.any((String path) => path.startsWith(prefix))) {
+          return true;
+        }
+      } else if (trigger.startsWith('around:')) {
+        final String text = trigger.substring('around:'.length);
+        if (aroundCode.any((String line) => line.contains(text))) {
           return true;
         }
       } else if (addedCode.any((String line) => line.contains(trigger))) {

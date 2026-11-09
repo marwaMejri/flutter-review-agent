@@ -69,13 +69,18 @@ String reviewSummary(Map<String, Object?> result) {
           : '${findings.length} remark${findings.length == 1 ? '' : 's'}, '
                 'on the lines below.',
     );
+  if (result['note'] case final String note) {
+    text
+      ..writeln()
+      ..writeln()
+      ..write(note);
+  }
   if (result['measured'] == false) {
     text
       ..writeln()
       ..writeln()
       ..write(
-        'This provider or model was not measured by the evaluation of the '
-        'agent yet.',
+        'This model was not measured by the evaluation of the agent yet.',
       );
   }
   text

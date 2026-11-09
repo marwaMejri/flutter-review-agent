@@ -22,6 +22,25 @@ void main() {
     );
   });
 
+  test('reads deleted files apart, with their removed lines only', () {
+    final DiffFile file = parseDeletedFiles(sampleDiff).single;
+
+    expect(file.path, 'lib/old.dart');
+    expect(file.annotated, contains('      |-void old() {}'));
+    expect(file.addedLines, isEmpty);
+  });
+
+  test('keeps the code of the hunks that add a line', () {
+    final DiffFile file = parseDiff(sampleDiff).single;
+
+    expect(file.aroundCode, <String>[
+      '  final int x;',
+      '  final int z;',
+      '  final int w;',
+      '  void run() {}',
+    ]);
+  });
+
   test('puts the line number in front of each line', () {
     final DiffFile file = parseDiff(sampleDiff).single;
 

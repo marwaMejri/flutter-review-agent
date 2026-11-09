@@ -102,10 +102,12 @@
      around one widget), do not flag.
   2. Does the field changed by `setState` change only one part of `build()`: one
      widget and its children, such as a `Text` that shows its value or one
-     `Icon`, while the other widgets do not read it? If yes, flag. If no (the
-     field chooses what `build()` returns, or what the `body:` shows, with an
-     `if`, a `? :` or a `switch`, as in `body: _loading ? const Spinner() :
-     const Content()`), do not flag.
+     `Icon`, while the other widgets do not read it? An `if` that adds or
+     removes one widget inside a `Column`, as in
+     `if (_isInfoPressed) Padding(...)`, changes one part: answer yes. If yes,
+     flag. If no (the field chooses what `build()` returns, or what the
+     `body:` shows, with an `if`, a `? :` or a `switch`, as in
+     `body: _loading ? const Spinner() : const Content()`), do not flag.
 - **Bad:** a whole screen rebuilds every second for a clock.
 
   ```dart
@@ -342,4 +344,5 @@
   change of the value. A subtree passed as `child` is built once.
 - **Source:** [Performance best practices, Control build() cost](https://docs.flutter.dev/perf/best-practices#control-build-cost) (the rebuild stops at "the same instance of the child widget"), [StatefulWidget, Performance considerations](https://api.flutter.dev/flutter/widgets/StatefulWidget-class.html#performance-considerations) ("If a subtree does not change, cache the widget that represents that subtree"), [Pitfalls](https://docs.flutter.dev/perf/best-practices#pitfalls), [AnimatedBuilder, Performance optimizations](https://api.flutter.dev/flutter/widgets/AnimatedBuilder-class.html#performance-optimizations), [ValueListenableBuilder](https://api.flutter.dev/flutter/widgets/ValueListenableBuilder-class.html) and [ListenableBuilder.child](https://api.flutter.dev/flutter/widgets/ListenableBuilder/child.html)
 - **Level:** issue
+- **Remark line:** a widget that is not `const`
 - **Triggers:** `AnimatedBuilder`, `ListenableBuilder`, `ValueListenableBuilder`

@@ -87,6 +87,33 @@ void main() {
     expect(calls, 1);
   });
 
+  test('says when the request is too large, without trying again', () async {
+    for (final http.Response refusal in <http.Response>[
+      http.Response('{"error": {"message": "Request too large"}}', 413),
+      http.Response('{"error": {"code": "context_length_exceeded"}}', 400),
+      http.Response(
+        '{"error": {"message": "The input token count (40000) exceeds the '
+        'maximum number of tokens allowed (32768)."}}',
+        400,
+      ),
+    ]) {
+      int calls = 0;
+      final ModelClient client = clientWith(
+        MockClient((http.Request request) async {
+          calls++;
+          return refusal;
+        }),
+        models: <String>['a', 'b'],
+      );
+
+      await expectLater(
+        client.complete(system: 's', user: 'u'),
+        throwsA(isA<RequestTooLargeException>()),
+      );
+      expect(calls, 1);
+    }
+  });
+
   test('uses the next model when one stays busy', () async {
     final List<String> asked = <String>[];
     final ModelClient client = clientWith(

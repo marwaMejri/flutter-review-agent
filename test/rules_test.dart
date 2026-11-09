@@ -89,6 +89,47 @@ void main() {
     );
   });
 
+  test('finds a trigger around: on the unchanged lines of a hunk', () {
+    // Pull request #14 adds `name:` inside a `GoRoute(` that it does not
+    // change.
+    final DiffFile file = parseDiff('''
+diff --git a/lib/app/router.dart b/lib/app/router.dart
+--- a/lib/app/router.dart
++++ b/lib/app/router.dart
+@@ -40,2 +40,3 @@
+           GoRoute(
+             path: 'settings',
++            name: 'settings',
+''').single;
+    final Rule around = Rule(
+      id: 'X1',
+      title: 't',
+      text: 't',
+      triggers: <String>['around:GoRoute'],
+    );
+    final Rule added = Rule(
+      id: 'X2',
+      title: 't',
+      text: 't',
+      triggers: <String>['GoRoute'],
+    );
+
+    for (final (Rule rule, bool expected) in <(Rule, bool)>[
+      (around, true),
+      (added, false),
+    ]) {
+      expect(
+        rule.isTriggeredBy(
+          paths: <String>[file.path],
+          addedCode: file.addedCode,
+          aroundCode: file.aroundCode,
+        ),
+        expected,
+        reason: rule.id,
+      );
+    }
+  });
+
   test('every step of Decide says what to do when the answer is no', () {
     final RegExp step = RegExp(r'\n  \d+\. ');
     final RegExp whenNo = RegExp(
@@ -129,5 +170,61 @@ void main() {
       startsWith('[StatefulWidget, Performance considerations]'),
     );
     expect(rule.source, contains('[TextEditingController]'));
+  });
+
+  test('reads which rules keep one remark per pull request', () {
+    final List<Rule> rules = parseRules(
+      File('rules/tests.md').readAsStringSync(),
+    );
+
+    final Rule t3 = rules.firstWhere((Rule r) => r.id == 'T3');
+    final Rule t4 = rules.firstWhere((Rule r) => r.id == 'T4');
+
+    expect(t3.onePerPullRequest, isTrue);
+    expect(t4.onePerPullRequest, isFalse);
+  });
+
+  test('reads the texts that the line of a remark must contain', () {
+    final List<Rule> rules = parseRules(
+      File('rules/dart.md').readAsStringSync(),
+    );
+
+    final Rule b5 = rules.firstWhere((Rule r) => r.id == 'B5');
+
+    expect(b5.remarkOnNullableReturn, isTrue);
+    expect(b5.remarkLine, isEmpty);
+    expect(rules.firstWhere((Rule r) => r.id == 'B4').remarkLine, isEmpty);
+    expect(
+      Rule(
+        id: 'X1',
+        title: 't',
+        text: '## X1. t\n\n- **Remark line:** contains `>?`',
+      ).remarkLine,
+      <String>['>?'],
+    );
+  });
+
+  test('reads which rules need a widget that is not const', () {
+    final Rule p9 = parseRules(
+      File('rules/performance.md').readAsStringSync(),
+    ).firstWhere((Rule r) => r.id == 'P9');
+    final Rule b5 = parseRules(
+      File('rules/dart.md').readAsStringSync(),
+    ).firstWhere((Rule r) => r.id == 'B5');
+
+    expect(p9.remarkOnNonConstWidget, isTrue);
+    expect(p9.remarkLine, isEmpty);
+    expect(b5.remarkOnNonConstWidget, isFalse);
+  });
+
+  test('reads the rules that win on the same line', () {
+    final List<Rule> rules = parseRules(
+      File('rules/memory.md').readAsStringSync(),
+    );
+
+    expect(rules.firstWhere((Rule r) => r.id == 'MEM1').notOnLineOf, <String>[
+      'B2',
+    ]);
+    expect(rules.firstWhere((Rule r) => r.id == 'B2').notOnLineOf, isEmpty);
   });
 }

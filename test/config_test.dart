@@ -9,7 +9,6 @@ void main() {
     });
 
     expect(config.provider, 'gemini');
-    expect(config.tested, isTrue);
     expect(config.baseUrl, providerPresets['gemini']!.baseUrl);
     expect(config.models, providerPresets['gemini']!.models);
   });
@@ -65,16 +64,38 @@ void main() {
     );
   });
 
-  test('marks the experimental presets as not measured', () {
-    for (final String provider in <String>['groq', 'openai']) {
-      final ReviewConfig config = resolveConfig(<String, String>{
-        apiKeyVariable: 'key',
-        providerVariable: provider,
-      });
+  test('knows which models were measured', () {
+    final ReviewConfig gemini = resolveConfig(<String, String>{
+      apiKeyVariable: 'key',
+      providerVariable: 'gemini',
+      modelVariable: 'gemini-3.5-flash-lite',
+    });
+    final ReviewConfig groq = resolveConfig(<String, String>{
+      apiKeyVariable: 'key',
+      providerVariable: 'groq',
+    });
+    final ReviewConfig openai = resolveConfig(<String, String>{
+      apiKeyVariable: 'key',
+      providerVariable: 'openai',
+    });
 
-      expect(config.tested, isFalse, reason: provider);
-      expect(config.models, isNotEmpty, reason: provider);
-    }
+    expect(gemini.isMeasured('gemini-3.5-flash-lite'), isTrue);
+    expect(gemini.isMeasured('gemini-3.8-flash'), isFalse);
+    expect(groq.isMeasured('openai/gpt-oss-120b'), isTrue);
+    expect(groq.isMeasured('openai/gpt-oss-20b'), isFalse);
+    expect(openai.isMeasured('gpt-5.6-terra'), isFalse);
+    expect(gemini.isMeasured(null), isFalse);
+  });
+
+  test('measures nothing at another address', () {
+    final ReviewConfig config = resolveConfig(<String, String>{
+      apiKeyVariable: 'key',
+      providerVariable: 'gemini',
+      baseUrlVariable: 'https://example.com/v1/',
+      modelVariable: 'gemini-3.5-flash-lite',
+    });
+
+    expect(config.isMeasured('gemini-3.5-flash-lite'), isFalse);
   });
 
   test('reads the longest time for one review', () {

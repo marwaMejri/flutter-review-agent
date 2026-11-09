@@ -8,31 +8,35 @@ a test **verifies** the change.
 
 - **Check:** code added under `lib/`, and the tests in the same pull request.
 - **Flag when:** the pull request adds a behavior (a new public method, a new
-  branch of an `if` or `switch`, a new screen state, a changed condition or
-  computation) and no test in the pull request has an `expect` on that
-  behavior. Judge from the pull
-  request only: you do not need to see the other tests of the project.
+  branch of an `if` or `switch`, a new screen state, a new button action, a
+  changed condition or computation) and no test in the pull request has an
+  `expect` on that behavior. Judge from the pull request only: you do not need
+  to see the other tests of the project. One remark for the whole pull
+  request.
 - **Do not flag when:**
-  - the change has no behavior to test: a rename, a comment, or a change of
-    padding, color or text style only;
+  - the change has no behavior to test: a constant, a rename, a comment, a
+    change of padding, color or text style, or a widget that only shows fixed
+    content;
   - the pull request moves existing code without changing what it does, for
     example a part of a screen extracted into a new widget. The call that
     replaces the removed lines is part of the move;
-  - an existing test already checks it and the pull request shows that test;
+  - a test of the pull request checks the method that the new code calls;
   - the file is generated (`*.g.dart`, `*.freezed.dart`, localizations).
 - **Decide:**
-  1. Does the pull request add a behavior under `lib/`: a new public method, a
-     new branch of an `if` or `switch`, a new screen state, a changed condition
-     or computation? Answer no for a rename, a comment, a style change (padding,
-     color, text style) and a generated file. Answer no for moved code too:
-     added code that the pull request removes from another place (lines marked
-     `-`), in the same file or in another one. A new method or widget made from
-     removed lines, and the call that replaces them, add no behavior. If yes, go
-     to step 2. If no, do not flag.
-  2. Does a test file of this pull request have an `expect` on that behavior?
-     You do not need to see the other tests of the project. If yes, do not flag.
-     If no, flag, and put the remark on the added line under `lib/`, never on a
-     test file.
+  1. Look at the added code under `lib/` only, not at the tests. Does it add
+     a behavior: a new public method, a new branch of an `if` or `switch`, a
+     new screen state, a new button action, a changed condition or
+     computation? A constant, a rename, a comment, a style change, a widget
+     that only shows fixed content and a generated file are not a behavior.
+     If yes, go to step 2. If no, do not flag.
+  2. Is this code moved: does the pull request remove the same code from
+     another place (lines marked `-`), in the same file or in another one? If
+     yes, do not flag. If no, go to step 3.
+  3. Does a test file of this pull request have an `expect` on that behavior?
+     A test of a method also counts for the code that calls it. You do not
+     need to see the other tests of the project. If yes, do not flag. If no,
+     flag once for the whole pull request, on the added line under `lib/`
+     where the behavior starts, never on a test file.
 - **Bad:** a pull request adds an `if (release.isBeta)` branch that shows a
   "Beta" badge. The tests render the screen with a stable release only: the
   new line runs in no test, or it runs but nothing checks the badge.
@@ -42,6 +46,7 @@ a test **verifies** the change.
 - **Source:** team rule of this project: every case needs a unit test or a
   widget test.
 - **Level:** issue
+- **Remarks:** one per pull request
 - **Triggers:** `file:lib/`
 
 ## T4. An appearance test that reads the wrong widget
@@ -93,27 +98,29 @@ a test **verifies** the change.
 
 ## T5. An animated navigation tested only at the end
 
-- **Check:** tests for navigation between pages, when the pull request
-  changes a line that contains `GoRouter`, `GoRoute`, `routes:`,
-  `MaterialApp` or `CupertinoApp`, or changes the version of a router package
+- **Check:** tests for navigation between pages, when the pull request adds
+  or changes a line inside a `GoRouter`, `GoRoute`, `routes:`, `MaterialApp`
+  or `CupertinoApp`, or changes the version of a router package
   (`go_router`, `auto_route`, `beamer`) in `pubspec.yaml`.
 - **Flag when:** every navigation test of the pull request calls
   `pumpAndSettle()` right after the tap, and checks only the new page.
 - **Do not flag when:**
   - a test also checks the screen in the middle of the transition, after a
     `pump()` with a duration;
-  - the pull request changes none of the lines above. A test that navigates is
-    not enough to apply this rule.
+  - the pull request changes nothing inside these calls, and no router
+    package version. A test that navigates is not enough to apply this rule.
 - **Decide:**
-  1. Does the pull request change a line that contains `GoRouter`, `GoRoute`,
-     `routes:`, `MaterialApp` or `CupertinoApp`, or the version of a router
-     package (`go_router`, `auto_route`, `beamer`)? A test that navigates is not
-     enough. If yes, go to step 2. If no, do not flag.
-  2. Does every navigation test of the pull request call `pumpAndSettle()` right
-     after the tap, and check only the new page? If yes, flag, and put the
-     remark on the test line, not on the router. If no (a test checks the screen
-     in the middle of the transition, after a `pump()` with a duration), do not
-     flag.
+  1. Does the pull request add or change a line inside a `GoRouter`,
+     `GoRoute`, `routes:`, `MaterialApp` or `CupertinoApp`, or change the
+     version of a router package (`go_router`, `auto_route`, `beamer`)? A line
+     inside a call is between its `(` and its `)`, for example
+     `name: 'settings'` under `GoRoute(`. A test that navigates is not enough.
+     If yes, go to step 2. If no, do not flag.
+  2. After the tap, does a navigation test of the pull request call `pump()`
+     with a duration and check the screen in the middle of the transition? If
+     yes, do not flag. If no (every test calls `pumpAndSettle()` and checks only
+     the new page), flag, and put the remark on the test line, not on the
+     router.
 - **Bad:**
 
   ```dart
@@ -137,4 +144,5 @@ a test **verifies** the change.
   that only checks the end cannot see a transition that disappeared.
 - **Source:** measured with `go_router` 17.5.0 in a migrated app, in [Your packages haven't migrated to material_ui. Can you?](https://github.com/marwaMejri/material_ui_packages_migration)
 - **Level:** suggestion
-- **Triggers:** `GoRoute`, `GoRouter`, `Navigator`, `MaterialApp`, `CupertinoApp`, `routes:`, `go_router:`, `auto_route:`, `beamer:`
+- **Remarks:** one per pull request
+- **Triggers:** `around:GoRoute`, `around:GoRouter`, `Navigator`, `around:MaterialApp`, `around:CupertinoApp`, `around:routes:`, `go_router:`, `auto_route:`, `beamer:`

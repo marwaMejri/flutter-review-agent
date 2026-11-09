@@ -26,6 +26,79 @@ void main() {
     expect(prompt, isNot(contains('@@')));
   });
 
+  test('asks to check the conventions as one more rule', () {
+    final String prompt = buildUserPrompt(
+      rules: rules,
+      files: files,
+      conventions: '- Screens never use `Navigator.push`.',
+    );
+
+    expect(prompt, contains('# Project conventions'));
+    expect(prompt, contains('For each convention below, in order'));
+    expect(prompt, contains('- Screens never use `Navigator.push`.'));
+    expect(
+      prompt,
+      contains('add one entry "CONVENTION" for each convention that the'),
+    );
+    expect(systemPrompt, contains('report two findings, each on its own line'));
+    expect(
+      systemPrompt,
+      contains('write the answer of each step you went through, then the end'),
+    );
+  });
+
+  test('sends the deleted files, to show where moved code comes from', () {
+    final String prompt = buildUserPrompt(
+      rules: rules,
+      files: files,
+      deletedFiles: parseDeletedFiles(sampleDiff),
+    );
+
+    expect(prompt, contains('## File: lib/old.dart (deleted)'));
+    expect(prompt, contains('      |-void old() {}'));
+    expect(systemPrompt, contains('Code that the pull request only moves'));
+  });
+
+  test('says which test files the pull request changes', () {
+    expect(
+      buildUserPrompt(rules: rules, files: files),
+      contains('Test files changed by this pull request: none.'),
+    );
+    expect(
+      buildUserPrompt(
+        rules: rules,
+        files: files,
+        testFiles: <String>['test/a_test.dart'],
+      ),
+      contains('Test files changed by this pull request: test/a_test.dart.'),
+    );
+  });
+
+  test('asks for one check for each section of the conventions', () {
+    const String conventions = '''
+# Conventions
+
+## Folders
+- A feature never imports another feature.
+
+## Navigation
+- Screens never use `Navigator.push`.
+''';
+    final String prompt = buildUserPrompt(
+      rules: rules,
+      files: files,
+      conventions: conventions,
+    );
+
+    expect(conventionSections(conventions), <String>['Folders', 'Navigation']);
+    expect(
+      prompt,
+      contains('Go through the sections below, in order: Folders, Navigation.'),
+    );
+    expect(prompt, contains('add one entry "CONVENTION" for each section'));
+    expect(prompt, isNot(contains('For each convention below')));
+  });
+
   test('sends only the changed parts when the file is unknown', () {
     final String prompt = buildUserPrompt(rules: rules, files: files);
 
@@ -46,15 +119,43 @@ void main() {
 - **Why:** because.
 - **Source:** a link that goes on
   on two lines
-- **Level:** issue''';
+- **Level:** issue
+- **Remarks:** one per pull request
+- **Remark line:** contains `>?`
+- **Not on a line of:** B2''';
 
     expect(ruleForModel(text), contains('- **Why:** because.'));
     expect(ruleForModel(text), isNot(contains('Source')));
     expect(ruleForModel(text), isNot(contains('on two lines')));
     expect(ruleForModel(text), isNot(contains('Level')));
+    expect(ruleForModel(text), isNot(contains('Remarks')));
+    expect(ruleForModel(text), isNot(contains('Remark line')));
+    expect(ruleForModel(text), isNot(contains('Not on a line of')));
     expect(ruleForModel(text), isNot(contains('Flag when')));
     expect(ruleForModel(text), isNot(contains('Check')));
     expect(ruleForModel(text), contains('  1. Is it so? If yes, flag.'));
+  });
+
+  test('points at the added lines next to a trigger around:', () {
+    // Pull request #14: `name:` is added under a `GoRoute(` it does not
+    // change.
+    final List<DiffFile> router = parseDiff('''
+diff --git a/lib/app/router.dart b/lib/app/router.dart
+--- a/lib/app/router.dart
++++ b/lib/app/router.dart
+@@ -40,2 +40,3 @@
+           GoRoute(
+             path: 'settings',
++            name: 'settings',
+''');
+    final Rule rule = Rule(
+      id: 'T5',
+      title: 't',
+      text: 't',
+      triggers: <String>['around:GoRoute'],
+    );
+
+    expect(triggerPlaces(rule, router), <String>['lib/app/router.dart:42']);
   });
 
   test('points at the added lines that contain a trigger of the rule', () {

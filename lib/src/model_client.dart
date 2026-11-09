@@ -13,6 +13,12 @@ class ModelException implements Exception {
   String toString() => 'ModelException: $message';
 }
 
+/// Thrown when the request is larger than the provider accepts. The review
+/// sends it again in smaller parts.
+class RequestTooLargeException extends ModelException {
+  RequestTooLargeException(super.message);
+}
+
 /// Calls any provider that offers an OpenAI-compatible chat API
 /// (Gemini, Groq, OpenAI, and others).
 ///
@@ -305,6 +311,12 @@ class ModelClient {
           'Check that the key comes from $provider.',
         );
       }
+      if (_isTooLarge(status, body)) {
+        throw RequestTooLargeException(
+          'The request is too large for $provider ($model), HTTP $status: '
+          '${_short(body)}',
+        );
+      }
       if (status == 404) {
         throw _SkipModelException('model not found (HTTP 404)');
       }
@@ -367,6 +379,19 @@ class ModelClient {
     final String text = body.toLowerCase();
     return status == 400 &&
         (text.contains('api key') || text.contains('api_key'));
+  }
+
+  /// "The request is too large": HTTP 413 (Groq answers it when one request
+  /// is over the tokens per minute of the account), or HTTP 400 with the
+  /// words of OpenAI ("context_length_exceeded", "maximum context length") or
+  /// of Gemini ("exceeds the maximum number of tokens").
+  static bool _isTooLarge(int status, String body) {
+    final String text = body.toLowerCase();
+    return status == 413 ||
+        (status == 400 &&
+            (text.contains('context_length_exceeded') ||
+                text.contains('maximum context length') ||
+                text.contains('exceeds the maximum number of tokens')));
   }
 
   /// The optional setting named in an error message, if it was sent.

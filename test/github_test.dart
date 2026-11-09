@@ -27,6 +27,26 @@ final Map<String, Object?> result = <String, Object?>{
 };
 
 void main() {
+  test('says when the model was not measured', () {
+    final Map<String, Object> measured = reviewRequest(result, commitId: 'a');
+    final Map<String, Object> notMeasured = reviewRequest(<String, Object?>{
+      ...result,
+      'measured': false,
+    }, commitId: 'a');
+
+    expect(measured['body'], isNot(contains('not measured')));
+    expect(notMeasured['body'], contains('This model was not measured'));
+  });
+
+  test('says when the pull request was reviewed in parts', () {
+    final Map<String, Object> request = reviewRequest(<String, Object?>{
+      ...result,
+      'note': 'It was reviewed in 2 parts.',
+    }, commitId: 'abc');
+
+    expect(request['body'], contains('It was reviewed in 2 parts.'));
+  });
+
   test('puts each remark on its line, with its rule and source', () {
     final Map<String, Object> request = reviewRequest(result, commitId: 'abc');
 

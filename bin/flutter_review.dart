@@ -180,15 +180,18 @@ Future<void> main(List<String> arguments) async {
       ..writeln('Model: ${client.answeredBy} (${config.provider})')
       ..writeln('Rules applied: ${result.sentRules.join(', ')}');
   }
+  if (result.note case final String note) {
+    stdout.writeln('Note: $note');
+  }
+  final bool measured = config.isMeasured(client.answeredBy);
   if (client.answeredByDiscoveredModel) {
     stdout.writeln(
       'Note: this model was found in the list of ${config.provider}. '
       'It was not measured by the evaluation of the agent.',
     );
-  } else if (!config.tested) {
+  } else if (!measured && result.sentRules.isNotEmpty) {
     stdout.writeln(
-      'Note: this provider or model was not measured by the evaluation of '
-      'the agent yet.',
+      'Note: this model was not measured by the evaluation of the agent yet.',
     );
   }
   _printReport(result, rules);
@@ -201,10 +204,11 @@ Future<void> main(List<String> arguments) async {
       const JsonEncoder.withIndent('  ').convert(<String, Object>{
         'provider': config.provider,
         'model': client.answeredBy ?? '',
-        'measured': config.tested && !client.answeredByDiscoveredModel,
+        'measured': measured,
         'seconds': watch.elapsedMilliseconds / 1000,
         'files': result.reviewedFiles,
         'rules': result.sentRules,
+        if (result.note case final String note) 'note': note,
         'findings': <Map<String, Object>>[
           for (final Finding finding in result.accepted)
             <String, Object>{
@@ -259,6 +263,18 @@ void _printReport(ReviewResult result, List<Rule> rules) {
       stdout.writeln(
         '  ${item.finding.file}:${item.finding.line} '
         '[${item.finding.rule}] ${item.reason}',
+      );
+    }
+  }
+  // The answer of the model for each rule: why a rule applies or not.
+  if (result.checks.isNotEmpty) {
+    stdout
+      ..writeln()
+      ..writeln('Checks:');
+    for (final RuleCheck check in result.checks) {
+      stdout.writeln(
+        '  ${check.rule.padRight(11)}${check.applies ? 'yes' : 'no '}  '
+        '${check.reason}',
       );
     }
   }

@@ -18,19 +18,25 @@ file, the line number in the new version of the file, and a short message.
 - For each rule, answer the steps of its "Decide" part in order, about the
   added code. Each step says what to do for "yes" and for "no": go to another
   step, flag, or do not flag. Report a problem only when the steps end with
-  "flag".
+  "flag". Apply the steps to each place in the added code: when a rule is
+  broken in two places, report two findings, each on its own line.
 - The "Bad" and "Good" examples only show the idea of a rule: decide with the
   steps, not by how much the code looks like an example.
 - In "checks", give one entry per rule you were given, in order. In "reason",
-  name the step that decided and say why in 15 words or fewer, for example
-  "Step 2: the controller is created in build()". Set "applies" to true only
-  if you report a problem for this rule.
+  write the answer of each step you went through, then the end, for example
+  "Step 1: yes. Step 2: no, the controller is created in initState. Do not
+  flag." Set "applies" to true only if the steps end with "flag", and then
+  report the problem.
 - Only report problems in lines the pull request adds or changes (marked
   with +). Unchanged lines are only there to give context: never report them.
+- Code that the pull request only moves (removed in one place and added
+  unchanged in another) is not new: do not report it.
 - Do not report style, formatting or lint issues, or anything that is not in
   the rules.
-- If a project convention is given and the code breaks it, use the rule ID
-  "$conventionRuleId".
+- If project conventions are given, check them as one more rule, as their
+  "Decide" part says, and give their "checks" entries after the rules. Report
+  every broken convention as a finding with the rule ID "$conventionRuleId",
+  each on its own line, and name the convention in the message.
 - The message is one or two sentences in plain English: what is wrong in this
   code, and what to do instead.
 - In "evidence", copy the code of the cited line that shows the problem,
@@ -56,12 +62,26 @@ Answer with JSON only, in this form:
 /// [sources] maps the path of a changed file to its full new version. The
 /// file is then sent whole, so the model sees code outside the diff, such as
 /// a `dispose()` method.
+///
+/// [deletedFiles] are sent with their removed lines, so the model sees where
+/// moved code comes from. [testFiles] are the test files of the whole pull
+/// request, when [files] is only a part of it.
 String buildUserPrompt({
   required List<Rule> rules,
   required List<DiffFile> files,
   String? conventions,
   Map<String, String> sources = const <String, String>{},
+  List<DiffFile> deletedFiles = const <DiffFile>[],
+  List<String>? testFiles,
 }) {
+  // A fact the model cannot guess wrong: without it, a small model sometimes
+  // answers that a test checks a behavior when the pull request has no test.
+  final List<String> tests =
+      testFiles ??
+      <String>[
+        for (final DiffFile file in files)
+          if (isTestFile(file.path)) file.path,
+      ];
   final StringBuffer buffer = StringBuffer()
     ..writeln('# Rules')
     ..writeln();
@@ -71,15 +91,41 @@ String buildUserPrompt({
     if (places.isNotEmpty) {
       buffer.writeln(
         '- **Look first at:** ${places.join(', ')} (added lines that '
-        'contain a trigger of this rule).',
+        'contain a trigger of this rule, or are next to one).',
       );
     }
     buffer.writeln();
   }
 
   if (conventions != null && conventions.trim().isNotEmpty) {
+    final List<String> sections = conventionSections(conventions);
     buffer
       ..writeln('# Project conventions')
+      ..writeln()
+      ..writeln(
+        sections.isEmpty
+            ? '- **Decide:** For each convention below, in order: does an '
+                  'added line break it? If yes, flag it with the rule ID '
+                  '"$conventionRuleId", then go to the next convention. If '
+                  'no, go to the next convention. Report every broken '
+                  'convention, each on its own line. In "checks", add one '
+                  'entry "$conventionRuleId" for each convention that the '
+                  'added lines break, with the convention in "reason". If '
+                  'none is broken, add one entry "$conventionRuleId" with '
+                  '"none".'
+            // One entry for each section makes the model go through all of
+            // them, as one entry for each rule does for the rules.
+            : '- **Decide:** Go through the sections below, in order: '
+                  '${sections.join(', ')}. For each section: does an added '
+                  'line break one of its conventions? If yes, flag each '
+                  'broken convention with the rule ID "$conventionRuleId", '
+                  'each on its own line, then go to the next section. If no, '
+                  'go to the next section. In "checks", add one entry '
+                  '"$conventionRuleId" for each section, in the same order, '
+                  'with the name of the section first in "reason", for '
+                  'example "Navigation: yes, Navigator.push at line 68. '
+                  'Flag."',
+      )
       ..writeln()
       ..writeln(conventions.trim())
       ..writeln();
@@ -93,13 +139,21 @@ String buildUserPrompt({
       'Lines marked with + are added by the pull request. Lines marked with - '
       'are removed: they have no number. Other lines are unchanged.',
     )
+    ..writeln()
+    ..writeln(
+      'Test files changed by this pull request: '
+      '${tests.isEmpty ? 'none' : tests.join(', ')}.',
+    )
     ..writeln();
   for (final DiffFile file in files) {
     final String? source = sources[file.path];
     final List<String>? whole = source == null
         ? null
         : wholeFileView(file, source);
-    if (whole != null && whole.length <= maxWholeFileLines) {
+    if (file.deleted) {
+      buffer.writeln('## File: ${file.path} (deleted)');
+      file.annotated.forEach(buffer.writeln);
+    } else if (whole != null && whole.length <= maxWholeFileLines) {
       buffer.writeln('## File: ${file.path} (whole file)');
       whole.forEach(buffer.writeln);
     } else {
@@ -108,19 +162,42 @@ String buildUserPrompt({
     }
     buffer.writeln();
   }
+  for (final DiffFile file in deletedFiles) {
+    buffer.writeln('## File: ${file.path} (deleted)');
+    file.annotated.forEach(buffer.writeln);
+    buffer.writeln();
+  }
   return buffer.toString();
 }
+
+/// The titles of the sections of the conventions: the `## ` headings, in
+/// order. Empty when the file has none.
+List<String> conventionSections(String conventions) => <String>[
+  for (final Match heading in RegExp(
+    r'^## +(.+?)\s*$',
+    multiLine: true,
+  ).allMatches(conventions.replaceAll('\r\n', '\n')))
+    heading.group(1)!,
+];
+
+/// Whether [path] is a test file: `*_test.dart`, as `flutter test` finds
+/// them.
+bool isTestFile(String path) => path.endsWith('_test.dart');
 
 /// Fields of a rule that the model does not get. `Check`, `Flag when` and
 /// `Do not flag when` are written again as the steps of `Decide`, which every
 /// model follows more reliably. `Source` and `Level` are for the people who
-/// read the rules. Leaving them out saves tokens on every review.
+/// read the rules. `Remarks`, `Remark line` and `Not on a line of` are
+/// applied by the agent. Leaving them out saves tokens on every review.
 const List<String> fieldsNotForModel = <String>[
   'Check',
   'Flag when',
   'Do not flag when',
   'Source',
   'Level',
+  'Remarks',
+  'Remark line',
+  'Not on a line of',
 ];
 
 /// The rule as the model gets it: its title, `Decide`, `Bad`, `Good` and
@@ -170,7 +247,8 @@ List<String> wholeFileView(DiffFile file, String source) {
 }
 
 /// The added lines (`path:line`) that contain a trigger of [rule], at most
-/// [maxPlaces]. They point the model at the code the rule is about, which
+/// [maxPlaces]. For a trigger `around:`, the added lines of a hunk that
+/// contains it. They point the model at the code the rule is about, which
 /// helps small models most.
 List<String> triggerPlaces(
   Rule rule,
@@ -179,20 +257,32 @@ List<String> triggerPlaces(
 }) {
   final List<String> texts = <String>[
     for (final String trigger in rule.triggers)
-      if (!trigger.startsWith('file:')) trigger,
+      if (!trigger.startsWith('file:') && !trigger.startsWith('around:'))
+        trigger,
   ];
-  if (texts.isEmpty) {
+  final List<String> around = <String>[
+    for (final String trigger in rule.triggers)
+      if (trigger.startsWith('around:')) trigger.substring('around:'.length),
+  ];
+  if (texts.isEmpty && around.isEmpty) {
     return <String>[];
   }
   final List<String> places = <String>[];
   for (final DiffFile file in files) {
-    for (final int line in file.addedLines.toList()..sort()) {
-      final String text = file.newLineText[line] ?? '';
-      if (texts.any(text.contains)) {
-        places.add('${file.path}:$line');
-        if (places.length == maxPlaces) {
-          return places;
-        }
+    final Set<int> lines = <int>{
+      for (final int line in file.addedLines)
+        if (texts.any((file.newLineText[line] ?? '').contains)) line,
+      for (int i = 0; i < file.hunks.length; i++)
+        if (around.any(
+          (String text) =>
+              file.hunks[i].any((String code) => code.contains(text)),
+        ))
+          ...file.hunkAddedLines[i],
+    };
+    for (final int line in lines.toList()..sort()) {
+      places.add('${file.path}:$line');
+      if (places.length == maxPlaces) {
+        return places;
       }
     }
   }

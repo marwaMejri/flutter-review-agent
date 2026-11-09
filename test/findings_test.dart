@@ -237,4 +237,155 @@ new file mode 100644
 
     expect(findings.single.rule, 'P1');
   });
+
+  test('refuses a remark whose line does not show the problem', () {
+    // The false remark of pull request #1, next to a true one.
+    const String diff = '''
+diff --git a/lib/r.dart b/lib/r.dart
+--- a/lib/r.dart
++++ b/lib/r.dart
+@@ -1,1 +1,4 @@
+ abstract interface class R {
++  /// The release with [id], or null when there is none.
++  Future<Release?> getRelease(int id);
++  List<String>? get headings;
+''';
+    final ({List<Finding> accepted, List<RejectedFinding> rejected}) result =
+        validateFindings(
+          <Finding>[
+            Finding(
+              rule: 'B5',
+              file: 'lib/r.dart',
+              line: 3,
+              message: 'm',
+              evidence: 'Future<Release?> getRelease(int id);',
+            ),
+            Finding(
+              rule: 'B5',
+              file: 'lib/r.dart',
+              line: 4,
+              message: 'm',
+              evidence: 'List<String>? get headings;',
+            ),
+          ],
+          files: parseDiff(diff),
+          ruleIds: <String>{'B5'},
+          remarkLines: <String, List<String>>{
+            'B5': <String>['>?'],
+          },
+        );
+
+    expect(result.accepted.single.line, 4);
+    expect(result.rejected.single.finding.line, 3);
+    expect(result.rejected.single.reason, 'the line has none of: >?');
+  });
+
+  test('moves a remark on a doc comment to the member below it', () {
+    // gpt-oss-120b put B5 on the comment of the getter, in pull request #23.
+    const String diff = '''
+diff --git a/lib/v.dart b/lib/v.dart
+--- a/lib/v.dart
++++ b/lib/v.dart
+@@ -1,1 +1,4 @@
+ class V {
++  /// The releases, or null when there is none.
++  List<Release>? get majorReleases {
++  }
+''';
+    final ({List<Finding> accepted, List<RejectedFinding> rejected}) result =
+        validateFindings(
+          <Finding>[
+            Finding(
+              rule: 'B5',
+              file: 'lib/v.dart',
+              line: 2,
+              message: 'm',
+              evidence: '/// The releases, or null when there is none.',
+            ),
+          ],
+          files: parseDiff(diff),
+          ruleIds: <String>{'B5'},
+          remarkLines: <String, List<String>>{
+            'B5': <String>['>?'],
+          },
+        );
+
+    expect(result.accepted.single.line, 3);
+  });
+
+  test('refuses a remark on a const widget for P9', () {
+    // flash-lite put P9 on a const Padding, in pull request #21.
+    const String diff = '''
+diff --git a/lib/w.dart b/lib/w.dart
+--- a/lib/w.dart
++++ b/lib/w.dart
+@@ -1,1 +1,3 @@
+ Widget f() =>
++    ? const Padding(padding: EdgeInsets.zero)
++    : DecoratedBox(decoration: d);
+''';
+    final ({List<Finding> accepted, List<RejectedFinding> rejected}) result =
+        validateFindings(
+          <Finding>[
+            Finding(
+              rule: 'P9',
+              file: 'lib/w.dart',
+              line: 2,
+              message: 'm',
+              evidence: 'const Padding(',
+            ),
+            Finding(
+              rule: 'P9',
+              file: 'lib/w.dart',
+              line: 3,
+              message: 'm',
+              evidence: 'DecoratedBox(',
+            ),
+          ],
+          files: parseDiff(diff),
+          ruleIds: <String>{'P9'},
+          nonConstRules: <String>{'P9'},
+        );
+
+    expect(result.accepted.single.line, 3);
+    expect(result.rejected.single.reason, 'the widget on the line is const');
+  });
+
+  test('finds the first widget of a line and whether it is const', () {
+    expect(startsWithConstWidget('? const Padding('), isTrue);
+    expect(startsWithConstWidget('child: const Text("x"),'), isTrue);
+    expect(startsWithConstWidget('DecoratedBox('), isFalse);
+    expect(
+      startsWithConstWidget('Text(widget.title, style: const TextStyle())'),
+      isFalse,
+    );
+    expect(startsWithConstWidget('final int x = 1;'), isFalse);
+  });
+
+  test('finds a return type that ends with >?', () {
+    expect(
+      declaresNullableReturn('List<Release>? get majorReleases {'),
+      isTrue,
+    );
+    expect(
+      declaresNullableReturn(
+        'List<String>? archivedVersionsBefore(int year) {',
+      ),
+      isTrue,
+    );
+    expect(declaresNullableReturn('  Future<int>? load();'), isTrue);
+    expect(
+      declaresNullableReturn('List<T>? firstOf<T>(List<T> items) {'),
+      isTrue,
+    );
+    // Pull request #24: a field, which B5 does not apply to.
+    expect(declaresNullableReturn('  final List<String>? tags;'), isFalse);
+    expect(declaresNullableReturn('List<String>? tags = null;'), isFalse);
+    expect(declaresNullableReturn('void f(List<int>? ids) {'), isFalse);
+    // Pull request #1: only the value of the Future is nullable.
+    expect(
+      declaresNullableReturn('Future<Release?> getRelease(int id);'),
+      isFalse,
+    );
+  });
 }

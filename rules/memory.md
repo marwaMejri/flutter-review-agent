@@ -61,6 +61,7 @@ These rules target leaks.
   - a `Timer.periodic` is started and never cancelled in `dispose()`: its
     callback keeps the `State` alive.
 - **Do not flag when:**
+  - the object is created in `build()`: that is B2;
   - the object was passed in from outside: its owner disposes it;
   - it is a `StreamSubscription` or a `Sink`: they have no `dispose()`. The
     lints `cancel_subscriptions` and `close_sinks` cover them when they are
@@ -70,8 +71,9 @@ These rules target leaks.
     `provider`.
 - **Decide:**
   1. Does a class create, in a field or in `initState`, an object that has a
-     `dispose()` method, or start a `Timer.periodic`? If yes, go to step 2. If
-     no, do not flag.
+     `dispose()` method, or start a `Timer.periodic`? An object created in
+     `build()` answers no: that is B2. If yes, go to step 2. If no, do not
+     flag.
   2. Was the object passed from outside (a constructor parameter,
      `widget.controller`), or created by a library that disposes it
      (`useAnimationController`, `ChangeNotifierProvider(create: ...)`)? Or is it
@@ -112,6 +114,7 @@ These rules target leaks.
   Repeated on every visit to the screen, this is a leak.
 - **Source:** [DevTools, Memory view](https://docs.flutter.dev/tools/devtools/memory) ("To avoid memory leaks, invoke `dispose` when the object isn't needed anymore"), [StatefulWidget, Performance considerations](https://api.flutter.dev/flutter/widgets/StatefulWidget-class.html#performance-considerations), [flutter_hooks](https://pub.dev/packages/flutter_hooks) and [provider](https://pub.dev/packages/provider)
 - **Level:** issue
+- **Not on a line of:** B2
 - **Triggers:** `Controller`, `FocusNode`, `ChangeNotifier`, `dispose`, `Timer.periodic`
 
 ## MEM2. A `BuildContext` stored in a field

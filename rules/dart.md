@@ -88,4 +88,5 @@ rules need a reviewer.
   empty collection is enough.
 - **Source:** [Effective Dart, Design: AVOID returning nullable Future, Stream, and collection types](https://dart.dev/effective-dart/design) ("Users generally assume and prefer that you use an empty container to indicate "no data".")
 - **Level:** suggestion
+- **Remark line:** a return type that ends with `>?`
 - **Triggers:** `?>`, `>?`

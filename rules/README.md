@@ -23,10 +23,27 @@ Every rule has the same parts:
 - **Source:** where the rule comes from.
 - **Level:** `issue` (a real cost: a bug, a leak, slower frames) or
   `suggestion` (an improvement the author can decide on).
+- **Remarks:** optional. `one per pull request`: the agent keeps the first
+  remark of the rule and refuses the others. For a rule about the whole pull
+  request, such as a missing test. The model does not get this line.
+- **Remark line:** optional, applied by the agent to the line of each
+  remark of the rule. With "contains" and texts, as `>?` for B5, the line
+  must contain one of them. With "a return type that ends with `>?`", as for
+  B5, the line must declare a method, a function or a getter with such a
+  type, not a field or a parameter. With "a widget that is not const", as for
+  P9, the first widget of the line must not be `const`. A remark on a `///`
+  comment
+  is first moved to the member below it. The model does not get this line.
+- **Not on a line of:** optional. The agent refuses a remark of the rule on a
+  line that has a remark of one of these rules. MEM1 has `B2`: an object
+  created in `build()` is B2, never MEM1. The model does not get this line.
 - **Triggers:** the rule is sent to the model only when a line added by the
   pull request contains one of these texts, or, for `file:…`, when a changed
-  file path starts with it. A rule with no triggers is always sent. Fewer
-  rules make a shorter request, and leave fewer chances for a false remark.
+  file path starts with it. For `around:…`, the text can also be on an
+  unchanged line shown around an added line in the diff (3 lines by default),
+  for example `GoRoute(` above a `name:` that the pull request adds. A rule
+  with no triggers is always sent. Fewer rules make a shorter request, and
+  leave fewer chances for a false remark.
 
 ## Rules in v1
 

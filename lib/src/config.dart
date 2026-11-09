@@ -17,7 +17,7 @@ class ProviderPreset {
     required this.baseUrl,
     required this.models,
     required this.modelPattern,
-    required this.tested,
+    this.measuredModels = const <String>[],
   });
 
   /// The address of its OpenAI-compatible API. It rarely changes.
@@ -30,8 +30,9 @@ class ProviderPreset {
   /// [models] can answer (for example after the provider removed them).
   final String modelPattern;
 
-  /// Whether the preset was measured on the evaluation cases.
-  final bool tested;
+  /// The models measured on the real pull requests of the final test, with
+  /// the current rules: see `eval/real_pull_requests.md`.
+  final List<String> measuredModels;
 }
 
 /// Providers with a preset.
@@ -46,7 +47,7 @@ const Map<String, ProviderPreset> providerPresets = <String, ProviderPreset>{
     ],
     // Stable Flash models only: no preview, lite, image, audio or live model.
     modelPattern: r'^gemini-\d+(\.\d+)?-flash$',
-    tested: true,
+    measuredModels: <String>['gemini-3.5-flash-lite'],
   ),
   // https://console.groq.com/docs/models (production models). The Llama
   // models were shut down on 16 August 2026, except for Enterprise plans:
@@ -56,14 +57,13 @@ const Map<String, ProviderPreset> providerPresets = <String, ProviderPreset>{
     models: <String>['openai/gpt-oss-120b', 'openai/gpt-oss-20b'],
     // GPT-OSS chat models only: not the safeguard (moderation) models.
     modelPattern: r'^openai/gpt-oss-\d+b$',
-    tested: false,
+    measuredModels: <String>['openai/gpt-oss-120b'],
   ),
   // https://developers.openai.com/api/docs/models/gpt-5.6-terra
   'openai': ProviderPreset(
     baseUrl: 'https://api.openai.com/v1/',
     models: <String>['gpt-5.6-terra'],
     modelPattern: r'^gpt-\d+(\.\d+)?-(terra|mini)$',
-    tested: false,
   ),
 };
 
@@ -85,7 +85,7 @@ class ReviewConfig {
     required this.models,
     required this.apiKey,
     this.modelPattern,
-    this.tested = false,
+    this.measuredModels = const <String>[],
     this.timeout = defaultReviewTimeout,
   });
 
@@ -98,8 +98,13 @@ class ReviewConfig {
   /// See [ProviderPreset.modelPattern]. Null for a custom provider.
   final String? modelPattern;
 
-  /// Whether this provider was measured on the evaluation cases.
-  final bool tested;
+  /// See [ProviderPreset.measuredModels]. Empty for a custom provider or
+  /// address.
+  final List<String> measuredModels;
+
+  /// Whether [model], the model that answered, was measured.
+  bool isMeasured(String? model) =>
+      model != null && measuredModels.contains(model);
 
   /// Longest time for one review, waits for a busy provider included.
   final Duration timeout;
@@ -153,7 +158,9 @@ ReviewConfig resolveConfig(Map<String, String> settings) {
       models: models ?? preset.models,
       apiKey: apiKey,
       modelPattern: preset.modelPattern,
-      tested: preset.tested && models == null && baseUrl == null,
+      measuredModels: baseUrl == null
+          ? preset.measuredModels
+          : const <String>[],
       timeout: timeout,
     );
   }

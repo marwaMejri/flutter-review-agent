@@ -178,11 +178,23 @@ const int evidenceWindow = 3;
 /// about code the pull request did not touch: a remark that fails these checks
 /// is never posted. When the evidence is on a line near the cited one, the
 /// remark is moved to that line.
+///
+/// [remarkLines] gives, for a rule, the texts that the line of its remark
+/// must contain. For the rules in [nullableReturnRules], such as B5, the line
+/// must declare a return type that ends with `>?`. For the rules in
+/// [nonConstRules], such as P9, the first widget of the line must not be
+/// `const`.
+///
+/// A remark on a `///` comment is moved to the member that the comment
+/// documents.
 ({List<Finding> accepted, List<RejectedFinding> rejected}) validateFindings(
   List<Finding> findings, {
   required List<DiffFile> files,
   required Set<String> ruleIds,
   Map<String, List<String>> fileScopes = const <String, List<String>>{},
+  Map<String, List<String>> remarkLines = const <String, List<String>>{},
+  Set<String> nonConstRules = const <String>{},
+  Set<String> nullableReturnRules = const <String>{},
 }) {
   final Map<String, DiffFile> filesByPath = <String, DiffFile>{
     for (final DiffFile file in files) file.path: file,
@@ -226,8 +238,38 @@ const int evidenceWindow = 3;
       rejected.add(
         RejectedFinding(finding, 'file outside the scope of ${finding.rule}'),
       );
-    } else if (_lineWithEvidence(file, finding) case final int line) {
-      accepted.add(line == finding.line ? finding : finding.atLine(line));
+    } else if (_lineWithEvidence(file, finding) case final int found) {
+      final int line = _memberLine(file, found);
+      final Finding placed = line == finding.line
+          ? finding
+          : finding.atLine(line);
+      final List<String>? texts = remarkLines[finding.rule];
+      final String code = file.newLineText[line] ?? '';
+      if (texts != null && !texts.any(code.contains)) {
+        // The model skipped a step of the rule: the line does not show the
+        // problem, for example `Future<Release?>` for B5.
+        rejected.add(
+          RejectedFinding(placed, 'the line has none of: ${texts.join(', ')}'),
+        );
+      } else if (nullableReturnRules.contains(finding.rule) &&
+          !declaresNullableReturn(code)) {
+        // A field or a parameter is not a return type, and
+        // `Future<Release?>` does not end with `>?`.
+        rejected.add(
+          RejectedFinding(
+            placed,
+            'the line declares no return type that ends with >?',
+          ),
+        );
+      } else if (nonConstRules.contains(finding.rule) &&
+          startsWithConstWidget(code)) {
+        // A `const` widget is built once: the rule does not apply to it.
+        rejected.add(
+          RejectedFinding(placed, 'the widget on the line is const'),
+        );
+      } else {
+        accepted.add(placed);
+      }
     } else if (!file.commentableLines.contains(finding.line)) {
       rejected.add(RejectedFinding(finding, 'line not in the diff'));
     } else if (!file.addedLines.contains(finding.line)) {
@@ -245,6 +287,43 @@ const int evidenceWindow = 3;
     }
   }
   return (accepted: accepted, rejected: rejected);
+}
+
+/// The line of the member that a `///` comment documents, when [line] is
+/// such a comment and the pull request added the member. Otherwise [line].
+int _memberLine(DiffFile file, int line) {
+  if (!(file.newLineText[line] ?? '').trimLeft().startsWith('///')) {
+    return line;
+  }
+  for (int next = line + 1; next <= line + 10; next++) {
+    final String? code = file.newLineText[next];
+    if (code == null) {
+      return line;
+    }
+    final String trimmed = code.trimLeft();
+    if (trimmed.startsWith('///') || trimmed.startsWith('@')) {
+      continue;
+    }
+    return file.addedLines.contains(next) ? next : line;
+  }
+  return line;
+}
+
+/// Whether [code] declares a method, a function or a getter whose return
+/// type ends with `>?`, as in `List<Release>? get majorReleases {`. A field
+/// (`final List<String>? tags;`) or a parameter does not.
+bool declaresNullableReturn(String code) => RegExp(
+  r'>\?\s+(get\s+[A-Za-z_$][\w$]*|[A-Za-z_$][\w$]*\s*(<[^()]*>)?\s*\()',
+).hasMatch(code);
+
+/// Whether the first widget created on [code] is marked `const`, as in
+/// `? const Padding(`.
+bool startsWithConstWidget(String code) {
+  final Match? widget = RegExp(r'[A-Z]\w*(\.\w+)?\(').firstMatch(code);
+  if (widget == null) {
+    return false;
+  }
+  return RegExp(r'\bconst\s+$').hasMatch(code.substring(0, widget.start));
 }
 
 /// How many lines the evidence can span: models often copy a whole
