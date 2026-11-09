@@ -14,29 +14,36 @@ a test **verifies** the change.
   to see the other tests of the project. One remark for the whole pull
   request.
 - **Do not flag when:**
-  - the change has no behavior to test: a constant, a rename, a comment, a
-    change of padding, color or text style, or a widget that only shows fixed
-    content;
+  - the change has no behavior to test: a constant, an import or an export,
+    a rename, a comment, a change of padding, color or text style, a widget
+    that only shows a text or an icon with no condition and no action, or a
+    widget wrapped in another one with no new condition;
   - the pull request moves existing code without changing what it does, for
     example a part of a screen extracted into a new widget. The call that
     replaces the removed lines is part of the move;
-  - a test of the pull request checks the method that the new code calls;
+  - a test of the pull request has an `expect` that would fail without the
+    new code;
   - the file is generated (`*.g.dart`, `*.freezed.dart`, localizations).
 - **Decide:**
-  1. Look at the added code under `lib/` only, not at the tests. Does it add
-     a behavior: a new public method, a new branch of an `if` or `switch`, a
-     new screen state, a new button action, a changed condition or
-     computation? A constant, a rename, a comment, a style change, a widget
-     that only shows fixed content and a generated file are not a behavior.
-     If yes, go to step 2. If no, do not flag.
-  2. Is this code moved: does the pull request remove the same code from
+  1. Look at the added code under `lib/` only, not at the tests. Name each
+     change in a few words, then answer: is each one of these: a constant, an
+     import or an export, a rename, a comment, a style change (padding,
+     color, text style), a widget that only shows a text or an icon with no
+     condition and no action, a widget wrapped in another one with no new
+     condition, or a generated file? If yes, do not flag. If no, go to
+     step 2.
+  2. Does it add a behavior: a new public method, a new branch of an `if` or
+     `switch`, a new screen state, a new button action, a changed condition
+     or computation? If yes, go to step 3. If no, do not flag.
+  3. Is this code moved: does the pull request remove the same code from
      another place (lines marked `-`), in the same file or in another one? If
-     yes, do not flag. If no, go to step 3.
-  3. Does a test file of this pull request have an `expect` on that behavior?
-     A test of a method also counts for the code that calls it. You do not
-     need to see the other tests of the project. If yes, do not flag. If no,
-     flag once for the whole pull request, on the added line under `lib/`
-     where the behavior starts, never on a test file.
+     yes, do not flag. If no, go to step 4.
+  4. Does a test file of this pull request have an `expect` on that behavior?
+     A test counts when its `expect` would fail without the new code, even
+     when it reaches the new code through another method. You do not need to
+     see the other tests of the project. If yes, do not flag. If no, flag
+     once for the whole pull request, on the added line under `lib/` where
+     the behavior starts, never on a test file.
 - **Bad:** a pull request adds an `if (release.isBeta)` branch that shows a
   "Beta" badge. The tests render the screen with a stable release only: the
   new line runs in no test, or it runs but nothing checks the badge.
@@ -47,6 +54,7 @@ a test **verifies** the change.
   widget test.
 - **Level:** issue
 - **Remarks:** one per pull request
+- **Only when:** an added line under `lib/` shows a behavior
 - **Triggers:** `file:lib/`
 
 ## T4. An appearance test that reads the wrong widget

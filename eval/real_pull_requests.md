@@ -449,3 +449,156 @@ The prompt says which test files the pull request changes.
 | #24 (traps) | no remark (B5 on the field refused by the agent) | no remark |
 | #18 to #21 | no remark | - |
 
+
+## Full run after the fixes: `gemini-3.5-flash-lite`, on GitHub
+
+Agent commit `22c5fb6`. Each pull request ran once, from an empty commit,
+with the action of the agent, as a user's project would run it.
+
+| PR | Expected | Remarks | Result |
+|---|---|---|---|
+| #2 | P1 (T3) | P1, T3 | as expected |
+| #3 | P2 (T3) | P2, T3 | as expected (P2 missed before) |
+| #4 | P3 | P3, T3 on the settings | as expected (T3 on the new navigation button) |
+| #5 | P5 (T3) | P5, T3 | as expected |
+| #6 | P9 (T3) | P9, T3 | as expected (P9 missed before) |
+| #7 | B2, T3 | B2, T3 | as expected (T3 missed before) |
+| #8 | MEM1 (T3) | MEM1, T3 | as expected |
+| #9 | MEM2, T3 | MEM2, T3 | as expected (T3 missed before) |
+| #10 | MEM3, T3 | T3 | **MEM3 missed** |
+| #11 | B4, T3 | B4 | **T3 missed** |
+| #12 | B5, T3 | B5, T3 | as expected |
+| #13 | T4 | T4 | as expected |
+| #14 | T5 | T5 on the test line | as expected (T5 never sent before) |
+| #15 | M2 | M2 | as expected |
+| #16 | M3, T3 | M3, T3 | as expected |
+| #17 | M4 | M4, T3 | **false T3**: the bridge adds no behavior |
+| #18 to #21 | nothing | nothing | as expected |
+| #22 | M1 | M1, T3 on `SectionTitle` | **false T3**: a widget that only shows fixed content |
+| #23 | P1, B2, MEM1, B5 (T3) | B5, B2, MEM1 on line 23, T3 | **P1 missed** |
+| #24 | nothing | nothing | as expected |
+| #25 | B2 | B2 | as expected |
+| #26 | B5 (T3) | B5, T3 | as expected |
+| #27 | nothing | T3 on the new constant | **false T3** |
+| #28 | nothing | nothing | as expected (no false remark) |
+| #29 | B2 twice (T3) | B2 on lines 21 and 22, T3 | as expected (B2 once before) |
+| #30 | CONVENTION (T3) | the 3 conventions, T3 | as expected (none before) |
+| #31 | no model call | no model call | as expected |
+
+24 pull requests out of 30 as expected. Errors left: MEM3 missed (#10), P1
+missed (#23), T3 missed (#11), false T3 (#17, #22, #27). Review time: 1 to 6 s.
+
+**The 6 errors of the full run, 2 local runs each with flash-lite**, to read
+the checks:
+
+| PR | Local runs | Reason given by the model |
+|---|---|---|
+| #10 | MEM3 and T3 in 2 runs out of 2 | the miss on GitHub was one run out of three |
+| #11 | B4 and T3 in 2 runs out of 2 | the miss on GitHub was one run out of three |
+| #23 | P1 in 2 runs out of 2 | the miss on GitHub was one run out of three |
+| #17 | false T3 in 2 runs out of 2 | "Step 1: yes, it adds a new branch or wraps with MaterialUiCompatibilityBridge" |
+| #22 | false T3 in 2 runs out of 2 | "Step 1: yes, it adds a new screen state/widget ("Updates" section title)" |
+| #27 | false T3 in 2 runs out of 2 | "Step 1: yes, a new constant supportEmail was added" |
+
+Step 1 of T3 says that a constant and a widget that only shows fixed content
+are not a behavior, and flash-lite still answers "yes". The exceptions come
+after the question, in the same step.
+
+**T3: the exceptions as a step of their own (step 1).**
+
+| PR | flash-lite | gpt-oss-120b |
+|---|---|---|
+| #27 | no T3 in 2 runs out of 2 ("Step 1: yes, it is a constant") | no T3 |
+| #17 | **false T3** in 2 runs out of 2: "Step 1: no. Step 2: yes, a widget is wrapped in another one" | no T3 ("only wraps an existing widget") |
+| #22 | **false T3** in 2 runs out of 2: "Step 1: no. Step 2: yes, adds a Column and SectionTitle" | - |
+| #7, #9, #29, #30 | T3 found | #7: answered by `openai/gpt-oss-20b` (B2, T3): gpt-oss-120b could not answer, most likely its tokens of the day were used up |
+| #11 | **T3 missed**: "Step 4: yes, existing tests cover the repository methods"; the pull request only changes `const` to `final` in the test, and no `expect` checks the cache | - |
+| #18, #20 | no remark | - |
+
+Flash-lite answers step 1 with a bare "no" and does not go through the list.
+#22 also adds `export 'package:flutter/material.dart'`, which is not in the
+list.
+
+## Full run after the fixes: `openai/gpt-oss-120b`, on GitHub, #2 to #16
+
+Agent commit `22c5fb6` (before the last T3 changes). #17 to #31 run on
+another day: the free Groq plan allows 200,000 tokens a day.
+
+| PR | Expected | Remarks | Result |
+|---|---|---|---|
+| #2 | P1 (T3) | P1, T3 | as expected |
+| #3 | P2 (T3) | P2, T3 | as expected |
+| #4 | P3 | P3, T3, CONVENTION on line 33 | **false CONVENTION**: "widget should come from material_ui, not dropdown_button2", on the existing dropdown, only re-indented |
+| #5 | P5 (T3) | P5, T3 | as expected (HTTP 413 before) |
+| #6 | P9 (T3) | P9, T3 | as expected |
+| #7 | B2, T3 | B2, T3 | as expected |
+| #8 | MEM1 (T3) | MEM1, T3 | as expected |
+| #9 | MEM2, T3 | MEM2, T3 | as expected |
+| #10 | MEM3, T3 | MEM3, T3 | as expected (T3 four times before) |
+| #11 | B4, T3 | B4, T3 | as expected |
+| #12 | B5, T3 | B5, T3, CONVENTION on line 40 | **false CONVENTION**: "replace Markdown from flutter_markdown_plus", on the existing `Markdown`, only re-indented |
+| #13 | T4 | T4 | as expected |
+| #14 | T5 | nothing | **T5 missed** (found in the local runs) |
+| #15 | M2 | M2 | as expected |
+| #16 | M3, T3 | M3, T3, CONVENTION on the `shimmer` import | debatable: the same problem as M3 |
+
+11 out of 15 as expected. Review time: 3 to 6 s, and up to 41 s when Groq
+asks to wait (tokens per minute).
+
+The three CONVENTION remarks come from the "Design library" section of
+CONVENTIONS.md: "Widgets come from `package:material_ui/material_ui.dart`."
+Read word for word, it forbids the widgets of every other package, while the
+project depends on `dropdown_button2` and `flutter_markdown_plus`. Two of the
+three remarks are on existing code that the pull request only re-indents.
+
+**Re-indented lines kept as unchanged, and the "Design library" convention
+made clear (no other package banned).** Local runs, flash-lite (the packs
+are not passed in local, so M3 and M4 are not sent):
+
+| PR | Runs | Result |
+|---|---|---|
+| #4 | 3 | P3 and T3; no CONVENTION (false CONVENTION with gpt-oss-120b before) |
+| #11 | 3 | B4 and T3 in 3 runs out of 3: "no test checks that the data source is called once" |
+| #12 | 3 | B5 and T3; no CONVENTION |
+| #17 | 3 | **false T3** in 3 runs out of 3: "Step 1: no, it adds behavior (compatibility bridge wrapping Markdown)" |
+| #22 | 3 | **false T3** in 3 runs out of 3: "Step 2: yes, adds a new SectionTitle widget and layout" |
+| #7, #14, #16, #20, #27, #29 | 1 | as expected |
+| #9 | 1 | MEM2 and T3, and **a false CONVENTION**: "View models should not store a BuildContext", which is not in CONVENTIONS.md |
+| #30 | 1 | T3 and 2 conventions out of 3: the import from another feature is missed |
+
+**Expectation of #16 changed (written before the next runs).** The pull
+request replaces `CircularProgressIndicator` with a `Shimmer` placeholder, in
+a loading state that already existed: the condition does not change, only
+what is shown. This is a visual change of an existing state, like #17 (a
+widget wrapped in another one), not a new behavior. Expected: M3 (T3
+allowed). The expectation written before the test said "M3, T3".
+
+**T3 needs an added line that shows a behavior; a CONVENTION remark must copy
+a convention of the file.** Flash-lite, 2 runs each:
+
+| PR | Result |
+|---|---|
+| #17 | no remark in 2 runs; the T3 of the model refused by the agent in both ("no added line under lib/ shows a behavior") |
+| #22 | no remark in 2 runs; no T3 from the model in run 1, refused by the agent in run 2 |
+| #9 | MEM2 and T3 in 2 runs; no CONVENTION |
+| #30 | run 2: T3 and the 3 conventions. **Run 1: the 4 CONVENTION remarks refused** ("convention not found in the conventions"): the model did not copy the convention word for word, so true remarks were lost |
+
+**Conventions cited by their ID.** Each line `- ` of CONVENTIONS.md gets an ID
+(`[C1]`, `[C2]`) in the prompt; a CONVENTION remark gives the ID in
+"convention", and the agent replaces it with the text of the file, or refuses
+the remark when the ID does not exist. The prompt shows a full CONVENTION
+finding as an example. CONVENTIONS.md of the example app: "A feature never
+imports another feature" moved from "Folders" to "Dependencies between
+layers", its own subject.
+
+| PR | Result (flash-lite) |
+|---|---|
+| #30, with the IDs but no example | 1 run out of 3 right; in the 2 others, the "convention" field was empty, and the 3 true remarks were refused |
+| #30, with the example | 1 run out of 1 with an answer: the 3 conventions, each with the text of the file; the 2 other runs got no answer (see below) |
+| #9 | MEM2 and T3, no CONVENTION |
+| #24 (traps) | no remark |
+
+Two runs of #30 got no answer: flash-lite did not answer, the agent moved to
+`gemini-3.8-flash`, which did not answer within 180 s. The error only named
+the last model, so the reason of flash-lite was lost. Fixed: the error now
+gives the reason of every model tried.

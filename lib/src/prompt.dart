@@ -36,7 +36,8 @@ file, the line number in the new version of the file, and a short message.
 - If project conventions are given, check them as one more rule, as their
   "Decide" part says, and give their "checks" entries after the rules. Report
   every broken convention as a finding with the rule ID "$conventionRuleId",
-  each on its own line, and name the convention in the message.
+  each on its own line. In "convention", give the ID of the broken
+  convention, such as "C3".
 - The message is one or two sentences in plain English: what is wrong in this
   code, and what to do instead.
 - In "evidence", copy the code of the cited line that shows the problem,
@@ -126,8 +127,16 @@ String buildUserPrompt({
                   'example "Navigation: yes, Navigator.push at line 68. '
                   'Flag."',
       )
+      ..writeln(
+        // The form of the answer shows no "convention" field: without this
+        // example, a small model often leaves it out.
+        '- **Finding:** a broken convention is reported with its ID in '
+        '"convention", for example {"rule": "$conventionRuleId", "file": '
+        '"lib/a.dart", "line": 10, "evidence": "...", "message": "...", '
+        '"convention": "C7"}.',
+      )
       ..writeln()
-      ..writeln(conventions.trim())
+      ..writeln(conventionsWithIds(conventions).trim())
       ..writeln();
   }
 
@@ -170,6 +179,42 @@ String buildUserPrompt({
   return buffer.toString();
 }
 
+final RegExp _conventionLine = RegExp(r'^(\s*)- (.+)$');
+
+/// The conventions as the model gets them: each line that starts with `- `
+/// gets an ID, `[C1]`, `[C2]`, in the order of the file. The model cites a
+/// convention by its ID, which the agent can check: copying a whole sentence
+/// is less reliable, and a model can invent one.
+String conventionsWithIds(String conventions) {
+  int count = 0;
+  return <String>[
+    for (final String line in conventions.replaceAll('\r\n', '\n').split('\n'))
+      if (_conventionLine.firstMatch(line) case final RegExpMatch match)
+        '${match.group(1)}- [C${++count}] ${match.group(2)}'
+      else
+        line,
+  ].join('\n');
+}
+
+/// The text of each convention, by its ID (see [conventionsWithIds]): its
+/// `- ` line and the lines under it that are part of it.
+Map<String, String> numberedConventions(String conventions) {
+  final Map<String, String> texts = <String, String>{};
+  String? id;
+  for (final String line in conventions.replaceAll('\r\n', '\n').split('\n')) {
+    final RegExpMatch? match = _conventionLine.firstMatch(line);
+    if (match != null) {
+      id = 'C${texts.length + 1}';
+      texts[id] = match.group(2)!.trim();
+    } else if (id != null && line.startsWith(' ') && line.trim().isNotEmpty) {
+      texts[id] = '${texts[id]} ${line.trim()}';
+    } else {
+      id = null;
+    }
+  }
+  return texts;
+}
+
 /// The titles of the sections of the conventions: the `## ` headings, in
 /// order. Empty when the file has none.
 List<String> conventionSections(String conventions) => <String>[
@@ -187,8 +232,9 @@ bool isTestFile(String path) => path.endsWith('_test.dart');
 /// Fields of a rule that the model does not get. `Check`, `Flag when` and
 /// `Do not flag when` are written again as the steps of `Decide`, which every
 /// model follows more reliably. `Source` and `Level` are for the people who
-/// read the rules. `Remarks`, `Remark line` and `Not on a line of` are
-/// applied by the agent. Leaving them out saves tokens on every review.
+/// read the rules. `Remarks`, `Remark line`, `Not on a line of` and
+/// `Only when` are applied by the agent. Leaving them out saves tokens on
+/// every review.
 const List<String> fieldsNotForModel = <String>[
   'Check',
   'Flag when',
@@ -198,6 +244,7 @@ const List<String> fieldsNotForModel = <String>[
   'Remarks',
   'Remark line',
   'Not on a line of',
+  'Only when',
 ];
 
 /// The rule as the model gets it: its title, `Decide`, `Bad`, `Good` and

@@ -182,6 +182,8 @@ diff --git a/lib/app/router.dart b/lib/app/router.dart
 
     expect(t3.onePerPullRequest, isTrue);
     expect(t4.onePerPullRequest, isFalse);
+    expect(t3.needsBehaviorLine, isTrue);
+    expect(t4.needsBehaviorLine, isFalse);
   });
 
   test('reads the texts that the line of a remark must contain', () {

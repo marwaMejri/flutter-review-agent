@@ -14,6 +14,7 @@ class Finding {
     required this.line,
     required this.message,
     this.evidence = '',
+    this.convention = '',
   });
 
   final String rule;
@@ -24,6 +25,11 @@ class Finding {
   /// The code that shows the problem, copied by the model from the cited line.
   final String evidence;
 
+  /// For a `CONVENTION` remark, the broken convention: its ID (`C3`) in the
+  /// answer of the model, then its text, once the agent has checked it.
+  /// Empty for a rule.
+  final String convention;
+
   /// The same remark on another line.
   Finding atLine(int newLine) => Finding(
     rule: rule,
@@ -31,6 +37,7 @@ class Finding {
     line: newLine,
     message: message,
     evidence: evidence,
+    convention: convention,
   );
 
   Map<String, Object> toJson() => <String, Object>{
@@ -39,6 +46,7 @@ class Finding {
     'line': line,
     'message': message,
     'evidence': evidence,
+    if (convention.isNotEmpty) 'convention': convention,
   };
 }
 
@@ -154,6 +162,7 @@ List<Finding> parseFindings(String answer) {
       throw InvalidAnswerException('A finding has a missing field: $item');
     }
     final Object? evidence = item['evidence'];
+    final Object? convention = item['convention'];
     findings.add(
       Finding(
         rule: rule,
@@ -161,6 +170,7 @@ List<Finding> parseFindings(String answer) {
         line: line,
         message: message,
         evidence: evidence is String ? evidence : '',
+        convention: convention is String ? convention : '',
       ),
     );
   }
@@ -224,6 +234,7 @@ const int evidenceWindow = 3;
           line: finding.line,
           message: finding.message,
           evidence: finding.evidence,
+          convention: finding.convention,
         );
       }
     }
@@ -324,6 +335,50 @@ bool startsWithConstWidget(String code) {
     return false;
   }
   return RegExp(r'\bconst\s+$').hasMatch(code.substring(0, widget.start));
+}
+
+/// The ID of the convention that a `CONVENTION` remark cites, such as `C19`:
+/// the first one in its "convention" field, as `C19`, `[C19]` or
+/// `C19: A view only talks…`, else the first one in its message. Null when
+/// there is none.
+String? conventionId(Finding finding) {
+  final RegExp id = RegExp(r'\bC\s?(\d+)\b', caseSensitive: false);
+  final Match? match =
+      id.firstMatch(finding.convention) ?? id.firstMatch(finding.message);
+  return match == null ? null : 'C${match.group(1)}';
+}
+
+/// Whether an added line of code [code] shows a behavior that a test can
+/// check: a condition, a callback, a loop, an operation on a collection, a
+/// state change, an `await`, or a new method or getter with a body (not
+/// `build()`). A constant, an import, a widget that only shows a text, or a
+/// widget wrapped in another one shows none.
+bool showsBehavior(String code) {
+  final String line = code.trim();
+  if (line.startsWith('//') || line.startsWith('*') || line.startsWith('/*')) {
+    return false;
+  }
+  return <RegExp>[
+    RegExp(r'\bif\s*\('),
+    RegExp(r'\bswitch\s*\('),
+    RegExp(r'\bcase\b'),
+    RegExp(r'(^|\s)\?\s'),
+    RegExp(r'\?\?'),
+    RegExp(r'\bon[A-Z]\w*\s*:'),
+    RegExp(r'\b(for|while)\s*\('),
+    RegExp(
+      r'\.(where|map|sort|fold|reduce|any|every|firstWhere|lastWhere|expand|'
+      r'forEach|whereType)\s*[(<]',
+    ),
+    RegExp(r'\b(setState|notifyListeners|addListener|removeListener)\s*\('),
+    RegExp(r'\.listen\s*\('),
+    RegExp(r'\bawait\b'),
+    RegExp(r'\bget\s+\w+\s*(\{|=>)'),
+    RegExp(
+      r'^(?:[\w<>?,\[\]\s]+\s)?(?!build\b)[a-z_]\w*\s*(?:<[^>]*>)?\s*'
+      r'\([^;]*\)\s*(?:async\s*)?(?:\{|=>)',
+    ),
+  ].any((RegExp pattern) => pattern.hasMatch(line));
 }
 
 /// How many lines the evidence can span: models often copy a whole

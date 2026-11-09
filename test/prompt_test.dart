@@ -35,7 +35,7 @@ void main() {
 
     expect(prompt, contains('# Project conventions'));
     expect(prompt, contains('For each convention below, in order'));
-    expect(prompt, contains('- Screens never use `Navigator.push`.'));
+    expect(prompt, contains('- [C1] Screens never use `Navigator.push`.'));
     expect(
       prompt,
       contains('add one entry "CONVENTION" for each convention that the'),
@@ -97,6 +97,40 @@ void main() {
     );
     expect(prompt, contains('add one entry "CONVENTION" for each section'));
     expect(prompt, isNot(contains('For each convention below')));
+  });
+
+  test('gives an ID to each convention, and keeps its whole text', () {
+    const String conventions = '''
+## Folders
+- A feature never imports another feature. Code that two features need moves
+  to `lib/core/`.
+- `lib/features/<feature>/`: one feature, in three layers:
+  - `data/`: `data_sources/`, `models/`, `repositories/`;
+
+## Navigation
+- Screens never use `Navigator.push`.
+''';
+
+    expect(
+      conventionsWithIds(conventions),
+      contains('- [C1] A feature never imports another feature.'),
+    );
+    expect(conventionsWithIds(conventions), contains('  - [C3] `data/`'));
+    expect(numberedConventions(conventions), <String, String>{
+      'C1':
+          'A feature never imports another feature. Code that two features '
+          'need moves to `lib/core/`.',
+      'C2': '`lib/features/<feature>/`: one feature, in three layers:',
+      'C3': '`data/`: `data_sources/`, `models/`, `repositories/`;',
+      'C4': 'Screens never use `Navigator.push`.',
+    });
+    final String prompt = buildUserPrompt(
+      rules: rules,
+      files: files,
+      conventions: conventions,
+    );
+    expect(prompt, contains('- [C4] Screens never use `Navigator.push`.'));
+    expect(prompt, contains('"convention": "C7"}'));
   });
 
   test('sends only the changed parts when the file is unknown', () {

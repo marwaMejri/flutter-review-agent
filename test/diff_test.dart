@@ -41,6 +41,28 @@ void main() {
     ]);
   });
 
+  test('keeps a line that is only re-indented as unchanged', () {
+    // A widget wrapped in a Column: its line moves to the right only.
+    final DiffFile file = parseDiff('''
+diff --git a/lib/a.dart b/lib/a.dart
+--- a/lib/a.dart
++++ b/lib/a.dart
+@@ -1,2 +1,4 @@
+ child:
+-  Text('a'),
++  Column(
++    Text('a'),
++  ),
+''').single;
+
+    expect(file.addedLines, <int>{2, 4});
+    expect(file.addedCode, <String>['  Column(', '  ),']);
+    expect(file.removedBefore, isEmpty);
+    expect(file.annotated, contains("    3 |     Text('a'),"));
+    expect(file.annotated, isNot(contains("      |-  Text('a'),")));
+    expect(file.aroundCode, contains("    Text('a'),"));
+  });
+
   test('puts the line number in front of each line', () {
     final DiffFile file = parseDiff(sampleDiff).single;
 

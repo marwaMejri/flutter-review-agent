@@ -254,6 +254,9 @@ void _printReport(ReviewResult result, List<Rule> rules) {
       ..writeln()
       ..writeln('${finding.file}:${finding.line}  [${finding.rule}] $title')
       ..writeln('  ${finding.message}');
+    if (finding.convention.isNotEmpty) {
+      stdout.writeln('  Convention: ${finding.convention}');
+    }
   }
   if (result.rejected.isNotEmpty) {
     stdout

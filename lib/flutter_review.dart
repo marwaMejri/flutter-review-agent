@@ -259,8 +259,53 @@ Future<ReviewResult> review({
     }
   }
 
+  // A rule marked "Only when an added line under lib/ shows a behavior",
+  // such as T3: with no such line, the pull request has nothing to test.
+  final bool behavior = files.any(
+    (DiffFile file) =>
+        file.path.startsWith('lib/') &&
+        !isTestFile(file.path) &&
+        file.addedCode.any(showsBehavior),
+  );
+  // A CONVENTION remark must cite the ID of a convention of CONVENTIONS.md:
+  // a model can invent one. The remark then shows the text of the file.
+  final Map<String, String> conventionTexts = hasConventions
+      ? numberedConventions(conventions)
+      : const <String, String>{};
+  final List<Finding> checkedKept = <Finding>[];
+  for (final Finding finding in kept) {
+    final bool needsBehavior = sent.any(
+      (Rule rule) => rule.id == finding.rule && rule.needsBehaviorLine,
+    );
+    if (needsBehavior && !behavior) {
+      rejected.add(
+        RejectedFinding(finding, 'no added line under lib/ shows a behavior'),
+      );
+    } else if (finding.rule == conventionRuleId) {
+      final String? text = conventionTexts[conventionId(finding)];
+      if (text == null) {
+        rejected.add(
+          RejectedFinding(finding, 'convention not found in the conventions'),
+        );
+      } else {
+        checkedKept.add(
+          Finding(
+            rule: finding.rule,
+            file: finding.file,
+            line: finding.line,
+            message: finding.message,
+            evidence: finding.evidence,
+            convention: text,
+          ),
+        );
+      }
+    } else {
+      checkedKept.add(finding);
+    }
+  }
+
   return ReviewResult(
-    accepted: kept,
+    accepted: checkedKept,
     rejected: rejected,
     reviewedFiles: <String>[for (final DiffFile file in files) file.path],
     sentRules: <String>[

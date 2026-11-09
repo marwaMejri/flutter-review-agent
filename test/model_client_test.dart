@@ -370,6 +370,42 @@ void main() {
     expect(asked, <String>['empty-model', 'free-model']);
   });
 
+  test(
+    'says why each model was skipped when the call takes too long',
+    () async {
+      // A first model whose quota is used up, then a second one that stays
+      // busy: the error must explain both.
+      final ModelClient client = ModelClient(
+        provider: 'test-provider',
+        baseUrl: 'https://example.com/v1/',
+        models: <String>['model-a', 'model-b'],
+        apiKey: 'test-key',
+        maxAttempts: 100,
+        firstDelay: const Duration(milliseconds: 30),
+        totalTimeout: const Duration(milliseconds: 150),
+        httpClient: MockClient((http.Request request) async {
+          return request.body.contains('model-a')
+              ? http.Response('{"error": "quota exceeded"}', 429)
+              : http.Response('busy', 503);
+        }),
+      );
+
+      await expectLater(
+        client.complete(system: 's', user: 'u'),
+        throwsA(
+          isA<ModelException>().having(
+            (ModelException e) => e.message,
+            'message',
+            allOf(
+              contains('model-a: quota used up'),
+              contains('model-b: busy'),
+            ),
+          ),
+        ),
+      );
+    },
+  );
+
   test('stops when the whole call takes too long', () async {
     final ModelClient client = ModelClient(
       provider: 'test-provider',

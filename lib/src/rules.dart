@@ -52,6 +52,11 @@ class Rule {
     ];
   }
 
+  /// Whether a remark of the rule needs an added line under `lib/` that
+  /// shows a behavior (see `showsBehavior`), from an `Only when` line.
+  bool get needsBehaviorLine =>
+      _field('Only when') == 'an added line under `lib/` shows a behavior';
+
   /// Whether the line of a remark must declare a method, a function or a
   /// getter whose return type ends with `>?`, from a
   /// `Remark line: a return type that ends with >?` line.

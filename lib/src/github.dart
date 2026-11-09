@@ -99,9 +99,11 @@ String remarkText(Map<String, Object?> finding) {
   final String title = finding['title'] as String? ?? '';
   final String? level = finding['level'] as String?;
   final String? source = finding['source'] as String?;
+  final String? convention = finding['convention'] as String?;
   return <String>[
     '**[$rule] $title**${level == null ? '' : ' ($level)'}',
     finding['message']! as String,
+    if (convention != null && convention.isNotEmpty) 'Convention: $convention',
     if (source != null) 'Source: $source',
   ].join('\n\n');
 }

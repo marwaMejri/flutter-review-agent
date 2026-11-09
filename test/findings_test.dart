@@ -388,4 +388,52 @@ diff --git a/lib/w.dart b/lib/w.dart
       isFalse,
     );
   });
+
+  test('finds the added lines that show a behavior', () {
+    for (final String code in <String>[
+      'if (_isCached) {',
+      'onPressed: () {',
+      '.where((Release release) => release.isNew)',
+      'List<String>? get headings => _headings;',
+      'void search(String query) {',
+      'final List<Release> releases = await load();',
+      '? const Padding(',
+    ]) {
+      expect(showsBehavior(code), isTrue, reason: code);
+    }
+    // Pull requests #27, #22 and #17: a constant, a new widget that only
+    // shows a text, and a widget wrapped in another one.
+    for (final String code in <String>[
+      "const String supportEmail = 'support@example.com';",
+      "export 'package:flutter/material.dart';",
+      'class SectionTitle extends StatelessWidget {',
+      'const SectionTitle(this.text, {super.key});',
+      'Widget build(BuildContext context) {',
+      'child: Text(text, style: Theme.of(context).textTheme.titleMedium),',
+      ': MaterialUiCompatibilityBridge(',
+      '// if (x) {',
+      'String? name;',
+    ]) {
+      expect(showsBehavior(code), isFalse, reason: code);
+    }
+  });
+
+  test('reads the ID of the convention that a remark cites', () {
+    Finding remark(String convention, [String message = 'm']) => Finding(
+      rule: 'CONVENTION',
+      file: 'lib/a.dart',
+      line: 1,
+      message: message,
+      convention: convention,
+    );
+
+    expect(conventionId(remark('C19')), 'C19');
+    expect(conventionId(remark('[C19]')), 'C19');
+    expect(
+      conventionId(remark('c24: Screens navigate with context.go')),
+      'C24',
+    );
+    expect(conventionId(remark('', 'This breaks C7.')), 'C7');
+    expect(conventionId(remark('A view only talks to its view model')), isNull);
+  });
 }

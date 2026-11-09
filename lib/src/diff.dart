@@ -168,7 +168,98 @@ List<DiffFile> parseDeletedFiles(String diff) => _parse(diff).deleted;
     }
     // Other lines, such as "\ No newline at end of file", are ignored.
   }
+  files.forEach(_keepReindentedLinesUnchanged);
   return (files: files, deleted: deleted);
+}
+
+/// An added line that is a removed line of the same file with other spaces
+/// is only re-indented, for example when a widget is wrapped in a `Column`.
+/// It is shown as unchanged: the pull request did not write that code, so no
+/// remark can be made on it, and it triggers no rule. The removed line that
+/// it matches is left out.
+void _keepReindentedLinesUnchanged(DiffFile file) {
+  final Map<String, int> removed = <String, int>{};
+  for (final List<String> lines in file.removedBefore.values) {
+    for (final String line in lines) {
+      if (line.trim().isNotEmpty) {
+        removed.update(line.trim(), (int n) => n + 1, ifAbsent: () => 1);
+      }
+    }
+  }
+  final Set<int> reindented = <int>{};
+  final Map<String, int> matched = <String, int>{};
+  for (final int line in file.addedLines.toList()..sort()) {
+    final String code = (file.newLineText[line] ?? '').trim();
+    if ((removed[code] ?? 0) > (matched[code] ?? 0)) {
+      matched.update(code, (int n) => n + 1, ifAbsent: () => 1);
+      reindented.add(line);
+    }
+  }
+  if (reindented.isEmpty) {
+    return;
+  }
+
+  // Leave out the removed lines that were matched, in order.
+  final Map<String, int> toDrop = Map<String, int>.of(matched);
+  bool drop(String line) {
+    final int left = toDrop[line.trim()] ?? 0;
+    if (left == 0) {
+      return false;
+    }
+    toDrop[line.trim()] = left - 1;
+    return true;
+  }
+
+  for (final MapEntry<int, List<String>> entry
+      in file.removedBefore.entries.toList()) {
+    entry.value.removeWhere(drop);
+    if (entry.value.isEmpty) {
+      file.removedBefore.remove(entry.key);
+    }
+  }
+  final Map<String, int> annotatedDrop = Map<String, int>.of(matched);
+  final List<String> annotated = <String>[];
+  for (final String line in file.annotated) {
+    final int? number = int.tryParse(line.substring(0, 5).trim());
+    if (number != null && reindented.contains(number)) {
+      // `   12 |+code` becomes `   12 | code`.
+      annotated.add('${line.substring(0, 7)} ${line.substring(8)}');
+    } else if (number == null && line.startsWith('      |-')) {
+      final String code = line.substring(8).trim();
+      final int left = annotatedDrop[code] ?? 0;
+      if (left > 0) {
+        annotatedDrop[code] = left - 1;
+      } else {
+        annotated.add(line);
+      }
+    } else {
+      annotated.add(line);
+    }
+  }
+  file.annotated
+    ..clear()
+    ..addAll(annotated);
+
+  for (int i = 0; i < file.hunks.length; i++) {
+    final List<int> numbers = file.hunkAddedLines[i];
+    int next = 0;
+    for (int j = 0; j < file.hunks[i].length; j++) {
+      if (file.hunks[i][j].startsWith('+')) {
+        if (reindented.contains(numbers[next])) {
+          file.hunks[i][j] = ' ${file.hunks[i][j].substring(1)}';
+        }
+        next++;
+      }
+    }
+    numbers.removeWhere(reindented.contains);
+  }
+  file.addedLines.removeAll(reindented);
+  file.addedCode
+    ..clear()
+    ..addAll(<String>[
+      for (final int line in file.addedLines.toList()..sort())
+        file.newLineText[line] ?? '',
+    ]);
 }
 
 String _number(int line) => line.toString().padLeft(5);

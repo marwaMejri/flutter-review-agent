@@ -131,7 +131,7 @@ class ModelClient {
     answerTime = null;
     finishReason = null;
     final DateTime deadline = DateTime.now().add(totalTimeout);
-    final List<String> skipped = <String>[];
+    final List<String> skipped = _skipped..clear();
     final Set<String> tried = <String>{};
 
     Future<String?> tryModel(String model) async {
@@ -155,7 +155,7 @@ class ModelClient {
 
     if (modelPattern != null) {
       if (!DateTime.now().isBefore(deadline)) {
-        throw _timeOut(skipped);
+        throw _timeOut();
       }
       final RegExp pattern = RegExp(modelPattern!);
       final List<String> discovered =
@@ -233,11 +233,19 @@ class ModelClient {
     ];
   }
 
-  ModelException _timeOut(List<String> skipped) => ModelException(
-    'No answer from $provider within ${totalTimeout.inSeconds} s'
-    '${skipped.isEmpty ? '' : ' (${skipped.join('; ')})'}. '
-    'The review stops here so that it never blocks the pull request.',
-  );
+  /// Why each model of the current call was skipped, for the error message.
+  final List<String> _skipped = <String>[];
+
+  /// The error when the call takes too long. It says why every model tried
+  /// was skipped, and what happened to the last one ([last]).
+  ModelException _timeOut([List<String> last = const <String>[]]) {
+    final List<String> skipped = <String>[..._skipped, ...last];
+    return ModelException(
+      'No answer from $provider within ${totalTimeout.inSeconds} s'
+      '${skipped.isEmpty ? '' : ' (${skipped.join('; ')})'}. '
+      'The review stops here so that it never blocks the pull request.',
+    );
+  }
 
   Future<String> _completeWith(
     String model,

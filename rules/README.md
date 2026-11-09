@@ -37,6 +37,14 @@ Every rule has the same parts:
 - **Not on a line of:** optional. The agent refuses a remark of the rule on a
   line that has a remark of one of these rules. MEM1 has `B2`: an object
   created in `build()` is B2, never MEM1. The model does not get this line.
+- **Only when:** optional. With "an added line under lib/ shows a
+  behavior", as for T3, the agent keeps a remark of the rule only when an added line of code
+  under `lib/` has a condition (`if`, `switch`, `? :`, `??`), a callback
+  (`onPressed:`), a loop or an operation on a collection (`for`, `.where(`,
+  `.map(`), a state change (`setState(`, `notifyListeners(`), an `await`, or a
+  new method or getter with a body other than `build()`. Known limit: a
+  computation changed with none of these, such as `a + b` changed to `a * b`,
+  gets no T3 remark. The model does not get this line.
 - **Triggers:** the rule is sent to the model only when a line added by the
   pull request contains one of these texts, or, for `file:…`, when a changed
   file path starts with it. For `around:…`, the text can also be on an

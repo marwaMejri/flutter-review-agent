@@ -27,6 +27,17 @@ final Map<String, Object?> result = <String, Object?>{
 };
 
 void main() {
+  test('quotes the convention of a CONVENTION remark', () {
+    final String text = remarkText(<String, Object?>{
+      'rule': 'CONVENTION',
+      'title': 'Project convention',
+      'message': 'Use context.push.',
+      'convention': 'Screens never use Navigator.push.',
+    });
+
+    expect(text, contains('Convention: Screens never use Navigator.push.'));
+  });
+
   test('says when the model was not measured', () {
     final Map<String, Object> measured = reviewRequest(result, commitId: 'a');
     final Map<String, Object> notMeasured = reviewRequest(<String, Object?>{

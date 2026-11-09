@@ -115,7 +115,8 @@ void main() {
                       '{"checks": [{"rule": "CONVENTION", "reason": "Fields '
                       'are named x", "applies": true}], "findings": [{"rule": '
                       '"CONVENTION", "file": "lib/a.dart", "line": 11, '
-                      '"evidence": "final int z;", "message": "Name it x."}]}',
+                      '"evidence": "final int z;", "message": "Name it x.", '
+                      '"convention": "C1"}]}',
                 },
               },
             ],
@@ -267,6 +268,60 @@ void main() {
       'MEM1:12',
     ]);
     expect(result.rejected.single.reason, 'B2 is on the same line');
+  });
+
+  test('refuses T3 when no added line shows a behavior, and invented '
+      'conventions', () async {
+    final ModelClient client = ModelClient(
+      provider: 'test-provider',
+      baseUrl: 'https://example.com/v1/',
+      models: <String>['test-model'],
+      apiKey: 'test-key',
+      httpClient: MockClient((http.Request request) async {
+        return http.Response(
+          jsonEncode(<String, Object>{
+            'choices': <Object>[
+              <String, Object>{
+                'message': <String, String>{
+                  'content':
+                      '{"checks": [], "findings": ['
+                      '{"rule": "T3", "file": "lib/a.dart", "line": 11, '
+                      '"evidence": "final int z;", "message": "m"}, '
+                      '{"rule": "CONVENTION", "file": "lib/a.dart", '
+                      '"line": 11, "evidence": "final int z;", "message": "m", '
+                      '"convention": "[C1]"}, '
+                      '{"rule": "CONVENTION", "file": "lib/a.dart", '
+                      '"line": 12, "evidence": "final int w;", "message": "m", '
+                      '"convention": "C9"}]}',
+                },
+              },
+            ],
+          }),
+          200,
+        );
+      }),
+    );
+
+    final ReviewResult result = await review(
+      diff: sampleDiff,
+      rules: <Rule>[
+        Rule(
+          id: 'T3',
+          title: 't',
+          text:
+              '## T3. t\n\n- **Only when:** an added line under `lib/` '
+              'shows a behavior',
+        ),
+      ],
+      client: client,
+      conventions: '## Names\n- Fields are named x.',
+    );
+
+    expect(result.accepted.single.convention, 'Fields are named x.');
+    expect(result.rejected.map((RejectedFinding r) => r.reason), <String>[
+      'no added line under lib/ shows a behavior',
+      'convention not found in the conventions',
+    ]);
   });
 
   group('a request too large for the provider', () {
