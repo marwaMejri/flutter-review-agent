@@ -70,7 +70,19 @@ void main() {
         files: files,
         testFiles: <String>['test/a_test.dart'],
       ),
-      contains('Test files changed by this pull request: test/a_test.dart.'),
+      contains(
+        'Test files changed by this pull request: test/a_test.dart. '
+        'None of their added lines has an `expect`',
+      ),
+    );
+    expect(
+      buildUserPrompt(
+        rules: rules,
+        files: files,
+        testFiles: <String>['test/a_test.dart'],
+        testExpects: 2,
+      ),
+      contains('test/a_test.dart (2 added lines with an `expect`).'),
     );
   });
 
@@ -131,6 +143,28 @@ void main() {
     );
     expect(prompt, contains('- [C4] Screens never use `Navigator.push`.'));
     expect(prompt, contains('"convention": "C7"}'));
+  });
+
+  test('counts the added lines with an expect in the test files', () {
+    // Pull request #11 only changes `const` to `final` in its test.
+    final List<DiffFile> diff = parseDiff('''
+diff --git a/test/a_test.dart b/test/a_test.dart
+--- a/test/a_test.dart
++++ b/test/a_test.dart
+@@ -1,1 +1,3 @@
+-  const A a = A();
++  final A a = A();
++    expect(a.value, 1);
++    await expectLater(a.load(), completes);
+diff --git a/lib/a.dart b/lib/a.dart
+--- a/lib/a.dart
++++ b/lib/a.dart
+@@ -1,1 +1,2 @@
+ class A {
++  // expect(x) in a comment of lib/ does not count.
+''');
+
+    expect(addedExpects(diff), 2);
   });
 
   test('sends only the changed parts when the file is unknown', () {

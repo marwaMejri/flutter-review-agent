@@ -34,6 +34,10 @@ Every rule has the same parts:
   P9, the first widget of the line must not be `const`. A remark on a `///`
   comment
   is first moved to the member below it. The model does not get this line.
+- **Remark place:** optional. With "the first added test line that
+  contains" and a text, as `pumpAndSettle(` for T5, a remark that the model
+  put outside the tests is moved to that line. The model does not get this
+  line.
 - **Not on a line of:** optional. The agent refuses a remark of the rule on a
   line that has a remark of one of these rules. MEM1 has `B2`: an object
   created in `build()` is B2, never MEM1. The model does not get this line.

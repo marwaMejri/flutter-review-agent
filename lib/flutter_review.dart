@@ -117,6 +117,7 @@ Future<ReviewResult> review({
     for (final DiffFile file in files)
       if (isTestFile(file.path)) file.path,
   ];
+  final int testExpects = addedExpects(files);
 
   // A request too large for the provider is sent again with the changed
   // parts only, then cut in two until each part fits.
@@ -133,6 +134,7 @@ Future<ReviewResult> review({
               files: part,
               conventions: conventions,
               testFiles: testFiles,
+              testExpects: testExpects,
             ),
           ),
         );
@@ -166,6 +168,7 @@ Future<ReviewResult> review({
           conventions: conventions,
           sources: sources,
           testFiles: testFiles,
+          testExpects: testExpects,
         ),
       ),
     );
@@ -216,6 +219,37 @@ Future<ReviewResult> review({
             if (rule.remarkOnNonConstWidget) rule.id,
         },
       );
+
+  // A rule with a "Remark place", such as T5, gets its remark on the test
+  // line that shows the problem, when the model put it on another file.
+  for (int i = 0; i < checked.accepted.length; i++) {
+    final Finding finding = checked.accepted[i];
+    final String? place = <String?>[
+      for (final Rule rule in sent)
+        if (rule.id == finding.rule) rule.remarkPlace,
+    ].firstOrNull;
+    if (place == null || isTestFile(finding.file)) {
+      continue;
+    }
+    for (final DiffFile file in files.where(
+      (DiffFile f) => isTestFile(f.path),
+    )) {
+      final int? line = (file.addedLines.toList()..sort())
+          .where((int n) => (file.newLineText[n] ?? '').contains(place))
+          .firstOrNull;
+      if (line != null) {
+        checked.accepted[i] = Finding(
+          rule: finding.rule,
+          file: file.path,
+          line: line,
+          message: finding.message,
+          evidence: file.newLineText[line]!.trim(),
+          convention: finding.convention,
+        );
+        break;
+      }
+    }
+  }
 
   // A rule marked "one per pull request" keeps its first remark only.
   final Set<String> seen = <String>{};

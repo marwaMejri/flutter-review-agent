@@ -66,7 +66,8 @@ Answer with JSON only, in this form:
 ///
 /// [deletedFiles] are sent with their removed lines, so the model sees where
 /// moved code comes from. [testFiles] are the test files of the whole pull
-/// request, when [files] is only a part of it.
+/// request, and [testExpects] the number of their added lines with an
+/// `expect`, when [files] is only a part of it.
 String buildUserPrompt({
   required List<Rule> rules,
   required List<DiffFile> files,
@@ -74,6 +75,7 @@ String buildUserPrompt({
   Map<String, String> sources = const <String, String>{},
   List<DiffFile> deletedFiles = const <DiffFile>[],
   List<String>? testFiles,
+  int? testExpects,
 }) {
   // A fact the model cannot guess wrong: without it, a small model sometimes
   // answers that a test checks a behavior when the pull request has no test.
@@ -83,6 +85,9 @@ String buildUserPrompt({
         for (final DiffFile file in files)
           if (isTestFile(file.path)) file.path,
       ];
+  // Without a new `expect`, no test of the pull request can check a new
+  // behavior: a test that only still runs does not count.
+  final int expects = testExpects ?? addedExpects(files);
   final StringBuffer buffer = StringBuffer()
     ..writeln('# Rules')
     ..writeln();
@@ -149,10 +154,16 @@ String buildUserPrompt({
       'are removed: they have no number. Other lines are unchanged.',
     )
     ..writeln()
-    ..writeln(
-      'Test files changed by this pull request: '
-      '${tests.isEmpty ? 'none' : tests.join(', ')}.',
-    )
+    ..writeln(switch ((tests.isEmpty, expects)) {
+      (true, _) => 'Test files changed by this pull request: none.',
+      (false, 0) =>
+        'Test files changed by this pull request: ${tests.join(', ')}. None '
+            'of their added lines has an `expect`: no test of this pull '
+            'request checks a new behavior.',
+      (false, _) =>
+        'Test files changed by this pull request: ${tests.join(', ')} '
+            '($expects added lines with an `expect`).',
+    })
     ..writeln();
   for (final DiffFile file in files) {
     final String? source = sources[file.path];
@@ -225,6 +236,13 @@ List<String> conventionSections(String conventions) => <String>[
     heading.group(1)!,
 ];
 
+/// The number of added lines with an `expect(` or an `expectLater(` in the
+/// test files of [files].
+int addedExpects(List<DiffFile> files) => <String>[
+  for (final DiffFile file in files)
+    if (isTestFile(file.path)) ...file.addedCode,
+].where(RegExp(r'\bexpect(Later)?\(').hasMatch).length;
+
 /// Whether [path] is a test file: `*_test.dart`, as `flutter test` finds
 /// them.
 bool isTestFile(String path) => path.endsWith('_test.dart');
@@ -232,9 +250,9 @@ bool isTestFile(String path) => path.endsWith('_test.dart');
 /// Fields of a rule that the model does not get. `Check`, `Flag when` and
 /// `Do not flag when` are written again as the steps of `Decide`, which every
 /// model follows more reliably. `Source` and `Level` are for the people who
-/// read the rules. `Remarks`, `Remark line`, `Not on a line of` and
-/// `Only when` are applied by the agent. Leaving them out saves tokens on
-/// every review.
+/// read the rules. `Remarks`, `Remark line`, `Remark place`,
+/// `Not on a line of` and `Only when` are applied by the agent. Leaving them
+/// out saves tokens on every review.
 const List<String> fieldsNotForModel = <String>[
   'Check',
   'Flag when',
@@ -245,6 +263,7 @@ const List<String> fieldsNotForModel = <String>[
   'Remark line',
   'Not on a line of',
   'Only when',
+  'Remark place',
 ];
 
 /// The rule as the model gets it: its title, `Decide`, `Bad`, `Good` and

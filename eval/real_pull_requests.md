@@ -303,6 +303,12 @@ all the pull requests (#2 to #31) run again with both models.
 | 23 | Groq refused #24 as too large, even in parts of 28 lines, right after #23 in 2 parts | open: #24 passed after a wait of 60 s; the refusal text is now kept in the error, to read it next time |
 | 24 | the section named in a CONVENTION message is not always the section of the convention (#30, flash-lite: "Dependencies between layers" for "A feature never imports another feature", which is in "Folders") | open, minor: the convention quoted is right |
 | 25 | T5 once on `lib/app/router.dart:20` instead of the test line (#14, flash-lite) | open, minor: the remark is right, its place is not |
+26. **A CONVENTION remark that cites the wrong convention** (#30,
+   flash-lite, 1 run out of 2 with the conventions of `main`): line 11
+   imports `features/releases/domain/repositories/release_repository.dart`;
+   the remark cites "`presentation/` imports `domain/`, never `data/`"
+   instead of "A feature never imports another feature". The line breaks a
+   convention, but not the one shown. Open.
 
 ## Local tests of the fixes
 
@@ -602,3 +608,62 @@ Two runs of #30 got no answer: flash-lite did not answer, the agent moved to
 `gemini-3.8-flash`, which did not answer within 180 s. The error only named
 the last model, so the reason of flash-lite was lost. Fixed: the error now
 gives the reason of every model tried.
+
+**#30 with the conventions of `main`** (where "A feature never imports
+another feature" is now under "Dependencies between layers"), flash-lite, 2
+runs: run 1, the 3 conventions, each shown with the right text; run 2, the 3
+remarks, but the one on the import cites the wrong convention (error 26).
+
+
+## Second full run after the fixes: `gemini-3.5-flash-lite`, on GitHub
+
+Agent commit `35186ea`, CONVENTIONS.md of `d6a562d`. Expected remarks as in
+the first full run, with #16 "M3 (T3 allowed)".
+
+| PR | Remarks | Result |
+|---|---|---|
+| #2 to #9 | P1+T3, P2+T3, P3+T3, P5+T3, P9+T3, B2+T3, MEM1+T3, MEM2+T3 | as expected |
+| #10 | T3 | **MEM3 missed** (also missed in the first full run; found in 2 local runs out of 2) |
+| #11 | B4 | **T3 missed** (also missed in the first full run; found in 3 local runs out of 3) |
+| #12 to #15 | B5+T3, T4, T5, M2 | as expected |
+| #16 | M3 | as expected |
+| #17 | M4 | as expected (false T3 before) |
+| #18 to #21 | nothing | as expected |
+| #22 | M1 | as expected (false T3 before) |
+| #23 | B5, B2, MEM1 on line 23, P1, T3 | as expected (P1 missed before) |
+| #24 to #29 | nothing, B2, B5+T3, nothing, nothing, B2 twice+T3 | as expected (false T3 on #27 before) |
+| #30 | P5, T3, 3 CONVENTION | **false P5** on a `Column` with no scroll view; the CONVENTION on line 11 cites the wrong convention (error 26) |
+| #31 | - | the job was still queued when the reviews were read |
+
+26 pull requests out of 29 as expected (24 out of 30 in the first full run).
+
+**Why #10 and #11 differ between GitHub and the local runs** (logs of the
+jobs):
+
+- The action read the conventions at `BASE_SHA` = `8156f03`, the base
+  commit kept in the event of the pull request, while `main` was at
+  `d6a562d`. So the reviews on GitHub used the old CONVENTIONS.md. Fixed in
+  `action.yml`: the base branch is fetched, and the diff and the conventions
+  come from its current commit, which the log now names.
+- #10: "MEM3 Step 2: yes, the object is created and disposed by the same
+  State", while the closure goes to the view model, read with
+  `context.read`. Step 2 of MEM3 now says what "created by the same State"
+  means, and that an object read with `context.read` is not.
+- #11: "T3 Step 4: yes, test covers repository getReleases", while no
+  `expect` checks the cache. Step 4 of T3 now asks to name the `expect`
+  that would fail without the new code; with none, the answer is no.
+
+| PR | 3 local runs, flash-lite, after the MEM3 and T3 changes |
+|---|---|
+| #10 | MEM3 and T3 in 3 runs out of 3: "Step 2: no, the listener is registered on a view model obtained via context.read, which is not created by this State" |
+| #11 | B4 in 3 runs; T3 in 2 runs out of 3; run 2: "Step 4: yes, existing tests call getReleases() which exercises the caching code" (a call, not an `expect`) |
+
+Step 4 of T3 now also says: "A test that only runs the new code, with no
+`expect` on what it changes, does not count."
+
+#11 after that sentence: T3 in 1 run out of 3; runs 2 and 3: "Step 4: yes,
+test checks it" and "the existing repository tests exercise getReleases".
+The pull request only changes `const` to `final` in its test: no added line
+has an `expect`. The prompt now gives that count as a fact, as it does for
+the test files: "None of their added lines has an `expect`: no test of this
+pull request checks a new behavior."

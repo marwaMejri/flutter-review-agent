@@ -40,10 +40,12 @@ a test **verifies** the change.
      yes, do not flag. If no, go to step 4.
   4. Does a test file of this pull request have an `expect` on that behavior?
      A test counts when its `expect` would fail without the new code, even
-     when it reaches the new code through another method. You do not need to
-     see the other tests of the project. If yes, do not flag. If no, flag
-     once for the whole pull request, on the added line under `lib/` where
-     the behavior starts, never on a test file.
+     when it reaches the new code through another method: name that `expect`.
+     A test that only runs the new code, with no `expect` on what it changes,
+     does not count. If you cannot name one, the answer is no. You do not
+     need to see the other tests of the project. If yes, do not flag. If no,
+     flag once for the whole pull request, on the added line under `lib/`
+     where the behavior starts, never on a test file.
 - **Bad:** a pull request adds an `if (release.isBeta)` branch that shows a
   "Beta" badge. The tests render the screen with a stable release only: the
   new line runs in no test, or it runs but nothing checks the badge.
@@ -153,4 +155,5 @@ a test **verifies** the change.
 - **Source:** measured with `go_router` 17.5.0 in a migrated app, in [Your packages haven't migrated to material_ui. Can you?](https://github.com/marwaMejri/material_ui_packages_migration)
 - **Level:** suggestion
 - **Remarks:** one per pull request
+- **Remark place:** the first added test line that contains `pumpAndSettle(`
 - **Triggers:** `around:GoRoute`, `around:GoRouter`, `Navigator`, `around:MaterialApp`, `around:CupertinoApp`, `around:routes:`, `go_router:`, `auto_route:`, `beamer:`

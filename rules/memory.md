@@ -179,8 +179,11 @@ These rules target leaks.
      `addListener`, `onMessage` or `register`)? Answer no for a callback given
      to a widget (`onPressed:`, `onTap:`, `builder:`) and for
      `addPostFrameCallback`. If yes, go to step 2. If no, do not flag.
-  2. Is that object created and disposed by the same `State`? If yes, do not
-     flag. If no, flag.
+  2. Is that object created and disposed by the same `State`: created in a
+     field or in `initState` of this `State`, and disposed in its `dispose()`?
+     An object read with `context.read`, `context.watch` or `Provider.of`, or
+     received through the constructor, is not created by this `State`. If
+     yes, do not flag. If no, flag.
 - **Bad:**
 
   ```dart

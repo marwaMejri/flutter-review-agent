@@ -80,15 +80,20 @@ runs:
     - name: Read the pull request
       shell: bash
       env:
-        BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        BASE_REF: ${{ github.event.pull_request.base.ref }}
         HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         CONVENTIONS: ${{ inputs.conventions }}
       run: |
+        # The base branch as it is now. The base commit in the event of the
+        # pull request can be older: a test showed the conventions of a
+        # commit that the base branch had already left behind.
+        git fetch --quiet --no-tags origin "+refs/heads/$BASE_REF:refs/remotes/origin/$BASE_REF"
+        BASE="origin/$BASE_REF"
         # The same changes as the "Files changed" tab: from the point where the
         # branch started to the last commit of the pull request.
-        git diff --no-color "$BASE_SHA...$HEAD_SHA" > "$RUNNER_TEMP/pull_request.diff"
-        if git show "$BASE_SHA:$CONVENTIONS" > "$RUNNER_TEMP/CONVENTIONS.md" 2> /dev/null; then
-          echo "Conventions read from the base branch: $CONVENTIONS"
+        git diff --no-color "$BASE...$HEAD_SHA" > "$RUNNER_TEMP/pull_request.diff"
+        if git show "$BASE:$CONVENTIONS" > "$RUNNER_TEMP/CONVENTIONS.md" 2> /dev/null; then
+          echo "Conventions read from the base branch ($BASE_REF, $(git rev-parse --short "$BASE")): $CONVENTIONS"
         else
           rm -f "$RUNNER_TEMP/CONVENTIONS.md"
           echo "No $CONVENTIONS on the base branch."

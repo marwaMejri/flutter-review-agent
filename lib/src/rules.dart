@@ -52,6 +52,18 @@ class Rule {
     ];
   }
 
+  /// The text of the test line where a remark of the rule goes, from a
+  /// `Remark place: the first added test line that contains ...` line, such
+  /// as `pumpAndSettle(` for T5. Null when there is none.
+  String? get remarkPlace {
+    final String? field = _field('Remark place');
+    if (field == null ||
+        !field.startsWith('the first added test line that contains')) {
+      return null;
+    }
+    return _code.firstMatch(field)?.group(1);
+  }
+
   /// Whether a remark of the rule needs an added line under `lib/` that
   /// shows a behavior (see `showsBehavior`), from an `Only when` line.
   bool get needsBehaviorLine =>

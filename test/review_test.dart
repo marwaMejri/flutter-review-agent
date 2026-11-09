@@ -324,6 +324,57 @@ void main() {
     ]);
   });
 
+  test('moves a T5 remark to the test line with pumpAndSettle', () async {
+    final ModelClient client = ModelClient(
+      provider: 'test-provider',
+      baseUrl: 'https://example.com/v1/',
+      models: <String>['test-model'],
+      apiKey: 'test-key',
+      httpClient: MockClient((http.Request request) async {
+        return http.Response(
+          jsonEncode(<String, Object>{
+            'choices': <Object>[
+              <String, Object>{
+                'message': <String, String>{
+                  'content':
+                      '{"checks": [], "findings": [{"rule": "T5", '
+                      '"file": "lib/a.dart", "line": 11, '
+                      '"evidence": "final int z;", "message": "m"}]}',
+                },
+              },
+            ],
+          }),
+          200,
+        );
+      }),
+    );
+
+    final ReviewResult result = await review(
+      diff:
+          '$sampleDiff'
+          'diff --git a/test/a_test.dart b/test/a_test.dart\n'
+          '--- a/test/a_test.dart\n'
+          '+++ b/test/a_test.dart\n'
+          '@@ -1,1 +1,3 @@\n'
+          '   await tester.tap(find.text(\'Settings\'));\n'
+          '+  await tester.pumpAndSettle();\n'
+          '+  expect(find.byType(SettingsView), findsOneWidget);\n',
+      rules: <Rule>[
+        Rule(
+          id: 'T5',
+          title: 't',
+          text:
+              '## T5. t\n\n- **Remark place:** the first added test line '
+              'that contains `pumpAndSettle(`',
+        ),
+      ],
+      client: client,
+    );
+
+    expect(result.accepted.single.file, 'test/a_test.dart');
+    expect(result.accepted.single.line, 2);
+  });
+
   group('a request too large for the provider', () {
     // A new file of 120 lines: line 1 is "// first line", line 120 is
     // "// last line".
