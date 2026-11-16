@@ -103,7 +103,7 @@ a test **verifies** the change.
 
 - **Why:** a style on a wrapper can be correct while the text inside uses
   another one. The test passes on a broken screen.
-- **Source:** measured in [Your packages haven't migrated to material_ui. Can you?](https://github.com/marwaMejri/material_ui_packages_migration), section "The test that lied", and [Text.build](https://api.flutter.dev/flutter/widgets/Text/build.html) (the root `TextSpan` holds `data` and the text style)
+- **Source:** measured in [Your packages haven't migrated to material_ui. Can you?](https://github.com/marwaMejri/material_ui_packages_migration): [14-debug-markdown.txt](https://github.com/marwaMejri/material_ui_packages_migration/blob/main/measurements/14-debug-markdown.txt) shows a root span in Merriweather and the text spans inside it in Roboto: "why the first version of the font test passed for the wrong reason"; and [Text.build](https://api.flutter.dev/flutter/widgets/Text/build.html) (the root `TextSpan` holds `data` and the text style)
 - **Level:** issue
 - **Triggers:** `fontFamily`, `fontSize`, `fontWeight`, `TextStyle`, `.style`, `.color`, `decoration`
 
