@@ -220,6 +220,12 @@ diff --git a/lib/app/router.dart b/lib/app/router.dart
     ).firstWhere((Rule r) => r.id == 'B5');
 
     expect(p9.remarkOnNonConstWidget, isTrue);
+    expect(
+      parseRules(
+        File('rules/performance.md').readAsStringSync(),
+      ).firstWhere((Rule r) => r.id == 'P5').remarkInScrollView,
+      isTrue,
+    );
     expect(p9.remarkLine, isEmpty);
     expect(b5.remarkOnNonConstWidget, isFalse);
   });

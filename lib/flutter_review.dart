@@ -118,72 +118,95 @@ Future<ReviewResult> review({
       if (isTestFile(file.path)) file.path,
   ];
   final int testExpects = addedExpects(files);
+  final String? packageName = packageNameOf(readSource?.call('pubspec.yaml'));
 
   // A request too large for the provider is sent again with the changed
-  // parts only, then cut in two until each part fits.
+  // parts only, then cut in two until each part fits: the diff while it is
+  // long, then the rules. An answer cut by the length limit of the provider
+  // is asked again with half of the rules in each request, so that each
+  // answer is shorter.
   final List<String> answers = <String>[];
   String? lastRefusal;
-  Future<void> reviewPart(List<DiffFile> part, {bool asked = false}) async {
-    if (!asked) {
-      try {
-        answers.add(
-          await _ask(
-            client,
-            buildUserPrompt(
-              rules: sent,
-              files: part,
-              conventions: conventions,
-              testFiles: testFiles,
-              testExpects: testExpects,
-            ),
-          ),
-        );
-        return;
-      } on RequestTooLargeException catch (error) {
-        // Cut in two below.
-        lastRefusal = error.message;
-      }
-    }
-    if (_lineCount(part) <= minPartLines) {
-      throw RequestTooLargeException(
-        'The request is still too large for ${client.provider} with a part of '
-        '${_lineCount(part)} lines of diff: the rules and the conventions '
-        'alone may be over its limit. Last refusal: $lastRefusal',
+  bool changedPartsOnly = false;
+  bool rulesCut = false;
+  Future<void> reviewPart(
+    List<Rule> partRules,
+    bool withConventions,
+    List<DiffFile> part, {
+    required bool whole,
+  }) async {
+    final int units = partRules.length + (withConventions ? 1 : 0);
+    Future<void> cutRules() async {
+      rulesCut = true;
+      final int first = units ~/ 2;
+      await reviewPart(partRules.sublist(0, first), false, part, whole: whole);
+      await reviewPart(
+        partRules.sublist(first),
+        withConventions,
+        part,
+        whole: whole,
       );
     }
-    final (List<DiffFile>, List<DiffFile>) halves = _halves(part);
-    await reviewPart(halves.$1);
-    await reviewPart(halves.$2);
+
+    try {
+      answers.add(
+        await _ask(
+          client,
+          buildUserPrompt(
+            rules: partRules,
+            files: part,
+            conventions: withConventions ? conventions : null,
+            sources: whole ? sources : const <String, String>{},
+            testFiles: testFiles,
+            testExpects: testExpects,
+            packageName: packageName,
+          ),
+        ),
+      );
+    } on AnswerCutException {
+      if (units <= 1) {
+        rethrow;
+      }
+      await cutRules();
+    } on RequestTooLargeException catch (error) {
+      lastRefusal = error.message;
+      if (whole) {
+        changedPartsOnly = true;
+        await reviewPart(partRules, withConventions, part, whole: false);
+      } else if (_lineCount(part) > minPartLines) {
+        final (List<DiffFile>, List<DiffFile>) halves = _halves(part);
+        await reviewPart(partRules, withConventions, halves.$1, whole: false);
+        await reviewPart(partRules, withConventions, halves.$2, whole: false);
+      } else if (units > 1) {
+        await cutRules();
+      } else {
+        throw RequestTooLargeException(
+          'The request is still too large for ${client.provider} with a part '
+          'of ${_lineCount(part)} lines of diff and one rule. Last refusal: '
+          '$lastRefusal',
+        );
+      }
+    }
   }
 
+  await reviewPart(sent, hasConventions, <DiffFile>[
+    ...files,
+    ...deleted,
+  ], whole: sources.isNotEmpty);
   String? note;
-  try {
-    answers.add(
-      await _ask(
-        client,
-        buildUserPrompt(
-          rules: sent,
-          files: files,
-          deletedFiles: deleted,
-          conventions: conventions,
-          sources: sources,
-          testFiles: testFiles,
-          testExpects: testExpects,
-        ),
-      ),
-    );
-  } on RequestTooLargeException catch (error) {
-    lastRefusal = error.message;
-    // Without whole files, the first new request would be the same one.
-    await reviewPart(<DiffFile>[...files, ...deleted], asked: sources.isEmpty);
+  if (answers.length > 1 || changedPartsOnly) {
+    final List<String> how = <String>[
+      if (changedPartsOnly) 'with the changed parts only',
+      if (rulesCut) 'with a part of the rules in each',
+    ];
     note = answers.length == 1
         ? 'The pull request was too large for one request to '
               '${client.provider} with the whole files: it was reviewed with '
               'the changed parts only.'
         : 'The pull request was too large for one request to '
-              '${client.provider}: it was reviewed in ${answers.length} parts, '
-              'with the changed parts only. Each part was reviewed without the '
-              'others.';
+              '${client.provider}: it was reviewed in ${answers.length} parts'
+              '${how.isEmpty ? '' : ', ${how.join(' and ')}'}. Each part was '
+              'reviewed without the others.';
   }
   final List<Finding> findings = <Finding>[
     for (final String answer in answers) ...parseFindings(answer),
@@ -315,6 +338,10 @@ Future<ReviewResult> review({
       rejected.add(
         RejectedFinding(finding, 'no added line under lib/ shows a behavior'),
       );
+    } else if (_columnWithNoScrollView(finding, sent, files, sources)) {
+      rejected.add(
+        RejectedFinding(finding, 'no SingleChildScrollView in the file'),
+      );
     } else if (finding.rule == conventionRuleId) {
       final String? text = conventionTexts[conventionId(finding)];
       if (text == null) {
@@ -351,6 +378,38 @@ Future<ReviewResult> review({
     ]),
     note: note,
   );
+}
+
+/// Whether [finding] is a remark of a rule like P5 on a `Column` or a `Row`,
+/// in a file that has no `SingleChildScrollView`: such a `Column` is not a
+/// scrolling list, so the rule does not apply to it.
+bool _columnWithNoScrollView(
+  Finding finding,
+  List<Rule> rules,
+  List<DiffFile> files,
+  Map<String, String> sources,
+) {
+  if (!rules.any(
+    (Rule rule) => rule.id == finding.rule && rule.remarkInScrollView,
+  )) {
+    return false;
+  }
+  final DiffFile? file = files
+      .where((DiffFile f) => f.path == finding.file)
+      .firstOrNull;
+  if (file == null) {
+    return false;
+  }
+  final String code = file.newLineText[finding.line] ?? '';
+  if (!RegExp(r'\b(Column|Row)\s*\(').hasMatch(code) ||
+      RegExp(
+        r'\b(ListView|GridView|SliverChildListDelegate)\b',
+      ).hasMatch(code)) {
+    return false;
+  }
+  final String fileCode =
+      sources[file.path] ?? file.newLineText.values.join('\n');
+  return !fileCode.contains('SingleChildScrollView');
 }
 
 /// Sends one request, and asks once more when the answer is not the expected
@@ -426,8 +485,8 @@ List<RuleCheck> _mergeChecks(List<List<RuleCheck>> parts) {
   ];
 }
 
-InvalidAnswerException _cutAnswer(InvalidAnswerException error) =>
-    InvalidAnswerException(
+AnswerCutException _cutAnswer(InvalidAnswerException error) =>
+    AnswerCutException(
       '${error.message} The answer was cut: the model reached its length '
       'limit (finish_reason: length).',
     );

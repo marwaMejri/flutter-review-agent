@@ -64,6 +64,14 @@ class Rule {
     return _code.firstMatch(field)?.group(1);
   }
 
+  /// Whether a remark of the rule on a `Column` or a `Row` needs a
+  /// `SingleChildScrollView` in its file, from a `Remark line: a list widget,
+  /// or a Column or Row in a file with a SingleChildScrollView` line.
+  bool get remarkInScrollView =>
+      _field('Remark line') ==
+      'a list widget, or a `Column` or `Row` in a file with a '
+          '`SingleChildScrollView`';
+
   /// Whether a remark of the rule needs an added line under `lib/` that
   /// shows a behavior (see `showsBehavior`), from an `Only when` line.
   bool get needsBehaviorLine =>

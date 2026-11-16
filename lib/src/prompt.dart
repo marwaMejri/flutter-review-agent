@@ -67,7 +67,8 @@ Answer with JSON only, in this form:
 /// [deletedFiles] are sent with their removed lines, so the model sees where
 /// moved code comes from. [testFiles] are the test files of the whole pull
 /// request, and [testExpects] the number of their added lines with an
-/// `expect`, when [files] is only a part of it.
+/// `expect`, when [files] is only a part of it. [packageName] is the name in
+/// the pubspec of the project, to read its `package:` imports.
 String buildUserPrompt({
   required List<Rule> rules,
   required List<DiffFile> files,
@@ -76,6 +77,7 @@ String buildUserPrompt({
   List<DiffFile> deletedFiles = const <DiffFile>[],
   List<String>? testFiles,
   int? testExpects,
+  String? packageName,
 }) {
   // A fact the model cannot guess wrong: without it, a small model sometimes
   // answers that a test checks a behavior when the pull request has no test.
@@ -143,6 +145,20 @@ String buildUserPrompt({
       ..writeln()
       ..writeln(conventionsWithIds(conventions).trim())
       ..writeln();
+    // A fact the model cannot read wrong: a small model sometimes takes a
+    // `domain/` file of another feature for a `data/` file of its own.
+    final List<String> imports = importFacts(files, packageName);
+    if (imports.isNotEmpty) {
+      buffer
+        ..writeln(
+          'Imports added by this pull request, with the feature and the '
+          'layer of each side, from the folders '
+          '`lib/features/<feature>/<layer>/`:',
+        )
+        ..writeln()
+        ..writeAll(imports.map((String fact) => '- $fact\n'))
+        ..writeln();
+    }
   }
 
   buffer
@@ -242,6 +258,76 @@ int addedExpects(List<DiffFile> files) => <String>[
   for (final DiffFile file in files)
     if (isTestFile(file.path)) ...file.addedCode,
 ].where(RegExp(r'\bexpect(Later)?\(').hasMatch).length;
+
+final RegExp _featureLayer = RegExp(r'^lib/features/([^/]+)/([^/]+)/');
+final RegExp _importUri = RegExp(r'''^\s*import\s+['"]([^'"]+)['"]''');
+
+/// The added `import` lines of [files] where both the importing file and the
+/// imported file are in `lib/features/<feature>/<layer>/`, with the feature
+/// and the layer of each side, and whether the features are the same. Other
+/// imports are left out.
+List<String> importFacts(List<DiffFile> files, String? packageName) {
+  final List<String> facts = <String>[];
+  for (final DiffFile file in files) {
+    final Match? from = _featureLayer.firstMatch(file.path);
+    if (from == null || file.deleted) {
+      continue;
+    }
+    for (final int line in file.addedLines.toList()..sort()) {
+      final Match? uri = _importUri.firstMatch(file.newLineText[line] ?? '');
+      final String? target = uri == null
+          ? null
+          : importedPath(file.path, uri.group(1)!, packageName);
+      final Match? to = target == null
+          ? null
+          : _featureLayer.firstMatch(target);
+      if (to != null) {
+        facts.add(
+          '`${file.path}:$line` (${from.group(1)}, ${from.group(2)}) imports '
+          '`$target` (${to.group(1)}, ${to.group(2)}): '
+          '${from.group(1) == to.group(1) ? 'same feature' : 'another feature'}',
+        );
+      }
+    }
+  }
+  return facts;
+}
+
+/// The path in the project of the file that [file] imports with [uri]:
+/// `package:<packageName>/a.dart` is `lib/a.dart`, and a relative path is
+/// read from the folder of [file]. Null for any other import, such as
+/// `dart:` or another package.
+String? importedPath(String file, String uri, String? packageName) {
+  if (uri.startsWith('package:')) {
+    final String prefix = 'package:$packageName/';
+    return packageName != null && uri.startsWith(prefix)
+        ? 'lib/${uri.substring(prefix.length)}'
+        : null;
+  }
+  if (uri.contains(':')) {
+    return null;
+  }
+  final List<String> parts = file.split('/')..removeLast();
+  for (final String part in uri.split('/')) {
+    if (part == '..') {
+      if (parts.isEmpty) {
+        return null;
+      }
+      parts.removeLast();
+    } else if (part != '.' && part.isNotEmpty) {
+      parts.add(part);
+    }
+  }
+  return parts.join('/');
+}
+
+/// The name of the package in [pubspec], or null.
+String? packageNameOf(String? pubspec) => pubspec == null
+    ? null
+    : RegExp(
+        r'^name:\s*([A-Za-z0-9_]+)',
+        multiLine: true,
+      ).firstMatch(pubspec)?.group(1);
 
 /// Whether [path] is a test file: `*_test.dart`, as `flutter test` finds
 /// them.

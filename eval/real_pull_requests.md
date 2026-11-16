@@ -301,14 +301,12 @@ all the pull requests (#2 to #31) run again with both models.
 | 21 | P9 on a `const` widget (#21, flash-lite) | fixed: `Remark line: a widget that is not const`; the agent refused it in 1 run out of 3 |
 | 22 | B5 on the `///` comment line (#23, gpt-oss-120b) | fixed: a remark on a doc comment moves to the member; B5 on line 22 |
 | 23 | Groq refused #24 as too large, even in parts of 28 lines, right after #23 in 2 parts | open: #24 passed after a wait of 60 s; the refusal text is now kept in the error, to read it next time |
-| 24 | the section named in a CONVENTION message is not always the section of the convention (#30, flash-lite: "Dependencies between layers" for "A feature never imports another feature", which is in "Folders") | open, minor: the convention quoted is right |
+| 24 | the section named in a CONVENTION message is not always the section of the convention (#30, flash-lite: "Dependencies between layers" for "A feature never imports another feature", which is in "Folders") | no longer applies: the convention moved to "Dependencies between layers" in the example project |
 | 25 | T5 once on `lib/app/router.dart:20` instead of the test line (#14, flash-lite) | open, minor: the remark is right, its place is not |
-26. **A CONVENTION remark that cites the wrong convention** (#30,
-   flash-lite, 1 run out of 2 with the conventions of `main`): line 11
-   imports `features/releases/domain/repositories/release_repository.dart`;
-   the remark cites "`presentation/` imports `domain/`, never `data/`"
-   instead of "A feature never imports another feature". The line breaks a
-   convention, but not the one shown. Open.
+| 26 | a CONVENTION remark that cites the wrong convention (#30, flash-lite): line 11 imports `features/releases/domain/repositories/release_repository.dart`, the remark cites "`presentation/` imports `domain/`, never `data/`" | fixed: the prompt gives each added import between features as a fact, with the feature and the layer of each side and "same feature" or "another feature"; the right convention in 3 runs out of 3, and the 3 conventions of #30 in 3 runs out of 3 |
+| 27 | T3 missed when a test checks one new behavior and not another (#5, flash-lite) | fixed: step 4 of T3 answers for each behavior; T3 in 2 runs out of 2; no false T3 on #18, #19, #20, #14, #24 |
+| 28 | answers cut by Groq ("finish_reason: length") with gpt-oss-120b | fixed in the code: a cut answer is asked again with half of the rules in each request; not yet seen on GitHub |
+| 29 | P5 on a `Column` in a file with no `SingleChildScrollView` (#30, flash-lite) | fixed: `Remark line` of P5, checked by a unit test; the false P5 did not come back in 9 real runs of #30 |
 
 ## Local tests of the fixes
 
@@ -667,3 +665,78 @@ The pull request only changes `const` to `final` in its test: no added line
 has an `expect`. The prompt now gives that count as a fact, as it does for
 the test files: "None of their added lines has an `expect`: no test of this
 pull request checks a new behavior."
+
+## Full run after the fixes: `openai/gpt-oss-120b`, on GitHub, agent `ebf5afa`
+
+Not usable as a measure: most reviews did not finish.
+
+| Result | PR |
+|---|---|
+| review by gpt-oss-120b | #3 (P2, T3), #4 (P3, T3), #5 (P5; T3 missed), #8 (MEM1, T3), #17 (M4) |
+| review by gpt-oss-20b (fallback, not counted) | #15, #20, #27 |
+| answer cut: "the model reached its length limit (finish_reason: length)" | #6, #7, #9 to #14, #16, #18, #19, #21 to #23, #25 |
+| HTTP 413 even in parts of 28 lines (gpt-oss-20b) | #24 |
+| tokens of the day used up: "the provider asks to wait 1172 s" to "2278 s" | #26, #28, #29, #30 |
+| no model call (README only) | #31 |
+
+The page of the model gives 65,536 output tokens, so the cut answers do not
+come from the model. Hypothesis, not proven: the free plan allows 8,000
+tokens a minute, input and output together; with a request of about 6,000
+tokens, the answer (the reasoning of gpt-oss, then one check for each rule
+and each section of the conventions, with the answer of each step) has
+little room left. The answers are longer than in the first runs on Groq,
+which finished.
+
+## Third full run: `gemini-3.5-flash-lite`, on GitHub, agent `ebf5afa`
+
+| PR | Result |
+|---|---|
+| #2 to #4, #6 to #29 | as expected, #10 (MEM3, T3) and #11 (B4, T3) included |
+| #5 | P5 found; **T3 missed**: the model test of the pull request has new `expect` lines (for the parsing), but no test checks the new section of the screen |
+| #30 | T3, and the conventions on lines 54 and 68; **line 11 cites the wrong convention** ("`presentation/` imports `domain/`, never `data/`") and the import of another feature on line 10 gets no remark (error 26, third time) |
+| #31 | the job was still running when the reviews were read |
+
+27 pull requests out of 29 as expected (26 out of 29 in the second run, 24
+out of 30 in the first).
+
+## Local runs with the working tree (rule halves, P5 scroll-view guard)
+
+| PR | Model | Result |
+|---|---|---|
+| #30 | gemini-3.5-flash-lite | T3; conventions on lines 54 and 68; **line 11 cites the wrong convention again**: the model reads `features/releases/domain/repositories/release_repository.dart` as "a data repository", while the broken convention is "A feature never imports another feature"; line 10 (`features/releases/domain/entities/release.dart`) gets no remark (error 26, fourth time). P5: the model answered no, so the scroll-view guard was not used |
+| #5 | gemini-3.5-flash-lite | P5 kept on the `Column` (the file has a `SingleChildScrollView`); **T3 missed**: step 4 answered "yes" with the `expect` of the model test |
+| #23 | openai/gpt-oss-120b | B5, B2, MEM1 on line 23, P1, T3: as expected |
+| #24 | openai/gpt-oss-120b | no remark, reviewed in 2 parts: as expected |
+| #26 | openai/gpt-oss-120b | B5 on line 221, T3, reviewed in 4 parts: as expected |
+| #7 | openai/gpt-oss-120b | B2, T3: as expected |
+
+With gpt-oss-120b, no review was unavailable and no answer was cut, so the
+rule halves were not needed in these 4 runs.
+
+## Local runs after the fixes (T3 step 4 for each behavior, imports given as facts)
+
+| PR | Model | Result |
+|---|---|---|
+| #30, run 1 | gemini-3.5-flash-lite | T3; CONVENTION "A feature never imports another feature" on line 10 (fixed: error 26); lines 53 and 68 |
+| #30, run 2 | gemini-3.5-flash-lite | T3; the import convention on line 10, line 68; **line 53 missed** (the view that reads a repository) |
+| #5, runs 1 and 2 | gemini-3.5-flash-lite | P5 and T3 (fixed: T3 missed before) |
+| #18, #19, #20 | gemini-3.5-flash-lite | no remark, as expected |
+| #14 | gemini-3.5-flash-lite | T5 only, as expected |
+| #24 | **gemini-3.6-flash** (flash-lite did not answer, the agent took the next model of the list) | no remark; not a measure of flash-lite |
+| #30, run 3 | gemini-3.5-flash-lite | T3; the 3 conventions (lines 10, 54, 68) |
+| #30, run 4 | gemini-3.5-flash-lite | T3; lines 53 and 68; **import on line 10 missed**: the check reads "settings (presentation) imports releases (domain). Pass.": the model checked the layers, not the features |
+| #30, run 5 | gemini-3.5-flash-lite | T3; import on line 10, line 68; **line 54 missed** |
+| #24 | gemini-3.5-flash-lite | no remark, as expected |
+
+#30 after the fixes, 5 runs: T3 5/5, line 68 5/5, the import with the right
+convention 4/5 (the wrong convention is never cited now), the view that reads
+a repository (line 53 or 54) 3/5. All 3 conventions in 2 runs out of 5.
+
+### After "same feature" / "another feature" was added to the import facts
+
+| PR | Model | Result |
+|---|---|---|
+| #30, 3 runs | gemini-3.5-flash-lite | T3 and the 3 conventions (lines 10, 53, 68) in 3 runs out of 3; the import cites "A feature never imports another feature" each time |
+
+In 2 of these runs, the model put several sections of the conventions in one
+"checks" entry. The remarks were not changed by it.

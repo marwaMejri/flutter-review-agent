@@ -87,6 +87,13 @@ class InvalidAnswerException implements Exception {
   String toString() => 'InvalidAnswerException: $message';
 }
 
+/// Thrown when the answer was cut by the length limit of the provider
+/// (`finish_reason: length`). The review asks again with fewer rules in each
+/// request, so each answer is shorter.
+class AnswerCutException extends InvalidAnswerException {
+  AnswerCutException(super.message);
+}
+
 /// Reads the JSON of the answer.
 ///
 /// Some models wrap JSON in a Markdown code block, so the fences are removed

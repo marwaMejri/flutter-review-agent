@@ -167,6 +167,66 @@ diff --git a/lib/a.dart b/lib/a.dart
     expect(addedExpects(diff), 2);
   });
 
+  group('the imports between features', () {
+    // Pull request #30: a screen of `settings` imports two files of
+    // `releases`, written with `package:` and with a relative path.
+    final List<DiffFile> diff = parseDiff('''
+diff --git a/lib/features/settings/presentation/views/settings_view.dart b/lib/features/settings/presentation/views/settings_view.dart
+--- a/lib/features/settings/presentation/views/settings_view.dart
++++ b/lib/features/settings/presentation/views/settings_view.dart
+@@ -1,2 +1,7 @@
+ import 'package:flutter/widgets.dart';
++import 'package:app/features/releases/domain/entities/release.dart';
++import '../../../releases/domain/repositories/release_repository.dart';
++import 'package:other/features/a/b/c.dart';
++import 'package:app/core/theme.dart';
++import '../../domain/entities/app_settings.dart';
+ import '../view_models/settings_view_model.dart';
+''');
+
+    test('gives the feature and the layer of each side', () {
+      expect(importFacts(diff, 'app'), <String>[
+        '`lib/features/settings/presentation/views/settings_view.dart:2` '
+            '(settings, presentation) imports '
+            '`lib/features/releases/domain/entities/release.dart` '
+            '(releases, domain): another feature',
+        '`lib/features/settings/presentation/views/settings_view.dart:3` '
+            '(settings, presentation) imports '
+            '`lib/features/releases/domain/repositories/release_repository.dart` '
+            '(releases, domain): another feature',
+        '`lib/features/settings/presentation/views/settings_view.dart:6` '
+            '(settings, presentation) imports '
+            '`lib/features/settings/domain/entities/app_settings.dart` '
+            '(settings, domain): same feature',
+      ]);
+    });
+
+    test('reads only the relative imports with no package name', () {
+      expect(importFacts(diff, null), hasLength(2));
+    });
+
+    test('are in the conventions part of the prompt only', () {
+      expect(
+        buildUserPrompt(
+          rules: rules,
+          files: diff,
+          conventions: '- A feature never imports another feature.',
+          packageName: 'app',
+        ),
+        contains('(settings, presentation) imports'),
+      );
+      expect(
+        buildUserPrompt(rules: rules, files: diff, packageName: 'app'),
+        isNot(contains('Imports added by this pull request')),
+      );
+    });
+
+    test('reads the package name in the pubspec', () {
+      expect(packageNameOf('name: app\nversion: 1.0.0\n'), 'app');
+      expect(packageNameOf(null), isNull);
+    });
+  });
+
   test('sends only the changed parts when the file is unknown', () {
     final String prompt = buildUserPrompt(rules: rules, files: files);
 

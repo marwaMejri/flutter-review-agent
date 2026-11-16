@@ -375,6 +375,140 @@ void main() {
     expect(result.accepted.single.line, 2);
   });
 
+  group('an answer cut, or a small part still too large', () {
+    final List<Rule> twoRules = <Rule>[
+      Rule(id: 'P1', title: 't', text: '## P1. t'),
+      Rule(id: 'P2', title: 't', text: '## P2. t'),
+    ];
+    String findingFor(String body) => body.contains('## P1. t')
+        ? '{"rule": "P1", "file": "lib/a.dart", "line": 11, '
+              '"evidence": "final int z;", "message": "m"}'
+        : '{"rule": "P2", "file": "lib/a.dart", "line": 12, '
+              '"evidence": "final int w;", "message": "m"}';
+    http.Response answer(String content, {bool cut = false}) => http.Response(
+      jsonEncode(<String, Object>{
+        'choices': <Object>[
+          <String, Object>{
+            if (cut) 'finish_reason': 'length',
+            'message': <String, String>{'content': content},
+          },
+        ],
+      }),
+      200,
+    );
+    ModelClient clientWith(http.Response Function(String) reply) => ModelClient(
+      provider: 'test-provider',
+      baseUrl: 'https://example.com/v1/',
+      models: <String>['test-model'],
+      apiKey: 'test-key',
+      httpClient: MockClient(
+        (http.Request request) async => reply(request.body),
+      ),
+    );
+
+    test('asks again with half of the rules in each request', () async {
+      int calls = 0;
+      final ModelClient client = clientWith((String body) {
+        calls++;
+        return body.contains('## P1. t') && body.contains('## P2. t')
+            ? answer('{"checks": [', cut: true)
+            : answer('{"checks": [], "findings": [${findingFor(body)}]}');
+      });
+
+      final ReviewResult result = await review(
+        diff: sampleDiff,
+        rules: twoRules,
+        client: client,
+      );
+
+      expect(calls, 3);
+      expect(result.accepted.map((Finding f) => f.rule), <String>['P1', 'P2']);
+      expect(result.note, contains('with a part of the rules in each'));
+    });
+
+    test('cuts the rules when a small part is still too large', () async {
+      final ModelClient client = clientWith(
+        (String body) => body.contains('## P1. t') && body.contains('## P2. t')
+            ? http.Response('too large', 413)
+            : answer('{"checks": [], "findings": [${findingFor(body)}]}'),
+      );
+
+      final ReviewResult result = await review(
+        diff: sampleDiff,
+        rules: twoRules,
+        client: client,
+      );
+
+      expect(result.accepted, hasLength(2));
+      expect(result.note, contains('reviewed in 2 parts'));
+    });
+  });
+
+  test(
+    'refuses P5 on a Column in a file with no SingleChildScrollView',
+    () async {
+      const String diff = '''
+diff --git a/lib/a.dart b/lib/a.dart
+--- a/lib/a.dart
++++ b/lib/a.dart
+@@ -1,1 +1,2 @@
+ Widget a() => Padding(
++  child: Column(children: items),
+diff --git a/lib/b.dart b/lib/b.dart
+--- a/lib/b.dart
++++ b/lib/b.dart
+@@ -1,1 +1,2 @@
+ Widget b() => SingleChildScrollView(
++  child: Column(children: items),
+''';
+      final ModelClient client = ModelClient(
+        provider: 'test-provider',
+        baseUrl: 'https://example.com/v1/',
+        models: <String>['test-model'],
+        apiKey: 'test-key',
+        httpClient: MockClient((http.Request request) async {
+          return http.Response(
+            jsonEncode(<String, Object>{
+              'choices': <Object>[
+                <String, Object>{
+                  'message': <String, String>{
+                    'content':
+                        '{"checks": [], "findings": ['
+                        '{"rule": "P5", "file": "lib/a.dart", "line": 2, '
+                        '"evidence": "child: Column(", "message": "m"}, '
+                        '{"rule": "P5", "file": "lib/b.dart", "line": 2, '
+                        '"evidence": "child: Column(", "message": "m"}]}',
+                  },
+                },
+              ],
+            }),
+            200,
+          );
+        }),
+      );
+
+      final ReviewResult result = await review(
+        diff: diff,
+        rules: <Rule>[
+          Rule(
+            id: 'P5',
+            title: 't',
+            text:
+                '## P5. t\n\n- **Remark line:** a list widget, or a `Column` or '
+                '`Row` in a file with a `SingleChildScrollView`',
+          ),
+        ],
+        client: client,
+      );
+
+      expect(result.accepted.single.file, 'lib/b.dart');
+      expect(
+        result.rejected.single.reason,
+        'no SingleChildScrollView in the file',
+      );
+    },
+  );
+
   group('a request too large for the provider', () {
     // A new file of 120 lines: line 1 is "// first line", line 120 is
     // "// last line".

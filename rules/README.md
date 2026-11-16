@@ -30,7 +30,9 @@ Every rule has the same parts:
   remark of the rule. With "contains" and texts, as `>?` for B5, the line
   must contain one of them. With "a return type that ends with `>?`", as for
   B5, the line must declare a method, a function or a getter with such a
-  type, not a field or a parameter. With "a widget that is not const", as for
+  type, not a field or a parameter. With "a list widget, or a `Column` or
+  `Row` in a file with a `SingleChildScrollView`", as for P5, a remark on a
+  `Column` or a `Row` needs a `SingleChildScrollView` in the file. With "a widget that is not const", as for
   P9, the first widget of the line must not be `const`. A remark on a `///`
   comment
   is first moved to the member below it. The model does not get this line.

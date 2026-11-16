@@ -270,6 +270,7 @@
   suggestion: it matters when most children are off screen.
 - **Source:** [Performance best practices, Be lazy!](https://docs.flutter.dev/perf/best-practices#be-lazy), [Pitfalls](https://docs.flutter.dev/perf/best-practices#pitfalls) ("if most of the children are not visible on screen"), [ListView](https://api.flutter.dev/flutter/widgets/ListView-class.html) (the default constructor "is appropriate for list views with a small number of children") and [SliverChildListDelegate](https://api.flutter.dev/flutter/widgets/SliverChildListDelegate-class.html)
 - **Level:** suggestion
+- **Remark line:** a list widget, or a `Column` or `Row` in a file with a `SingleChildScrollView`
 - **Triggers:** `ListView(`, `GridView(`, `Column(`, `SliverChildListDelegate(`, `SingleChildScrollView(`
 
 ## P9. A builder that rebuilds a subtree that does not change
