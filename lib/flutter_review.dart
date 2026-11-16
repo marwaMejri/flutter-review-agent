@@ -119,6 +119,11 @@ Future<ReviewResult> review({
   ];
   final int testExpects = addedExpects(files);
   final String? packageName = packageNameOf(readSource?.call('pubspec.yaml'));
+  // Read in the whole files, also when the model gets the changed parts only.
+  final Map<String, Map<int, String>> routerLines = routerLinesOf(
+    files,
+    sources,
+  );
 
   // A request too large for the provider is sent again with the changed
   // parts only, then cut in two until each part fits: the diff while it is
@@ -160,6 +165,7 @@ Future<ReviewResult> review({
             testFiles: testFiles,
             testExpects: testExpects,
             packageName: packageName,
+            routerLines: routerLines,
           ),
         ),
       );

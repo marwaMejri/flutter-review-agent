@@ -69,6 +69,8 @@ Answer with JSON only, in this form:
 /// request, and [testExpects] the number of their added lines with an
 /// `expect`, when [files] is only a part of it. [packageName] is the name in
 /// the pubspec of the project, to read its `package:` imports.
+/// [routerLines] are the added lines inside a router or app call, by file and
+/// line (see [routerLinesOf]); they are found in [sources] when not given.
 String buildUserPrompt({
   required List<Rule> rules,
   required List<DiffFile> files,
@@ -78,6 +80,7 @@ String buildUserPrompt({
   List<String>? testFiles,
   int? testExpects,
   String? packageName,
+  Map<String, Map<int, String>>? routerLines,
 }) {
   // A fact the model cannot guess wrong: without it, a small model sometimes
   // answers that a test checks a behavior when the pull request has no test.
@@ -181,6 +184,25 @@ String buildUserPrompt({
             '($expects added lines with an `expect`).',
     })
     ..writeln();
+  // A fact the model cannot read wrong: a model sometimes answers that a new
+  // `name:` inside a `GoRoute(` changes no route.
+  final Map<String, Map<int, String>> calls =
+      routerLines ?? routerLinesOf(files, sources);
+  final List<String> inCalls = <String>[
+    for (final DiffFile file in files)
+      for (final int line in file.addedLines.toList()..sort())
+        if (calls[file.path]?[line] case final String call)
+          '`${file.path}:$line` (`$call`)',
+  ];
+  if (inCalls.isNotEmpty) {
+    buffer
+      ..writeln(
+        'Added lines under `lib/` inside a `GoRouter(`, `GoRoute(`, '
+        '`MaterialApp(` or `CupertinoApp(` call, or a `routes:` list: '
+        '${inCalls.join(', ')}.',
+      )
+      ..writeln();
+  }
   for (final DiffFile file in files) {
     final String? source = sources[file.path];
     final List<String>? whole = source == null
@@ -319,6 +341,158 @@ String? importedPath(String file, String uri, String? packageName) {
     }
   }
   return parts.join('/');
+}
+
+/// The calls that make the routes of an app.
+const Set<String> routerCalls = <String>{
+  'GoRouter',
+  'GoRoute',
+  'MaterialApp',
+  'CupertinoApp',
+};
+
+/// The added lines of the files under `lib/` of [files] that are inside a
+/// call of [routerCalls] or a `routes:` list, by file and line, with the
+/// innermost such call: `GoRoute(` or `routes:`. The calls are read in the
+/// whole new file, in [sources]; a file with no source is left out.
+Map<String, Map<int, String>> routerLinesOf(
+  List<DiffFile> files,
+  Map<String, String> sources,
+) {
+  final Map<String, Map<int, String>> lines = <String, Map<int, String>>{};
+  for (final DiffFile file in files) {
+    final String? source = sources[file.path];
+    if (!file.path.startsWith('lib/') || file.deleted || source == null) {
+      continue;
+    }
+    final Map<int, List<String>> open = openCalls(source);
+    for (final int line in file.addedLines) {
+      for (final String name in (open[line] ?? const <String>[]).reversed) {
+        if (name == 'routes:') {
+          (lines[file.path] ??= <int, String>{})[line] = name;
+          break;
+        }
+        if (routerCalls.contains(name.split('.').first)) {
+          (lines[file.path] ??= <int, String>{})[line] = '$name(';
+          break;
+        }
+      }
+    }
+  }
+  return lines;
+}
+
+/// The calls and lists open at the start of each line of [source], from the
+/// outermost: the name before each `(`, such as `GoRoute` or
+/// `MaterialApp.router`; `key:` for a `[` after a named argument, such as
+/// `routes:`; an empty name for any other bracket. Strings and comments are
+/// left out.
+Map<int, List<String>> openCalls(String source) {
+  final String text = source.replaceAll('\r\n', '\n');
+  final List<String> open = <String>[];
+  final Map<int, List<String>> calls = <int, List<String>>{};
+  int line = 1;
+  bool lineStart = true;
+  int i = 0;
+  // Moves to [next], counting the lines skipped.
+  void skipTo(int next) {
+    line += '\n'.allMatches(text.substring(i, next)).length;
+    i = next;
+  }
+
+  while (i < text.length) {
+    final String char = text[i];
+    if (char == '\n') {
+      line++;
+      lineStart = true;
+      i++;
+      continue;
+    }
+    if (lineStart && char != ' ' && char != '\t') {
+      calls[line] = List<String>.of(open);
+      lineStart = false;
+    }
+    if (text.startsWith('//', i)) {
+      final int end = text.indexOf('\n', i);
+      i = end < 0 ? text.length : end;
+    } else if (text.startsWith('/*', i)) {
+      final int end = text.indexOf('*/', i + 2);
+      skipTo(end < 0 ? text.length : end + 2);
+    } else if (char == "'" || char == '"') {
+      final bool raw = i > 0 && text[i - 1] == 'r';
+      final String quote = text.startsWith(char * 3, i) ? char * 3 : char;
+      int next = i + quote.length;
+      while (next < text.length && !text.startsWith(quote, next)) {
+        if (text[next] == r'\' && !raw) {
+          next++;
+        }
+        next++;
+      }
+      skipTo(
+        next + quote.length > text.length ? text.length : next + quote.length,
+      );
+    } else {
+      if (char == '(' || char == '[') {
+        open.add(_openerName(text, i));
+      } else if (char == '{') {
+        open.add('');
+      } else if ((char == ')' || char == ']' || char == '}') &&
+          open.isNotEmpty) {
+        open.removeLast();
+      }
+      i++;
+    }
+  }
+  return calls;
+}
+
+final RegExp _namePart = RegExp(r'[A-Za-z0-9_$.]');
+final RegExp _typeArgumentPart = RegExp(r'[A-Za-z0-9_$.,?<>\s]');
+
+/// The name of the call opened by the `(` at [at], or `key:` for a `[` after
+/// a named argument. Type arguments are skipped: `ChangeNotifierProvider<X>(`
+/// is `ChangeNotifierProvider`, `routes: <RouteBase>[` is `routes:`.
+String _openerName(String text, int at) {
+  int j = _skipTypeArguments(text, _skipSpace(text, at - 1));
+  if (text[at] == '[') {
+    if (j < 0 || text[j] != ':') {
+      return '';
+    }
+    j = _skipSpace(text, j - 1);
+  }
+  final int end = j + 1;
+  while (j >= 0 && _namePart.hasMatch(text[j])) {
+    j--;
+  }
+  final String name = text.substring(j + 1, end);
+  return text[at] == '[' ? '$name:' : name;
+}
+
+int _skipSpace(String text, int j) {
+  while (j >= 0 && text[j].trim().isEmpty) {
+    j--;
+  }
+  return j;
+}
+
+/// The position before the type arguments that end at [j], such as
+/// `<RouteBase>`, or [j] when there are none.
+int _skipTypeArguments(String text, int j) {
+  if (j < 0 || text[j] != '>') {
+    return j;
+  }
+  int depth = 0;
+  for (int k = j; k >= 0; k--) {
+    if (!_typeArgumentPart.hasMatch(text[k])) {
+      return j;
+    }
+    if (text[k] == '>') {
+      depth++;
+    } else if (text[k] == '<' && --depth == 0) {
+      return _skipSpace(text, k - 1);
+    }
+  }
+  return j;
 }
 
 /// The name of the package in [pubspec], or null.

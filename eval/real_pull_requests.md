@@ -740,3 +740,80 @@ a repository (line 53 or 54) 3/5. All 3 conventions in 2 runs out of 5.
 
 In 2 of these runs, the model put several sections of the conventions in one
 "checks" entry. The remarks were not changed by it.
+
+## Full run: `openai/gpt-oss-120b`, on GitHub, #2 to #16, agent `c60a8d3`
+
+| PR | Expected | Remarks | Result |
+|---|---|---|---|
+| #2 | P1 (T3) | P1, T3 | as expected |
+| #3 | P2 (T3) | P2, T3 | as expected |
+| #4 | P3 (T3) | P3, T3 | as expected (false CONVENTION before) |
+| #5 | P5 (T3) | P5, T3, reviewed in 2 parts | as expected |
+| #6 | P9 (T3) | P9, T3 | as expected (answer cut before) |
+| #7 | B2, T3 | B2, T3 | as expected (answer cut before) |
+| #8 | MEM1 (T3) | MEM1, T3 | as expected |
+| #9 | MEM2, T3 | MEM2 on the field (line 16) and on `..pageContext = context` (line 38), T3 | as expected; two remarks for one problem, both right |
+| #10 | MEM3, T3 | MEM3, T3 | as expected |
+| #11 | B4, T3 | B4, T3 | as expected |
+| #12 | B5, T3 | B5 on the getter `headings` (line 23) and on the private `_headingsOf` (line 43), T3 | as expected; `_headingsOf` returns null for "no headings" too, so the second B5 is right (false CONVENTION before) |
+| #13 | T4 | T4 | as expected |
+| #14 | T5 | nothing | **T5 missed** (second time with gpt-oss-120b on GitHub) |
+| #15 | M2 | M2 | as expected |
+| #16 | M3 (T3 allowed) | M3 | as expected |
+
+14 out of 15 as expected (11 out of 15 with `22c5fb6`). No answer cut, no
+review unavailable. Review time: 3 to 7 s, up to 88 s when Groq asks to wait
+(tokens per minute).
+
+**Why T5 is missed on #14 with gpt-oss-120b.** The check in the job log:
+"Step 1: no, the pull request does not modify any GoRouter route definitions
+or animation settings." The pull request adds `name: 'releases'`,
+`name: 'release'` and `name: 'settings'` inside 3 `GoRoute(` calls, and step 1
+gives `name: 'settings'` under `GoRoute(` as an example. Hypothesis: the
+model reads the title ("An animated navigation") and looks for a change of
+the transition only.
+
+Two local runs of #14 with gpt-oss-120b, before a fix: T5 in run 1; run 2
+missed it, "Step 1: no (no router line changes affecting animation)". With the
+2 GitHub runs: T5 in 1 run out of 4. Fix: step 1 of T5 says "Any added line
+counts, not only a change of the transition: a new `name:` or `path:` is
+enough."
+
+After the fix, two local runs of #14 with gpt-oss-120b: T5 in run 2 (whole
+files); run 1 (changed parts only) missed it, "Step 1: no, the changes do not
+modify GoRouter routes or transitions". 1 out of 2, as before: the sentence
+did not change the answer of step 1.
+
+The flash-lite runs of #14, #19 and #30 after this fix got no answer: Gemini
+answered HTTP 503 ("high demand") for gemini-3.5-flash-lite and the other
+models of the list, then 429 (quota). The agent stopped each review with
+the reasons, as expected.
+
+**Check of a fact for step 1 of T5, before any code.** A script that follows
+the open `(` and `[` of each file (strings and comments left out) was run on
+the added lines of the 30 branches. Added lines inside a `GoRouter(`,
+`GoRoute(`, `MaterialApp(`, `CupertinoApp(` call or a `routes:` list:
+#14 only (`router.dart` lines 20, 31, 43, each inside `GoRoute(`), and the
+`MaterialApp(home: ...)` that wraps a widget in the tests of #13, #24 and
+#31. Those test lines are not navigation: the fact is for files under
+`lib/` only. With that limit, the prompt changes for #14 only.
+
+Code of the fact (`routerLinesOf` and `openCalls` in `lib/src/prompt.dart`),
+checked before any model run with a line-by-line copy in Python: on the 30
+branches, only #14 gets the fact (`router.dart` lines 20, 31, 43, `GoRoute(`);
+the 105 different Dart files of the branches all end with no open bracket, so
+strings, comments and type arguments are read right. The sentence added to
+step 1 of T5 earlier is removed.
+
+`dart format`, `dart analyze` (no issues) and `dart test` (120 tests) pass
+with the fact. The two runs of #14 with gpt-oss-120b got no answer: Groq
+answered 429 for gpt-oss-120b ("the provider asks to wait 2195 s", then
+"1945 s") and for gpt-oss-20b, after the full run of #2 to #16 and the local
+runs of the day. The agent stopped with the reasons, as expected.
+
+With the fact, #14: gpt-oss-120b found T5 in 1 run out of 1 ("Step 1: yes
+(added name fields inside GoRoute)"), flash-lite in 1 run out of 1. The
+second run of gpt-oss-120b was not made: the tokens of the day of the free
+Groq plan were almost used up. Minor: the 120b put T5 on line 11 (the tap),
+next to the `pumpAndSettle()` of line 12; the "Remark place" moves a remark
+only when it is on a file that is not a test.

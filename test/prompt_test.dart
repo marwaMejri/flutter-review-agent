@@ -227,6 +227,84 @@ diff --git a/lib/features/settings/presentation/views/settings_view.dart b/lib/f
     });
   });
 
+  group('the added lines inside a router call', () {
+    // Pull request #14 adds a `name:` to each `GoRoute`. The parentheses in
+    // the comment and in the string do not count.
+    const String router = '''
+final GoRouter router = GoRouter(
+  // ) in a comment
+  routes: <RouteBase>[
+    GoRoute(path: ')', name: 'a'),
+    GoRoute(
+      path: '/b',
+      builder: (BuildContext context, GoRouterState state) =>
+          const ChangeNotifierProvider<int>(),
+    ),
+  ],
+);
+''';
+    final List<DiffFile> diff = parseDiff('''
+diff --git a/lib/app/router.dart b/lib/app/router.dart
+--- a/lib/app/router.dart
++++ b/lib/app/router.dart
+@@ -3,2 +3,4 @@
+   routes: <RouteBase>[
++    GoRoute(path: ')', name: 'a'),
+     GoRoute(
++      path: '/b',
+''');
+
+    test('gives the innermost router call of each added line', () {
+      expect(
+        routerLinesOf(diff, <String, String>{'lib/app/router.dart': router}),
+        <String, Map<int, String>>{
+          'lib/app/router.dart': <int, String>{4: 'routes:', 6: 'GoRoute('},
+        },
+      );
+    });
+
+    test('leaves out the tests and the files with no source', () {
+      final List<DiffFile> test = parseDiff('''
+diff --git a/test/a_test.dart b/test/a_test.dart
+--- a/test/a_test.dart
++++ b/test/a_test.dart
+@@ -1,1 +1,2 @@
+ Widget app = MaterialApp(
++  home: const A(),
+''');
+      expect(
+        routerLinesOf(test, <String, String>{
+          'test/a_test.dart':
+              'Widget app = MaterialApp(\n  home: const A(),\n);\n',
+        }),
+        isEmpty,
+      );
+      expect(routerLinesOf(diff, const <String, String>{}), isEmpty);
+    });
+
+    test('are a fact of the prompt, even with the changed parts only', () {
+      final String prompt = buildUserPrompt(
+        rules: rules,
+        files: diff,
+        routerLines: routerLinesOf(diff, <String, String>{
+          'lib/app/router.dart': router,
+        }),
+      );
+      expect(prompt, contains('(changed parts only)'));
+      expect(
+        prompt,
+        contains(
+          '`routes:` list: `lib/app/router.dart:4` (`routes:`), '
+          '`lib/app/router.dart:6` (`GoRoute(`).',
+        ),
+      );
+      expect(
+        buildUserPrompt(rules: rules, files: diff),
+        isNot(contains('inside a `GoRouter(`')),
+      );
+    });
+  });
+
   test('sends only the changed parts when the file is unknown', () {
     final String prompt = buildUserPrompt(rules: rules, files: files);
 
