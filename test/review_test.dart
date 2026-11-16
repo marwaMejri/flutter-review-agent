@@ -324,6 +324,54 @@ void main() {
     ]);
   });
 
+  test('refuses a CONVENTION remark on the line of a rule remark', () async {
+    final ModelClient client = ModelClient(
+      provider: 'test-provider',
+      baseUrl: 'https://example.com/v1/',
+      models: <String>['test-model'],
+      apiKey: 'test-key',
+      httpClient: MockClient((http.Request request) async {
+        return http.Response(
+          jsonEncode(<String, Object>{
+            'choices': <Object>[
+              <String, Object>{
+                'message': <String, String>{
+                  'content':
+                      '{"checks": [], "findings": ['
+                      '{"rule": "CONVENTION", "file": "lib/a.dart", '
+                      '"line": 11, "evidence": "final int z;", "message": "m", '
+                      '"convention": "C1"}, '
+                      '{"rule": "P1", "file": "lib/a.dart", "line": 11, '
+                      '"evidence": "final int z;", "message": "m"}, '
+                      '{"rule": "CONVENTION", "file": "lib/a.dart", '
+                      '"line": 12, "evidence": "final int w;", "message": "m", '
+                      '"convention": "C1"}]}',
+                },
+              },
+            ],
+          }),
+          200,
+        );
+      }),
+    );
+
+    final ReviewResult result = await review(
+      diff: sampleDiff,
+      rules: <Rule>[Rule(id: 'P1', title: 't', text: '## P1. t')],
+      client: client,
+      conventions: '## Names\n- Fields are named x.',
+    );
+
+    expect(
+      <String>[for (final Finding f in result.accepted) '${f.rule} ${f.line}'],
+      <String>['P1 11', 'CONVENTION 12'],
+    );
+    expect(
+      result.rejected.single.reason,
+      'the line already has a remark of P1',
+    );
+  });
+
   test('moves a T5 remark to the test line with pumpAndSettle', () async {
     final ModelClient client = ModelClient(
       provider: 'test-provider',
@@ -373,6 +421,61 @@ void main() {
 
     expect(result.accepted.single.file, 'test/a_test.dart');
     expect(result.accepted.single.line, 2);
+  });
+
+  test('moves a T5 remark to the pumpAndSettle after the tap', () async {
+    // Pull request #14: the model put T5 on the tap line of a test.
+    final ModelClient client = ModelClient(
+      provider: 'test-provider',
+      baseUrl: 'https://example.com/v1/',
+      models: <String>['test-model'],
+      apiKey: 'test-key',
+      httpClient: MockClient((http.Request request) async {
+        return http.Response(
+          jsonEncode(<String, Object>{
+            'choices': <Object>[
+              <String, Object>{
+                'message': <String, String>{
+                  'content':
+                      '{"checks": [], "findings": [{"rule": "T5", '
+                      '"file": "test/a_test.dart", "line": 5, '
+                      '"evidence": "tester.tap(", "message": "m"}]}',
+                },
+              },
+            ],
+          }),
+          200,
+        );
+      }),
+    );
+
+    final ReviewResult result = await review(
+      diff:
+          'diff --git a/test/a_test.dart b/test/a_test.dart\n'
+          'new file mode 100644\n'
+          '--- /dev/null\n'
+          '+++ b/test/a_test.dart\n'
+          '@@ -0,0 +1,7 @@\n'
+          '+  await tester.pumpWidget(const App());\n'
+          '+  await tester.pumpAndSettle();\n'
+          '+\n'
+          '+\n'
+          '+  await tester.tap(find.text(\'Settings\'));\n'
+          '+  await tester.pumpAndSettle();\n'
+          '+  expect(find.byType(SettingsView), findsOneWidget);\n',
+      rules: <Rule>[
+        Rule(
+          id: 'T5',
+          title: 't',
+          text:
+              '## T5. t\n\n- **Remark place:** the first added test line '
+              'that contains `pumpAndSettle(` right after a `tap(`',
+        ),
+      ],
+      client: client,
+    );
+
+    expect(result.accepted.single.line, 6);
   });
 
   group('an answer cut, or a small part still too large', () {
@@ -508,6 +611,118 @@ diff --git a/lib/b.dart b/lib/b.dart
       );
     },
   );
+
+  test('refuses P1 in a method that no build() calls', () async {
+    const String source = '''
+class _AState extends State<A> {
+  void load() {
+    items.sort();
+  }
+
+  List<int> _sorted() {
+    return items.toList()..sort();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final List<int> all = items.toList()..sort();
+    return Text(_sorted().join());
+  }
+}
+''';
+    final String diff = <String>[
+      'diff --git a/lib/a.dart b/lib/a.dart',
+      'new file mode 100644',
+      '--- /dev/null',
+      '+++ b/lib/a.dart',
+      '@@ -0,0 +1,15 @@',
+      for (final String line in source.trimRight().split('\n')) '+$line',
+    ].join('\n');
+    final ModelClient client = ModelClient(
+      provider: 'test-provider',
+      baseUrl: 'https://example.com/v1/',
+      models: <String>['test-model'],
+      apiKey: 'test-key',
+      httpClient: MockClient((http.Request request) async {
+        return http.Response(
+          jsonEncode(<String, Object>{
+            'choices': <Object>[
+              <String, Object>{
+                'message': <String, String>{
+                  'content':
+                      '{"checks": [], "findings": ['
+                      '{"rule": "P1", "file": "lib/a.dart", "line": 3, '
+                      '"evidence": "items.sort();", "message": "m"}, '
+                      '{"rule": "P1", "file": "lib/a.dart", "line": 7, '
+                      '"evidence": "items.toList()..sort();", "message": "m"}, '
+                      '{"rule": "P1", "file": "lib/a.dart", "line": 12, '
+                      '"evidence": "items.toList()..sort();", "message": "m"}'
+                      ']}',
+                },
+              },
+            ],
+          }),
+          200,
+        );
+      }),
+    );
+
+    final ReviewResult result = await review(
+      diff: diff,
+      rules: <Rule>[
+        Rule(
+          id: 'P1',
+          title: 't',
+          text:
+              '## P1. t\n\n- **Remark line:** in `build()`, or in a method '
+              'that a `build()` calls',
+        ),
+      ],
+      client: client,
+      readSource: (String path) => path == 'lib/a.dart' ? source : null,
+    );
+
+    expect(
+      <int>[for (final Finding finding in result.accepted) finding.line],
+      <int>[7, 12],
+    );
+    expect(result.rejected.single.finding.line, 3);
+    expect(
+      result.rejected.single.reason,
+      'not in build(), nor in a method that a build() calls',
+    );
+
+    // The same remarks, when a build() of another file of the project, not
+    // changed by the pull request, calls load().
+    final ReviewResult withProject = await review(
+      diff: diff,
+      rules: <Rule>[
+        Rule(
+          id: 'P1',
+          title: 't',
+          text:
+              '## P1. t\n\n- **Remark line:** in `build()`, or in a method '
+              'that a `build()` calls',
+        ),
+      ],
+      client: client,
+      readSource: (String path) => switch (path) {
+        'lib/a.dart' => source,
+        'lib/b.dart' =>
+          'class B extends StatelessWidget {\n'
+              '  @override\n'
+              '  Widget build(BuildContext context) {\n'
+              '    a.load();\n'
+              '    return const SizedBox();\n'
+              '  }\n'
+              '}\n',
+        _ => null,
+      },
+      projectFiles: () => <String>['lib/a.dart', 'lib/b.dart'],
+    );
+
+    expect(withProject.accepted, hasLength(3));
+  });
 
   group('a request too large for the provider', () {
     // A new file of 120 lines: line 1 is "// first line", line 120 is

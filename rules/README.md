@@ -25,32 +25,44 @@ Every rule has the same parts:
   `suggestion` (an improvement the author can decide on).
 - **Remarks:** optional. `one per pull request`: the agent keeps the first
   remark of the rule and refuses the others. For a rule about the whole pull
-  request, such as a missing test. The model does not get this line.
+  request, such as a missing test. `one per field`: the agent keeps the first
+  remark of the rule for each field, for MEM2: the field that stores a
+  `BuildContext` and the line that assigns it are one problem. The model does
+  not get this line.
 - **Remark line:** optional, applied by the agent to the line of each
-  remark of the rule. With "contains" and texts, as `>?` for B5, the line
-  must contain one of them. With "a return type that ends with `>?`", as for
-  B5, the line must declare a method, a function or a getter with such a
-  type, not a field or a parameter. With "a list widget, or a `Column` or
-  `Row` in a file with a `SingleChildScrollView`", as for P5, a remark on a
-  `Column` or a `Row` needs a `SingleChildScrollView` in the file. With "a widget that is not const", as for
-  P9, the first widget of the line must not be `const`. A remark on a `///`
-  comment
-  is first moved to the member below it. The model does not get this line.
+  remark of the rule. The model does not get this line. The forms:
+  - "contains" and texts: the line must contain one of them.
+  - "a return type that ends with `>?`" (B5): the line must declare a method,
+    a function or a getter with such a type, not a field or a parameter.
+  - "a list widget, or a `Column` or `Row` in a file with a
+    `SingleChildScrollView`" (P5): a remark on a `Column` or a `Row` needs a
+    `SingleChildScrollView` in the file.
+  - "a widget that is not `const`" (P9): the first widget of the line must not
+    be `const`.
+  - "in `build()`, or in a method that a `build()` calls" (P1): a remark in
+    the body of another method, such as `initState` or `load`, is refused
+    when no `build()` of the project names that method. A line in a getter or
+    in a method written with `=>` is kept.
+
+  A remark on a `///` comment is first moved to the member below it.
 - **Remark place:** optional. With "the first added test line that
-  contains" and a text, as `pumpAndSettle(` for T5, a remark that the model
-  put outside the tests is moved to that line. The model does not get this
-  line.
+  contains" and a text, as `pumpAndSettle(` for T5, every remark of the rule
+  is moved to that line. With "right after a" and a second text, as `tap(`
+  for T5, the first such line whose line before contains the second text is
+  taken first: the `pumpAndSettle()` after a tap, not the one after
+  `pumpWidget`. The model does not get this line.
 - **Not on a line of:** optional. The agent refuses a remark of the rule on a
   line that has a remark of one of these rules. MEM1 has `B2`: an object
   created in `build()` is B2, never MEM1. The model does not get this line.
 - **Only when:** optional. With "an added line under lib/ shows a
-  behavior", as for T3, the agent keeps a remark of the rule only when an added line of code
-  under `lib/` has a condition (`if`, `switch`, `? :`, `??`), a callback
-  (`onPressed:`), a loop or an operation on a collection (`for`, `.where(`,
-  `.map(`), a state change (`setState(`, `notifyListeners(`), an `await`, or a
-  new method or getter with a body other than `build()`. Known limit: a
-  computation changed with none of these, such as `a + b` changed to `a * b`,
-  gets no T3 remark. The model does not get this line.
+  behavior", as for T3, the agent keeps a remark of the rule only when an
+  added line of code under `lib/` has a condition (`if`, `switch`, `? :`,
+  `??`), a callback (`onPressed:`), a loop or an operation on a collection
+  (`for`, `.where(`, `.map(`), a state change (`setState(`,
+  `notifyListeners(`), an `await`, or a new method or getter with a body
+  other than `build()`; or when an added line with an operator replaces a
+  removed line with an operator, such as `a + b` changed to `a * b`. The
+  model does not get this line.
 - **Triggers:** the rule is sent to the model only when a line added by the
   pull request contains one of these texts, or, for `file:…`, when a changed
   file path starts with it. For `around:…`, the text can also be on an

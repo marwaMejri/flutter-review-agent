@@ -157,6 +157,10 @@ Future<void> main(List<String> arguments) async {
         },
         null => null,
       },
+      projectFiles: switch (options.option('project')) {
+        final String project => () => _dartFiles(project),
+        null => null,
+      },
     );
   } on ModelException catch (error) {
     stderr.writeln(error);
@@ -276,9 +280,23 @@ void _printReport(ReviewResult result, List<Rule> rules) {
       ..writeln('Checks:');
     for (final RuleCheck check in result.checks) {
       stdout.writeln(
-        '  ${check.rule.padRight(11)}${check.applies ? 'yes' : 'no '}  '
+        '  ${check.rule.padRight(10)} ${check.applies ? 'yes' : 'no '}  '
         '${check.reason}',
       );
     }
   }
+}
+
+/// The Dart files under `lib/` of [project], by their path in the project,
+/// such as `lib/main.dart`.
+List<String> _dartFiles(String project) {
+  final Directory lib = Directory('$project/lib');
+  if (!lib.existsSync()) {
+    return const <String>[];
+  }
+  return <String>[
+    for (final FileSystemEntity entity in lib.listSync(recursive: true))
+      if (entity is File && entity.path.endsWith('.dart'))
+        'lib/${entity.path.substring(lib.path.length + 1).replaceAll('\\', '/')}',
+  ];
 }

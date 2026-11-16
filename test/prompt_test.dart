@@ -221,6 +221,22 @@ diff --git a/lib/features/settings/presentation/views/settings_view.dart b/lib/f
       );
     });
 
+    test('reads the features under lib/src/ too', () {
+      final List<DiffFile> src = parseDiff('''
+diff --git a/lib/src/features/a/ui/a_view.dart b/lib/src/features/a/ui/a_view.dart
+--- a/lib/src/features/a/ui/a_view.dart
++++ b/lib/src/features/a/ui/a_view.dart
+@@ -1,1 +1,2 @@
+ import 'package:flutter/widgets.dart';
++import 'package:app/src/features/b/data/b_repository.dart';
+''');
+      expect(importFacts(src, 'app'), <String>[
+        '`lib/src/features/a/ui/a_view.dart:2` (a, ui) imports '
+            '`lib/src/features/b/data/b_repository.dart` (b, data): '
+            'another feature',
+      ]);
+    });
+
     test('reads the package name in the pubspec', () {
       expect(packageNameOf('name: app\nversion: 1.0.0\n'), 'app');
       expect(packageNameOf(null), isNull);
@@ -303,6 +319,56 @@ diff --git a/test/a_test.dart b/test/a_test.dart
         isNot(contains('inside a `GoRouter(`')),
       );
     });
+  });
+
+  test('sees a changed computation, not a changed constant', () {
+    final List<DiffFile> changed = parseDiff('''
+diff --git a/lib/a.dart b/lib/a.dart
+--- a/lib/a.dart
++++ b/lib/a.dart
+@@ -1,2 +1,2 @@
+-int total(int a, int b) => a + b;
++int total(int a, int b) => a * b;
+-const int limit = 5;
++const int limit = 6;
+''');
+    final List<DiffFile> constant = parseDiff('''
+diff --git a/lib/a.dart b/lib/a.dart
+--- a/lib/a.dart
++++ b/lib/a.dart
+@@ -1,1 +1,1 @@
+-const int limit = 5;
++const int limit = 6;
+''');
+
+    expect(changesComputation(changed.single), isTrue);
+    expect(changesComputation(constant.single), isFalse);
+  });
+
+  test('finds the method whose body holds a line', () {
+    const String code = '''
+class _ViewState extends State<View> {
+  Future<void> load() async {
+    if (ready) {
+      sort();
+    }
+  }
+
+  List<int> get sorted => items.toList()..sort();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      children: <Widget>[for (final int item in sorted) Text('\$item')],
+    );
+  }
+}
+''';
+    final Map<int, List<String>> open = openCalls(code);
+
+    expect(methodAt(open, 4), 'load');
+    expect(methodAt(open, 8), isNull);
+    expect(methodAt(open, 13), 'build');
   });
 
   test('sends only the changed parts when the file is unknown', () {

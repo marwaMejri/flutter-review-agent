@@ -817,3 +817,110 @@ second run of gpt-oss-120b was not made: the tokens of the day of the free
 Groq plan were almost used up. Minor: the 120b put T5 on line 11 (the tap),
 next to the `pumpAndSettle()` of line 12; the "Remark place" moves a remark
 only when it is on a file that is not a test.
+
+## Full run: `gemini-3.5-flash-lite`, on GitHub, agent `0c82b08`
+
+Gemini was busy (HTTP 503) during the run: 6 pull requests were answered by
+`gemini-3.6-flash`, the next model of the preset, and one got no review.
+
+| PR | Expected | Remarks | Result |
+|---|---|---|---|
+| #3 | P2 (T3) | P2, T3 | as expected |
+| #4 | P3 (T3) | P3, T3 | as expected |
+| #5 | P5, T3 | P5 | **T3 missed** (found in 2 local runs out of 2 after the fix of step 4) |
+| #6 | P9 (T3) | P9, T3 | as expected |
+| #11 | B4, T3 | B4, T3 | as expected |
+| #12 | B5, T3 | B5, T3, **P1 on line 47** | **false P1**: line 47 is in `_headingsOf`, a static method of the view model, not in a `build()`; the message itself says "a method called during data loading" |
+| #13 | T4 | T4 | as expected |
+| #14 | T5 | T5 on the `pumpAndSettle()` line | as expected |
+| #15 | M2 | M2 | as expected |
+| #16 | M3 (T3 allowed) | M3 | as expected |
+| #17 | M4 | M4 | as expected (false T3 before) |
+| #18 to #21 | nothing | nothing | as expected |
+| #23 | P1, B2, MEM1, B5 (T3) | B5, B2, MEM1 on line 23, P1, T3 | as expected |
+| #24 | nothing | nothing | as expected |
+| #25 | B2 | B2 | as expected |
+| #26 | B5 (T3) | B5, T3 | as expected |
+| #27 | nothing | nothing | as expected (false T3 before) |
+| #28 | nothing | nothing | as expected |
+| #29 | B2 twice (T3) | B2 on lines 21 and 22, T3 | as expected |
+| #31 | no model call | no model call | as expected |
+
+**gemini-3.5-flash-lite: 21 out of 23 as expected.**
+
+Answered by `gemini-3.6-flash` (not measured, not counted): #2 (P1, T3), #7
+(B2, T3), #9 (MEM2 twice, T3), #10 (MEM3, T3), #22 (M1, and a CONVENTION on
+the same `export` line: the same problem twice), #30 (T3 and the 3
+conventions, the import one on lines 10 and 11). No review: #8 (HTTP 503 from
+every model of the preset; the job wrote why on the pull request).
+
+**Fix of the false P1 (#12): `Remark line` of P1.** P1 is about `build()`,
+or a method that `build()` calls. The agent now refuses a P1 remark in the
+body of another method (`initState`, `load`, `_headingsOf`) when no
+`build()` of the changed files names that method. A line in a getter, or in
+a method written with `=>`, is kept: the agent cannot tell. Checked first
+with a Python copy on the 30 branches: the true P1 of #2 and #23 (lines 44
+and 45 of `releases_view.dart`, in `build`) are kept; the false P1 of #12
+(`_headingsOf`) is refused; on all branches, the lines that would be refused
+are in `initState`, `dispose`, `load`, `getReleases`, `fromJson`,
+`createRouter` and other methods that no `build()` calls.
+
+**Sources of the rules, checked again on the pages:** every quote of B2, B4,
+B5, MEM1, P1, P5, P9, M2 and M4 is on its page, and every anchor exists. The
+quotes of MEM2 and MEM3 were read in a summary of the DevTools page, not word
+for word. The source of T4 cites a section "The test that lied" that the
+README of `material_ui_packages_migration` does not have: to fix.
+
+**Fixes of the known limits, before the release.** Each one was checked
+first on the 30 branches with a Python copy of the code:
+
+| Limit | Fix | Effect on the 30 pull requests |
+|---|---|---|
+| P1 refused for a method that a `build()` of an unchanged file calls | the agent reads the `build()` methods of every Dart file under `lib/` of the project (`--project`), not only the changed files | the true P1 of #2 and #23 kept; the false P1 of #12 refused |
+| T5 moved to the first `pumpAndSettle()`, which can follow `pumpWidget` | `Remark place: ... right after a tap(`; every T5 remark goes to that line | #14: line 12 (line 11 by gpt-oss-120b before) |
+| MEM2 twice for one field (#9, gpt-oss-120b) | `Remarks: one per field`: the field that stores the context and the line that assigns it are one remark | #9: one MEM2 |
+| a CONVENTION remark on the line of a rule remark (#22, gemini-3.6-flash) | refused: "the line already has a remark of M1" | #22: M1 only |
+| T3 refused for a changed computation with no condition, such as `a + b` to `a * b` | an added line with an operator that replaces a removed line with an operator shows a behavior | only #3 has such a line, and it shows a behavior already: no change |
+| the import fact only for `lib/features/` | any `features/<feature>/<layer>/` under `lib/`, such as `lib/src/features/` | no change (all use `lib/features/`) |
+
+Not fixable by the agent: T3 on #5 asks whether the new `expect` lines
+check every new behavior, a judgment of the model (2 runs out of 3 after the
+fix of step 4). An import from the tests was tried as a fact and left out:
+widget tests often import the page or the app, not the changed file, so the
+fact would say "not tested" on #18 and #20, which are tested.
+
+## `openai/gpt-oss-120b`, on GitHub, #17 to #31, agent `0c82b08`
+
+The tokens of the day of the free Groq plan were used up during the run.
+
+| PR | Result |
+|---|---|
+| #17 | M4, as expected (gpt-oss-120b) |
+| #18 | no remark, as expected (gpt-oss-120b) |
+| #19, #20, #27 | no remark, as expected, but answered by gpt-oss-20b (not measured) |
+| #25 | no remark from gpt-oss-20b: B2 missed (not measured, not counted) |
+| #21 to #24, #26, #28 to #30 | no review: HTTP 429 from both models, "the provider asks to wait 777 s" to "2118 s"; the job wrote why on each pull request |
+| #31 | no model call, as expected |
+
+gpt-oss-120b over the day: 16 out of 17 as expected (#2 to #18); #19 to #30
+not measured with it.
+
+`dart test` found a fault in the first version of the CONVENTION check: it
+compared with the rule remarks before their own checks, so a CONVENTION
+remark was refused because of a T3 remark that the agent refused next.
+Fixed: the check runs last, on the remarks that are kept. A test covers it.
+
+**Local runs with all the fixes, gemini-3.5-flash-lite:**
+
+| PR | Result |
+|---|---|
+| #12 | B5, T3; no P1, as expected |
+| #2 | P1, T3, as expected |
+| #23 | B5, B2, MEM1 on line 23, P1, T3, as expected |
+| #14 | T5 on line 12 (the `pumpAndSettle()` after the tap), as expected |
+| #9 | one MEM2, T3, as expected |
+| #5 | P5, T3, as expected (T3 in 3 runs out of 4 since the fix of step 4) |
+
+In the log of #23, the model gave one check the ID "Design library" (a
+section name) instead of "CONVENTION": the ID was longer than its column and
+touched the answer. The log now always puts a space after the ID.

@@ -33,6 +33,11 @@ class Rule {
   /// `Remarks` line.
   bool get onePerPullRequest => _field('Remarks') == 'one per pull request';
 
+  /// Whether the agent keeps one remark of the rule for each field, from a
+  /// `Remarks: one per field` line: for MEM2, the field that stores a
+  /// `BuildContext` and the line that assigns it are one problem.
+  bool get onePerField => _field('Remarks') == 'one per field';
+
   /// The rules that win on the same line, from the `Not on a line of` line,
   /// for example `B2` for MEM1. Empty when there is none.
   List<String> get notOnLineOf => <String>[
@@ -64,6 +69,18 @@ class Rule {
     return _code.firstMatch(field)?.group(1);
   }
 
+  /// The text that the line before the [remarkPlace] line should contain,
+  /// from `Remark place: ... right after a ...`, such as `tap(` for T5: the
+  /// `pumpAndSettle()` that follows a tap, not the one after `pumpWidget`.
+  /// Null when there is none.
+  String? get remarkPlaceAfter {
+    final String? field = _field('Remark place');
+    if (remarkPlace == null || !field!.contains(' right after a ')) {
+      return null;
+    }
+    return _code.allMatches(field).elementAtOrNull(1)?.group(1);
+  }
+
   /// Whether a remark of the rule on a `Column` or a `Row` needs a
   /// `SingleChildScrollView` in its file, from a `Remark line: a list widget,
   /// or a Column or Row in a file with a SingleChildScrollView` line.
@@ -71,6 +88,13 @@ class Rule {
       _field('Remark line') ==
       'a list widget, or a `Column` or `Row` in a file with a '
           '`SingleChildScrollView`';
+
+  /// Whether a remark of the rule must be in a `build()` method, or in a
+  /// method that a `build()` calls, from a `Remark line: in build(), or in a
+  /// method that a build() calls` line.
+  bool get remarkInBuild =>
+      _field('Remark line') ==
+      'in `build()`, or in a method that a `build()` calls';
 
   /// Whether a remark of the rule needs an added line under `lib/` that
   /// shows a behavior (see `showsBehavior`), from an `Only when` line.

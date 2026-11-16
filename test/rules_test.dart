@@ -189,6 +189,8 @@ diff --git a/lib/app/router.dart b/lib/app/router.dart
       'pumpAndSettle(',
     );
     expect(t3.remarkPlace, isNull);
+    expect(rules.firstWhere((Rule r) => r.id == 'T5').remarkPlaceAfter, 'tap(');
+    expect(t3.remarkPlaceAfter, isNull);
   });
 
   test('reads the texts that the line of a remark must contain', () {
@@ -228,6 +230,13 @@ diff --git a/lib/app/router.dart b/lib/app/router.dart
     );
     expect(p9.remarkLine, isEmpty);
     expect(b5.remarkOnNonConstWidget, isFalse);
+    expect(
+      parseRules(
+        File('rules/performance.md').readAsStringSync(),
+      ).firstWhere((Rule r) => r.id == 'P1').remarkInBuild,
+      isTrue,
+    );
+    expect(p9.remarkInBuild, isFalse);
   });
 
   test('reads the rules that win on the same line', () {

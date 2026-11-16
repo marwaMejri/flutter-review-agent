@@ -156,5 +156,5 @@ a test **verifies** the change.
 - **Source:** measured with `go_router` 17.5.0 in a migrated app, in [Your packages haven't migrated to material_ui. Can you?](https://github.com/marwaMejri/material_ui_packages_migration)
 - **Level:** suggestion
 - **Remarks:** one per pull request
-- **Remark place:** the first added test line that contains `pumpAndSettle(`
+- **Remark place:** the first added test line that contains `pumpAndSettle(` right after a `tap(`
 - **Triggers:** `around:GoRoute`, `around:GoRouter`, `Navigator`, `around:MaterialApp`, `around:CupertinoApp`, `around:routes:`, `go_router:`, `auto_route:`, `beamer:`

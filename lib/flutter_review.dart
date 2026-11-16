@@ -67,12 +67,17 @@ bool isReviewed(String path) =>
         !generatedSuffixes.any((String suffix) => path.endsWith(suffix)));
 
 /// Reviews a diff with the given rules.
+///
+/// [readSource] reads a file of the project by its path, such as
+/// `lib/main.dart`. [projectFiles] lists the Dart files of the project under
+/// `lib/`: P1 looks for the `build()` methods that call a method.
 Future<ReviewResult> review({
   required String diff,
   required List<Rule> rules,
   required ModelClient client,
   String? conventions,
   String? Function(String path)? readSource,
+  List<String> Function()? projectFiles,
 }) async {
   final List<DiffFile> files = parseDiff(
     diff,
@@ -250,37 +255,31 @@ Future<ReviewResult> review({
       );
 
   // A rule with a "Remark place", such as T5, gets its remark on the test
-  // line that shows the problem, when the model put it on another file.
+  // line that shows the problem, wherever the model put it.
   for (int i = 0; i < checked.accepted.length; i++) {
     final Finding finding = checked.accepted[i];
-    final String? place = <String?>[
-      for (final Rule rule in sent)
-        if (rule.id == finding.rule) rule.remarkPlace,
-    ].firstOrNull;
-    if (place == null || isTestFile(finding.file)) {
+    final Rule? rule = sent
+        .where((Rule r) => r.id == finding.rule && r.remarkPlace != null)
+        .firstOrNull;
+    final (DiffFile, int)? place = rule == null
+        ? null
+        : _remarkPlace(files, rule.remarkPlace!, rule.remarkPlaceAfter);
+    if (place == null) {
       continue;
     }
-    for (final DiffFile file in files.where(
-      (DiffFile f) => isTestFile(f.path),
-    )) {
-      final int? line = (file.addedLines.toList()..sort())
-          .where((int n) => (file.newLineText[n] ?? '').contains(place))
-          .firstOrNull;
-      if (line != null) {
-        checked.accepted[i] = Finding(
-          rule: finding.rule,
-          file: file.path,
-          line: line,
-          message: finding.message,
-          evidence: file.newLineText[line]!.trim(),
-          convention: finding.convention,
-        );
-        break;
-      }
-    }
+    final (DiffFile file, int line) = place;
+    checked.accepted[i] = Finding(
+      rule: finding.rule,
+      file: file.path,
+      line: line,
+      message: finding.message,
+      evidence: file.newLineText[line]!.trim(),
+      convention: finding.convention,
+    );
   }
 
-  // A rule marked "one per pull request" keeps its first remark only.
+  // A rule marked "one per pull request" keeps its first remark only, and a
+  // rule marked "one per field" its first remark for each field.
   final Set<String> seen = <String>{};
   final List<Finding> accepted = <Finding>[];
   final List<RejectedFinding> rejected = <RejectedFinding>[...checked.rejected];
@@ -288,9 +287,28 @@ Future<ReviewResult> review({
     final bool once = sent.any(
       (Rule rule) => rule.id == finding.rule && rule.onePerPullRequest,
     );
+    final bool perField = sent.any(
+      (Rule rule) => rule.id == finding.rule && rule.onePerField,
+    );
+    final String? field = perField
+        ? storedField(
+            files
+                    .where((DiffFile f) => f.path == finding.file)
+                    .firstOrNull
+                    ?.newLineText[finding.line] ??
+                '',
+          )
+        : null;
     if (once && !seen.add(finding.rule)) {
       rejected.add(
         RejectedFinding(finding, 'one remark of this rule per pull request'),
+      );
+    } else if (field != null && !seen.add('${finding.rule} $field')) {
+      rejected.add(
+        RejectedFinding(
+          finding,
+          'one remark of this rule for the field $field',
+        ),
       );
     } else {
       accepted.add(finding);
@@ -328,13 +346,22 @@ Future<ReviewResult> review({
     (DiffFile file) =>
         file.path.startsWith('lib/') &&
         !isTestFile(file.path) &&
-        file.addedCode.any(showsBehavior),
+        (file.addedCode.any(showsBehavior) || changesComputation(file)),
   );
   // A CONVENTION remark must cite the ID of a convention of CONVENTIONS.md:
   // a model can invent one. The remark then shows the text of the file.
   final Map<String, String> conventionTexts = hasConventions
       ? numberedConventions(conventions)
       : const <String, String>{};
+  // The code of every build() of the project, read once, when a remark
+  // needs it.
+  String? allBuildCode;
+  String buildCode() => allBuildCode ??= _buildCode(<String, String>{
+    if (projectFiles != null && readSource != null)
+      for (final String path in projectFiles())
+        if (readSource(path) case final String code) path: code,
+    ...sources,
+  });
   final List<Finding> checkedKept = <Finding>[];
   for (final Finding finding in kept) {
     final bool needsBehavior = sent.any(
@@ -347,6 +374,13 @@ Future<ReviewResult> review({
     } else if (_columnWithNoScrollView(finding, sent, files, sources)) {
       rejected.add(
         RejectedFinding(finding, 'no SingleChildScrollView in the file'),
+      );
+    } else if (_outsideBuild(finding, sent, sources, buildCode)) {
+      rejected.add(
+        RejectedFinding(
+          finding,
+          'not in build(), nor in a method that a build() calls',
+        ),
       );
     } else if (finding.rule == conventionRuleId) {
       final String? text = conventionTexts[conventionId(finding)];
@@ -371,8 +405,34 @@ Future<ReviewResult> review({
     }
   }
 
+  // A CONVENTION remark on the line of a kept rule remark is refused: the
+  // rule remark says it already, with its source.
+  final List<Finding> shown = <Finding>[];
+  for (final Finding finding in checkedKept) {
+    final Finding? ruleRemark = finding.rule != conventionRuleId
+        ? null
+        : checkedKept
+              .where(
+                (Finding f) =>
+                    f.rule != conventionRuleId &&
+                    f.file == finding.file &&
+                    f.line == finding.line,
+              )
+              .firstOrNull;
+    if (ruleRemark != null) {
+      rejected.add(
+        RejectedFinding(
+          finding,
+          'the line already has a remark of ${ruleRemark.rule}',
+        ),
+      );
+    } else {
+      shown.add(finding);
+    }
+  }
+
   return ReviewResult(
-    accepted: checkedKept,
+    accepted: shown,
     rejected: rejected,
     reviewedFiles: <String>[for (final DiffFile file in files) file.path],
     sentRules: <String>[
@@ -417,6 +477,76 @@ bool _columnWithNoScrollView(
       sources[file.path] ?? file.newLineText.values.join('\n');
   return !fileCode.contains('SingleChildScrollView');
 }
+
+/// The field that [code] declares with the type `BuildContext`, or that it
+/// assigns `context` to: `_saved` in `BuildContext? _saved;` and in
+/// `_saved = context;`, `pageContext` in `..pageContext = context`. Null for
+/// any other line.
+String? storedField(String code) =>
+    (RegExp(r'\bBuildContext\??\s+(\w+)').firstMatch(code) ??
+            RegExp(r'([A-Za-z_$][\w$]*)\s*=\s*context\b').firstMatch(code))
+        ?.group(1);
+
+/// The added test line that contains [text], in the test files of [files]:
+/// the first one whose line before contains [after], else the first one.
+/// Null when no added test line contains [text].
+(DiffFile, int)? _remarkPlace(
+  List<DiffFile> files,
+  String text,
+  String? after,
+) {
+  final List<(DiffFile, int)> lines = <(DiffFile, int)>[
+    for (final DiffFile file in files.where((DiffFile f) => isTestFile(f.path)))
+      for (final int line in file.addedLines.toList()..sort())
+        if ((file.newLineText[line] ?? '').contains(text)) (file, line),
+  ];
+  if (after != null) {
+    for (final (DiffFile file, int line) in lines) {
+      // The line before, with blank lines skipped.
+      int before = line - 1;
+      while ((file.newLineText[before] ?? 'x').trim().isEmpty) {
+        before--;
+      }
+      if ((file.newLineText[before] ?? '').contains(after)) {
+        return (file, line);
+      }
+    }
+  }
+  return lines.firstOrNull;
+}
+
+/// Whether a remark of a rule that must be in `build()`, such as P1, is in
+/// the body of another method that no `build()` names, in [buildCode]. A
+/// line in no method body (a getter, a method written with `=>`) or in a
+/// file with no source is kept: the agent cannot tell.
+bool _outsideBuild(
+  Finding finding,
+  List<Rule> rules,
+  Map<String, String> sources,
+  String Function() buildCode,
+) {
+  final String? source = sources[finding.file];
+  if (source == null ||
+      !rules.any(
+        (Rule rule) => rule.id == finding.rule && rule.remarkInBuild,
+      )) {
+    return false;
+  }
+  final String? method = methodAt(openCalls(source), finding.line);
+  if (method == null || method == 'build') {
+    return false;
+  }
+  final String name = method.split('.').last;
+  return !RegExp('\\b${RegExp.escape(name)}\\b').hasMatch(buildCode());
+}
+
+/// The lines of every `build()` method of [sources], joined.
+String _buildCode(Map<String, String> sources) => <String>[
+  for (final String code in sources.values)
+    for (final MapEntry<int, List<String>> line in openCalls(code).entries)
+      if (line.value.contains('{build'))
+        code.replaceAll('\r\n', '\n').split('\n')[line.key - 1],
+].join('\n');
 
 /// Sends one request, and asks once more when the answer is not the expected
 /// JSON: the same question usually gets a correct answer the second time. A

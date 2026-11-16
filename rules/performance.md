@@ -76,6 +76,7 @@
   there costs time on every frame.
 - **Source:** [Performance best practices, Control build() cost](https://docs.flutter.dev/perf/best-practices#control-build-cost) and [FutureBuilder](https://api.flutter.dev/flutter/widgets/FutureBuilder-class.html) (obtain the future in `initState`, not in `build()`)
 - **Level:** issue
+- **Remark line:** in `build()`, or in a method that a `build()` calls
 
 ## P2. `setState` higher in the tree than needed
 

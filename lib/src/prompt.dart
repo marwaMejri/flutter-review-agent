@@ -156,7 +156,7 @@ String buildUserPrompt({
         ..writeln(
           'Imports added by this pull request, with the feature and the '
           'layer of each side, from the folders '
-          '`lib/features/<feature>/<layer>/`:',
+          '`features/<feature>/<layer>/` under `lib/`:',
         )
         ..writeln()
         ..writeAll(imports.map((String fact) => '- $fact\n'))
@@ -281,11 +281,12 @@ int addedExpects(List<DiffFile> files) => <String>[
     if (isTestFile(file.path)) ...file.addedCode,
 ].where(RegExp(r'\bexpect(Later)?\(').hasMatch).length;
 
-final RegExp _featureLayer = RegExp(r'^lib/features/([^/]+)/([^/]+)/');
+final RegExp _featureLayer = RegExp(r'^lib/(?:.+/)?features/([^/]+)/([^/]+)/');
 final RegExp _importUri = RegExp(r'''^\s*import\s+['"]([^'"]+)['"]''');
 
 /// The added `import` lines of [files] where both the importing file and the
-/// imported file are in `lib/features/<feature>/<layer>/`, with the feature
+/// imported file are in `features/<feature>/<layer>/` under `lib/`, such as
+/// `lib/features/` or `lib/src/features/`, with the feature
 /// and the layer of each side, and whether the features are the same. Other
 /// imports are left out.
 List<String> importFacts(List<DiffFile> files, String? packageName) {
@@ -385,8 +386,9 @@ Map<String, Map<int, String>> routerLinesOf(
 /// The calls and lists open at the start of each line of [source], from the
 /// outermost: the name before each `(`, such as `GoRoute` or
 /// `MaterialApp.router`; `key:` for a `[` after a named argument, such as
-/// `routes:`; an empty name for any other bracket. Strings and comments are
-/// left out.
+/// `routes:`; `{` and the name of the method for the body of a method, such
+/// as `{build` (see [methodAt]); an empty name for any other bracket.
+/// Strings and comments are left out.
 Map<int, List<String>> openCalls(String source) {
   final String text = source.replaceAll('\r\n', '\n');
   final List<String> open = <String>[];
@@ -435,7 +437,7 @@ Map<int, List<String>> openCalls(String source) {
       if (char == '(' || char == '[') {
         open.add(_openerName(text, i));
       } else if (char == '{') {
-        open.add('');
+        open.add('{${_methodName(text, i)}');
       } else if ((char == ')' || char == ']' || char == '}') &&
           open.isNotEmpty) {
         open.removeLast();
@@ -466,6 +468,59 @@ String _openerName(String text, int at) {
   }
   final String name = text.substring(j + 1, end);
   return text[at] == '[' ? '$name:' : name;
+}
+
+/// Words before a `(...) {` that start a block, not the body of a method.
+const Set<String> _blockWords = <String>{
+  'if',
+  'for',
+  'while',
+  'switch',
+  'catch',
+};
+
+/// The name of the method whose body starts with the `{` at [at], as in
+/// `Widget build(BuildContext context) {` or `Future<void> load() async {`.
+/// Empty for any other `{`: a class, a block, a closure, a getter.
+String _methodName(String text, int at) {
+  int j = _skipSpace(text, at - 1);
+  for (final String word in <String>['async*', 'sync*', 'async']) {
+    final int start = j - word.length + 1;
+    if (start >= 0 &&
+        text.startsWith(word, start) &&
+        (start == 0 || !_namePart.hasMatch(text[start - 1]))) {
+      j = _skipSpace(text, start - 1);
+      break;
+    }
+  }
+  if (j < 0 || text[j] != ')') {
+    return '';
+  }
+  int depth = 0;
+  for (; j >= 0; j--) {
+    if (text[j] == ')') {
+      depth++;
+    } else if (text[j] == '(' && --depth == 0) {
+      break;
+    }
+  }
+  if (j < 0) {
+    return '';
+  }
+  final String name = _openerName(text, j);
+  return _blockWords.contains(name) ? '' : name;
+}
+
+/// The method whose body holds [line], from [openCalls]: the innermost body
+/// of a method, such as `build` or `load`. Null when the line is in no such
+/// body, for example in a getter or a method written with `=>`.
+String? methodAt(Map<int, List<String>> open, int line) {
+  for (final String name in (open[line] ?? const <String>[]).reversed) {
+    if (name.length > 1 && name.startsWith('{')) {
+      return name.substring(1);
+    }
+  }
+  return null;
 }
 
 int _skipSpace(String text, int j) {

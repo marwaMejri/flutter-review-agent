@@ -156,6 +156,7 @@ These rules target leaks.
   old widget tree in memory.
 - **Source:** [DevTools, Memory view](https://docs.flutter.dev/tools/devtools/memory) ("The build context, owned by the widget, should never be referenced from the state's fields")
 - **Level:** issue
+- **Remarks:** one per field
 - **Triggers:** `BuildContext?`, `BuildContext _`, `BuildContext>`, `late BuildContext`, `final BuildContext`, `static BuildContext`, `this.context`, `= context`, `add(context`
 
 ## MEM3. A long-lived closure that captures `context`

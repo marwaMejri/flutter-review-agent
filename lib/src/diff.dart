@@ -263,3 +263,29 @@ void _keepReindentedLinesUnchanged(DiffFile file) {
 }
 
 String _number(int line) => line.toString().padLeft(5);
+
+final RegExp _operator = RegExp(
+  r'\s(\+|-|\*|/|~/|%|<|>|<=|>=|==|!=|&&|\|\|)\s',
+);
+
+/// Whether [file] changes a computation or a condition: an added line with an
+/// operator (`+`, `*`, `<`, `==`, `&&`…) that replaces a removed line with an
+/// operator, such as `a + b` changed to `a * b`.
+bool changesComputation(DiffFile file) {
+  for (final int line in file.addedLines) {
+    // The removed lines are kept before the first added line of the run.
+    int start = line;
+    while (file.addedLines.contains(start - 1)) {
+      start--;
+    }
+    final String code = file.newLineText[line] ?? '';
+    if (_operator.hasMatch(code) &&
+        (file.removedBefore[start] ?? const <String>[]).any(
+          (String removed) =>
+              _operator.hasMatch(removed) && removed.trim() != code.trim(),
+        )) {
+      return true;
+    }
+  }
+  return false;
+}
