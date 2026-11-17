@@ -66,9 +66,9 @@ Answer with JSON only, in this form:
 ///
 /// [deletedFiles] are sent with their removed lines, so the model sees where
 /// moved code comes from. [testFiles] are the test files of the whole pull
-/// request, and [testExpects] the number of their added lines with an
-/// `expect`, when [files] is only a part of it. [packageName] is the name in
-/// the pubspec of the project, to read its `package:` imports.
+/// request, and [testExpects] their added checks (see
+/// [addedExpects]), when [files] is only a part of it. [packageName] is the
+/// name in the pubspec of the project, to read its `package:` imports.
 /// [routerLines] are the added lines inside a router or app call, by file and
 /// line (see [routerLinesOf]); they are found in [sources] when not given.
 String buildUserPrompt({
@@ -78,7 +78,7 @@ String buildUserPrompt({
   Map<String, String> sources = const <String, String>{},
   List<DiffFile> deletedFiles = const <DiffFile>[],
   List<String>? testFiles,
-  int? testExpects,
+  List<String>? testExpects,
   String? packageName,
   Map<String, Map<int, String>>? routerLines,
 }) {
@@ -90,9 +90,11 @@ String buildUserPrompt({
         for (final DiffFile file in files)
           if (isTestFile(file.path)) file.path,
       ];
-  // Without a new `expect`, no test of the pull request can check a new
-  // behavior: a test that only still runs does not count.
-  final int expects = testExpects ?? addedExpects(files);
+  // Without a new check, no test of the pull request can check a new
+  // behavior: a test that only still runs does not count. Each check is
+  // given with its text: a model counted an `expect` on the parsing as a
+  // test of a new screen.
+  final List<String> expects = testExpects ?? addedExpects(files);
   final StringBuffer buffer = StringBuffer()
     ..writeln('# Rules')
     ..writeln();
@@ -173,17 +175,24 @@ String buildUserPrompt({
       'are removed: they have no number. Other lines are unchanged.',
     )
     ..writeln()
-    ..writeln(switch ((tests.isEmpty, expects)) {
-      (true, _) => 'Test files changed by this pull request: none.',
-      (false, 0) =>
-        'Test files changed by this pull request: ${tests.join(', ')}. None '
-            'of their added lines has an `expect`: no test of this pull '
-            'request checks a new behavior.',
-      (false, _) =>
-        'Test files changed by this pull request: ${tests.join(', ')} '
-            '($expects added lines with an `expect`).',
-    })
-    ..writeln();
+    ..writeln(
+      tests.isEmpty
+          ? 'Test files changed by this pull request: none.'
+          : expects.isEmpty
+          ? 'Test files changed by this pull request: ${tests.join(', ')}. '
+                'None of their added lines has a check (`expect`, `verify`): '
+                'no test of this pull request checks a new behavior.'
+          : 'Test files changed by this pull request: ${tests.join(', ')}. '
+                'Their added checks (`expect`, `verify`), which show what each '
+                'test checks:',
+    );
+  for (final String statement in expects.take(maxExpects)) {
+    buffer.writeln('- $statement');
+  }
+  if (expects.length > maxExpects) {
+    buffer.writeln('- and ${expects.length - maxExpects} more.');
+  }
+  buffer.writeln();
   // A fact the model cannot read wrong: a model sometimes answers that a new
   // `name:` inside a `GoRoute(` changes no route.
   final Map<String, Map<int, String>> calls =
@@ -274,12 +283,54 @@ List<String> conventionSections(String conventions) => <String>[
     heading.group(1)!,
 ];
 
-/// The number of added lines with an `expect(` or an `expectLater(` in the
-/// test files of [files].
-int addedExpects(List<DiffFile> files) => <String>[
+/// The most checks written in the prompt.
+const int maxExpects = 30;
+
+/// The start of a check in a test: `expect(` and `expectLater(` of
+/// `package:test`, `verify(` of `mockito` and `mocktail`, `check(` of
+/// `package:checks`, and the `expect:` and `verify:` arguments of `blocTest`.
+final RegExp _expectCall = RegExp(
+  r'\b(expect|expectLater|verify|verifyNever|verifyInOrder|check)\s*\(|'
+  r'\b(expect|verify)\s*:',
+);
+
+/// The added checks of the test files of [files] (see [_expectCall]), each
+/// with its file and line, written on one line, such as
+/// `` `test/a_test.dart:12` `expect(find.text('Beta'), findsOneWidget);` ``.
+List<String> addedExpects(List<DiffFile> files) => <String>[
   for (final DiffFile file in files)
-    if (isTestFile(file.path)) ...file.addedCode,
-].where(RegExp(r'\bexpect(Later)?\(').hasMatch).length;
+    if (isTestFile(file.path))
+      for (final int line in file.addedLines.toList()..sort())
+        if (_expectCall.hasMatch(file.newLineText[line] ?? ''))
+          '`${file.path}:$line` `${_statement(file, line)}`',
+];
+
+/// The statement that starts on [line] of [file], up to the bracket that
+/// closes it, on one line: at most 12 lines of the diff and 200 characters.
+String _statement(DiffFile file, int line) {
+  final List<String> parts = <String>[];
+  int depth = 0;
+  for (
+    int n = line;
+    file.newLineText.containsKey(n) && parts.length < 12;
+    n++
+  ) {
+    final String code = file.newLineText[n]!;
+    parts.add(code.trim());
+    depth +=
+        RegExp(r'[(\[{]').allMatches(code).length -
+        RegExp(r'[)\]}]').allMatches(code).length;
+    if (depth <= 0) {
+      break;
+    }
+  }
+  final String text = parts
+      .join(' ')
+      .replaceAllMapped(RegExp(r'([(\[{])\s+'), (Match m) => m.group(1)!)
+      .replaceAllMapped(RegExp(r',?\s+([)\]}])'), (Match m) => m.group(1)!)
+      .replaceAll(RegExp(r'\s+'), ' ');
+  return text.length > 200 ? '${text.substring(0, 199)}…' : text;
+}
 
 final RegExp _featureLayer = RegExp(r'^lib/(?:.+/)?features/([^/]+)/([^/]+)/');
 final RegExp _importUri = RegExp(r'''^\s*import\s+['"]([^'"]+)['"]''');
@@ -512,15 +563,23 @@ String _methodName(String text, int at) {
 }
 
 /// The method whose body holds [line], from [openCalls]: the innermost body
-/// of a method, such as `build` or `load`. Null when the line is in no such
-/// body, for example in a getter or a method written with `=>`.
+/// of a method, such as `build` or `load`. A line that opens a method body,
+/// such as `int total() {`, belongs to that method. Null when the line is in
+/// no such body, for example in a getter or a method written with `=>`.
 String? methodAt(Map<int, List<String>> open, int line) {
-  for (final String name in (open[line] ?? const <String>[]).reversed) {
-    if (name.length > 1 && name.startsWith('{')) {
-      return name.substring(1);
+  String? inBody(int number) {
+    for (final String name in (open[number] ?? const <String>[]).reversed) {
+      if (name.length > 1 && name.startsWith('{')) {
+        return name.substring(1);
+      }
     }
+    return null;
   }
-  return null;
+
+  // The body opened on [line] is open at the start of the next line.
+  final int? next =
+      (open.keys.where((int n) => n > line).toList()..sort()).firstOrNull;
+  return inBody(line) ?? (next == null ? null : inBody(next));
 }
 
 int _skipSpace(String text, int j) {

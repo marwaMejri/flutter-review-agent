@@ -122,7 +122,7 @@ Future<ReviewResult> review({
     for (final DiffFile file in files)
       if (isTestFile(file.path)) file.path,
   ];
-  final int testExpects = addedExpects(files);
+  final List<String> testExpects = addedExpects(files);
   final String? packageName = packageNameOf(readSource?.call('pubspec.yaml'));
   // Read in the whole files, also when the model gets the changed parts only.
   final Map<String, Map<int, String>> routerLines = routerLinesOf(

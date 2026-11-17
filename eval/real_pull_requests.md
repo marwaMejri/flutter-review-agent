@@ -924,3 +924,103 @@ Fixed: the check runs last, on the remarks that are kept. A test covers it.
 In the log of #23, the model gave one check the ID "Design library" (a
 section name) instead of "CONVENTION": the ID was longer than its column and
 touched the answer. The log now always puts a space after the ID.
+
+## Full run: `gemini-3.5-flash-lite`, on GitHub, agent `b19c4ef` (code of `5ba6441`)
+
+Every review was made by gemini-3.5-flash-lite.
+
+| PR | Result |
+|---|---|
+| #2 to #4, #7 to #25, #27 to #29, #31 | as expected (#12 with no false P1, #14 with T5 on line 12, #9 with one MEM2, #22 with M1 only) |
+| #5 | P5; **T3 missed** (3 runs out of 5 since the fix of step 4) |
+| #6 | T3; **P9 missed** |
+| #26 | B5, T3, **false P1 on line 221**: the line that opens `archivedVersionsBefore(...) {`, a function of a data source. The P1 check let it pass: at the start of that line, no method body is open yet |
+| #30 | no review read yet |
+
+**Fix of the P1 check:** a line that opens a method body belongs to that
+method. Checked on the 30 branches with the Python copy: the answer changes
+for the first line of each method only; line 221 of #26 is now in
+`archivedVersionsBefore`, which no `build()` calls; the true P1 of #2 and
+#23 stay in `build`.
+
+Local runs after the fix of the P1 check, gemini-3.5-flash-lite:
+
+| PR | Result |
+|---|---|
+| #26 | B5, T3, as expected (the model proposed no P1 this time) |
+| #6, 2 runs | P9 and T3 in both: the miss on GitHub was one run |
+| #5, run 1 | P5, T3, as expected |
+| #5, run 2 | P5; **T3 missed**: "Step 4: yes, test/features/releases/data/models/release_model_test.dart has an expect": the model named a file, not an `expect` on the new screen |
+| #30 | T3 and the 3 conventions (lines 10, 53, 68), as expected |
+
+T3 on #5: 4 runs out of 7 since the fix of step 4. The prompt gives the
+number of added `expect` lines, not what they check. The added `expect` of
+#5 is `expect(() => ReleaseModel.fromJson(...), throwsFormatException)`: it
+checks the parsing, not the known issues on the screen.
+
+**Fix for T3 on #5: the added `expect` statements in the prompt.** The
+prompt gave the number of added `expect` lines; it now gives each added
+`expect` statement, with its file and line, on one line (30 at most). Checked
+first with a Python copy on the 30 branches: #5 gets
+`expect(() => ReleaseModel.fromJson(...), throwsFormatException)`, #18
+`expect(one.countLabel, '1 release')` and `expect(find.text('3 releases'), ...)`,
+#20 `expect(formatShortDate(DateTime(2026, 10)), '1 Oct 2026')`; the pull
+requests with no test do not change.
+
+Local runs with the `expect` statements in the prompt, gemini-3.5-flash-lite:
+
+| PR | Result |
+|---|---|
+| #5, 3 runs | P5 in 3 runs; T3 in run 1 only. Runs 2 and 3: "Step 4: yes, there are tests expecting the new behavior": the model still counts the `expect` on `ReleaseModel.fromJson` for the screen |
+| #13 | T4; T3 not flagged, "release_tile_test.dart:28 has an expect on the behavior" |
+| #14 | T5 on line 12 |
+| #18, #19, #20, #21, #24 | no remark, as expected; the reasons of #19 and #24 cite the `expect` that checks the new code |
+| #25 | B2, as expected |
+
+No regression, and the T3 reasons now cite real `expect` lines, but T3 on #5
+is not fixed (1 run out of 3).
+
+**T3, step 4 written again, and the checks that are not `expect`.** Step 4
+now asks, for each behavior, its file and the added check that tests it, with
+a generic example (`User.fromJson` tests the parsing, not a screen). Cases
+looked at before the change:
+
+| Case | Answer of the new step 4 |
+|---|---|
+| a unit test calls the changed code (#18 `countLabel`, #20 `formatShortDate`) | yes |
+| a widget test finds on the screen what the new code shows (#18, #19, #24) | yes |
+| a test reaches the new code through another method | yes ("even through another method") |
+| a test checks the parsing, the change is also on the screen (#5) | no |
+| a test only runs the new code, with no check | no |
+| the test checks a mock with `verify(...)` (mockito, mocktail) | yes: was "no test checks a new behavior" before |
+| a `blocTest` with `expect:` and `verify:` arguments | yes: was "no test checks a new behavior" before |
+| `check(...)` of `package:checks` | yes: was "no test checks a new behavior" before |
+
+The last three were holes: a project that tests with mocks or `bloc_test`
+would have got a false T3. The list of added checks now reads `expect(`,
+`expectLater(`, `verify(`, `verifyNever(`, `verifyInOrder(`, `check(`, and
+`expect:` and `verify:`; a statement is read up to its closing `)`, `]` or
+`}`. On the 30 branches (Python copy), the list does not change: they use
+`expect` only.
+
+Local runs with the new step 4, gemini-3.5-flash-lite: #5 T3 in 1 run out
+of 3 ("Step 4: yes, tested in release_model_test.dart"); #13 T4, #14 T5
+(two more T5 refused: one per pull request), #18, #19, #21 and #24 no remark
+(on #24 a false B5 on a field was refused by the agent); #20 and #25 no
+answer (HTTP 503). The new step 4 is not better than the old one on #5: the
+old text is back, with "a check (an `expect` or a `verify`)" for "an
+`expect`". The checks that are not `expect` are still read.
+
+**T3 on #5 with flash-lite, all runs since the step 4 of 16 November: 6 out
+of 13.** Facts that the agent could compute were checked and left out,
+because they say "not tested" on pull requests that are tested through
+another widget: a test that names a class of the changed file says "not
+named" for `releases_view.dart` (#18, tested by its view model test and a
+widget test), `release_tile.dart` (#20, tested by `formatShortDate`),
+`router.dart` and `releases_view.dart` (#14, tested through the app) and
+`settings_view.dart` (#21, tested through the page). On #5, deciding that the
+`expect` on the parsing does not test the screen is a judgment of the model.
+gpt-oss-120b found T3 on #5 on GitHub.
+
+With the old step 4 back (checks instead of `expect`): #20 and #18 no remark,
+#25 B2, #5 P5 and T3, as expected.

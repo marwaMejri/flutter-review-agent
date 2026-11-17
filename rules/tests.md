@@ -9,8 +9,9 @@ a test **verifies** the change.
 - **Check:** code added under `lib/`, and the tests in the same pull request.
 - **Flag when:** the pull request adds a behavior (a new public method, a new
   branch of an `if` or `switch`, a new screen state, a new button action, a
-  changed condition or computation) and no test in the pull request has an
-  `expect` on that behavior. Judge from the pull request only: you do not need
+  changed condition or computation) and no test in the pull request has a
+  check (an `expect` or a `verify`) on that behavior. Judge from the pull
+  request only: you do not need
   to see the other tests of the project. One remark for the whole pull
   request.
 - **Do not flag when:**
@@ -21,8 +22,8 @@ a test **verifies** the change.
   - the pull request moves existing code without changing what it does, for
     example a part of a screen extracted into a new widget. The call that
     replaces the removed lines is part of the move;
-  - a test of the pull request has an `expect` that would fail without the
-    new code;
+  - a test of the pull request has a check (an `expect` or a `verify`) that
+    would fail without the new code;
   - the file is generated (`*.g.dart`, `*.freezed.dart`, localizations).
 - **Decide:**
   1. Look at the added code under `lib/` only, not at the tests. Name each
@@ -38,15 +39,16 @@ a test **verifies** the change.
   3. Is this code moved: does the pull request remove the same code from
      another place (lines marked `-`), in the same file or in another one? If
      yes, do not flag. If no, go to step 4.
-  4. Does a test file of this pull request have an `expect` on that behavior?
-     Answer for each behavior of step 2: if one of them has no such `expect`,
-     the answer is no. A test counts when its `expect` would fail without the
-     new code, even when it reaches the new code through another method: name
-     that `expect`. A test that only runs the new code, with no `expect` on
-     what it changes, does not count. If you cannot name one, the answer is
-     no. You do not need to see the other tests of the project. If yes, do not
-     flag. If no, flag once for the whole pull request, on the added line
-     under `lib/` where the behavior starts, never on a test file.
+  4. Does a test file of this pull request have a check (an `expect` or a
+     `verify`) on that behavior? Answer for each behavior of step 2: if one
+     of them has no such check, the answer is no. A test counts when its
+     check would fail without the new code, even when it reaches the new code
+     through another method: name that check. A test that only runs the new
+     code, with no check on what it changes, does not count. If you cannot
+     name one, the answer is no. You do not need to see the other tests of
+     the project. If yes, do not flag. If no, flag once for the whole pull
+     request, on the added line under `lib/` where the behavior starts, never
+     on a test file.
 - **Bad:** a pull request adds an `if (release.isBeta)` branch that shows a
   "Beta" badge. The tests render the screen with a stable release only: the
   new line runs in no test, or it runs but nothing checks the badge.

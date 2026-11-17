@@ -72,7 +72,7 @@ void main() {
       ),
       contains(
         'Test files changed by this pull request: test/a_test.dart. '
-        'None of their added lines has an `expect`',
+        'None of their added lines has a check (`expect`, `verify`)',
       ),
     );
     expect(
@@ -80,9 +80,14 @@ void main() {
         rules: rules,
         files: files,
         testFiles: <String>['test/a_test.dart'],
-        testExpects: 2,
+        testExpects: <String>['`test/a_test.dart:3` `expect(a.value, 1);`'],
       ),
-      contains('test/a_test.dart (2 added lines with an `expect`).'),
+      contains(
+        'Test files changed by this pull request: test/a_test.dart. Their '
+        'added checks (`expect`, `verify`), which show what each test '
+        'checks:\n'
+        '- `test/a_test.dart:3` `expect(a.value, 1);`\n',
+      ),
     );
   });
 
@@ -145,7 +150,7 @@ void main() {
     expect(prompt, contains('"convention": "C7"}'));
   });
 
-  test('counts the added lines with an expect in the test files', () {
+  test('gives the added expect statements of the test files', () {
     // Pull request #11 only changes `const` to `final` in its test.
     final List<DiffFile> diff = parseDiff('''
 diff --git a/test/a_test.dart b/test/a_test.dart
@@ -164,7 +169,52 @@ diff --git a/lib/a.dart b/lib/a.dart
 +  // expect(x) in a comment of lib/ does not count.
 ''');
 
-    expect(addedExpects(diff), 2);
+    expect(addedExpects(diff), <String>[
+      '`test/a_test.dart:2` `expect(a.value, 1);`',
+      '`test/a_test.dart:3` `await expectLater(a.load(), completes);`',
+    ]);
+
+    // Pull request #5: an expect written on several lines.
+    final List<DiffFile> multiLine = parseDiff('''
+diff --git a/test/b_test.dart b/test/b_test.dart
+--- a/test/b_test.dart
++++ b/test/b_test.dart
+@@ -1,1 +1,5 @@
+   test('refuses a known issue that is not a text', () {
++    expect(
++      () => ReleaseModel.fromJson(<String, Object?>{'known_issues': 42}),
++      throwsFormatException,
++    );
+''');
+    // A blocTest, with the expect: and verify: arguments and a verify( of
+    // mocktail.
+    final List<DiffFile> bloc = parseDiff('''
+diff --git a/test/c_test.dart b/test/c_test.dart
+new file mode 100644
+--- /dev/null
++++ b/test/c_test.dart
+@@ -0,0 +1,10 @@
++  blocTest<CounterCubit, int>('adds one',
++    build: () => CounterCubit(repo),
++    act: (CounterCubit cubit) => cubit.add(),
++    expect: () => <int>[
++      1,
++    ],
++    verify: (_) {
++      verify(() => repo.save(1)).called(1);
++    },
++  );
+''');
+    expect(addedExpects(bloc), <String>[
+      '`test/c_test.dart:4` `expect: () => <int>[1],`',
+      '`test/c_test.dart:7` `verify: (_) {verify(() => repo.save(1)).called(1);},`',
+      '`test/c_test.dart:8` `verify(() => repo.save(1)).called(1);`',
+    ]);
+
+    expect(addedExpects(multiLine), <String>[
+      '`test/b_test.dart:2` `expect(() => ReleaseModel.fromJson('
+          "<String, Object?>{'known_issues': 42}), throwsFormatException);`",
+    ]);
   });
 
   group('the imports between features', () {
@@ -369,6 +419,9 @@ class _ViewState extends State<View> {
     expect(methodAt(open, 4), 'load');
     expect(methodAt(open, 8), isNull);
     expect(methodAt(open, 13), 'build');
+    // The lines that open the bodies of load() and build().
+    expect(methodAt(open, 2), 'load');
+    expect(methodAt(open, 11), 'build');
   });
 
   test('sends only the changed parts when the file is unknown', () {
