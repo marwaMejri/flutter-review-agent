@@ -101,6 +101,36 @@ void main() {
     expect(result.accepted.single.line, 12);
   });
 
+  test('moves a remark to a far added line that holds the evidence', () {
+    // A model cited line 40 for code that the pull request adds on line 2.
+    final List<DiffFile> files = parseDiff('''
+diff --git a/lib/b.dart b/lib/b.dart
+new file mode 100644
+--- /dev/null
++++ b/lib/b.dart
+@@ -0,0 +1,3 @@
++class B {
++  final TextEditingController search = TextEditingController();
++}
+''');
+    final ({List<Finding> accepted, List<RejectedFinding> rejected}) result =
+        validateFindings(
+          <Finding>[
+            Finding(
+              rule: 'P1',
+              file: 'lib/b.dart',
+              line: 40,
+              message: 'm',
+              evidence: 'TextEditingController search',
+            ),
+          ],
+          files: files,
+          ruleIds: <String>{'P1'},
+        );
+
+    expect(result.accepted.single.line, 2);
+  });
+
   test('finds evidence copied on one line from several lines, or with a +', () {
     final List<DiffFile> files = parseDiff(sampleDiff);
     final List<Finding> findings = <Finding>[

@@ -404,32 +404,43 @@ int? _lineWithEvidence(DiffFile file, Finding finding) {
   if (wanted.length < 3) {
     return null;
   }
-  for (int distance = 0; distance <= evidenceWindow; distance++) {
-    for (final int start in <int>{
+  // The lines around the cited one first, then every other added line of
+  // the file, the nearest first: a model can cite a wrong line number for
+  // code that it quotes right.
+  final List<int> starts = <int>[
+    for (int distance = 0; distance <= evidenceWindow; distance++) ...<int>{
       finding.line - distance,
       finding.line + distance,
-    }) {
-      final String? first = file.newLineText[start];
-      if (first == null || !file.addedLines.contains(start)) {
-        continue;
+    },
+    ...(file.addedLines
+        .where((int n) => (n - finding.line).abs() > evidenceWindow)
+        .toList()
+      ..sort(
+        (int a, int b) =>
+            (a - finding.line).abs().compareTo((b - finding.line).abs()),
+      )),
+  ];
+  for (final int start in starts) {
+    final String? first = file.newLineText[start];
+    if (first == null || !file.addedLines.contains(start)) {
+      continue;
+    }
+    final StringBuffer joined = StringBuffer();
+    for (int line = start; line < start + evidenceSpan; line++) {
+      final String? text = file.newLineText[line];
+      if (text == null) {
+        break;
       }
-      final StringBuffer joined = StringBuffer();
-      for (int line = start; line < start + evidenceSpan; line++) {
-        final String? text = file.newLineText[line];
-        if (text == null) {
-          break;
+      joined.write(_compact(text));
+      final int index = _withoutTrailingCommas(
+        joined.toString(),
+      ).indexOf(wanted);
+      if (index >= 0) {
+        // The evidence must start on this line, not on a later one.
+        if (index < _compact(first).length) {
+          return start;
         }
-        joined.write(_compact(text));
-        final int index = _withoutTrailingCommas(
-          joined.toString(),
-        ).indexOf(wanted);
-        if (index >= 0) {
-          // The evidence must start on this line, not on a later one.
-          if (index < _compact(first).length) {
-            return start;
-          }
-          break;
-        }
+        break;
       }
     }
   }

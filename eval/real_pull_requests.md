@@ -1024,3 +1024,60 @@ gpt-oss-120b found T3 on #5 on GitHub.
 
 With the old step 4 back (checks instead of `expect`): #20 and #18 no remark,
 #25 B2, #5 P5 and T3, as expected.
+
+## `gemini-3.5-flash-lite`, on GitHub, agent `911cd1f`, the 6 pull requests changed today
+
+| PR | Result |
+|---|---|
+| #20 | no remark, as expected |
+| #25 | B2, as expected |
+| #26 | B5, T3, as expected (no P1) |
+| #30 | T3 and the 3 conventions (lines 10, 53, 68), as expected |
+| #5 | P5; **T3 missed** |
+| #6 | T3; **P9 missed** (second miss on GitHub in a row, while the 2 local runs found it) |
+
+**Why P9 is missed on #6 on GitHub.** The check of the job log: "Step 2: no
+widget inside the builder uses only fields of the widget, constants, or
+context without using the animation or value." The `DecoratedBox` of #6
+reads `colors.primary`, where `colors` is a variable of `build()` set before
+the `builder` (`final ColorScheme colors = Theme.of(context).colorScheme;`).
+Step 2 listed only fields of the widget, constants and `context`: a variable
+of `build()` was in none of them, so "no" was a fair reading of the rule.
+Fix: step 2 and "Flag when" name the variables of `build()` set before the
+`builder` (generic example: `theme` from `Theme.of(context)`). Checked on the
+other pull requests that send P9: #21 has only `const` widgets in its
+builder, #24 only an `Opacity` that reads the animation, so the new text
+changes nothing there.
+
+Local runs with the new step 2 of P9: #6 P9 in 3 runs out of 3, but on line
+47 (`return Opacity(`) in runs 2 and 3, with a false message ("the Opacity
+... does not depend on the animation value": it reads `_controller.value`).
+#21 and #24 no remark (a false B5 refused on #24).
+
+**P9: the agent puts the remark on the widget that can be the child.** In
+the `builder` of an `AnimatedBuilder`, a `ListenableBuilder` or a
+`ValueListenableBuilder`, the agent finds the outermost widget given to
+`child:`, returned, listed in `children:` or in a `? :`, that is not `const`
+and reads neither the animation, nor the listenable, nor the value, nor the
+`child` parameter (string interpolations such as `'$count matches'` count as
+reading). A P9 remark in the builder moves there, and is refused when the
+builder has none. Checked first with a Python copy on the 30 branches: #6
+line 49 (`DecoratedBox`); #7, #21 and #24 none, so a false P9 there would be
+refused; the Bad example of the rule gives the `Logo`.
+
+Local runs with the P9 place: #6 P9 on line 49 in 3 runs out of 3, and T3;
+#21 and #24 no remark; #7 B2, a false P9 on `Text('$count matches')` refused
+by the agent ("every widget of the builder reads the animation or the
+value"), and **T3 refused: "evidence not found near the line"** (line 32).
+
+**Evidence on another line.** The agent looked for the quoted code 3 lines
+around the cited line only, so a remark with real code and a wrong line
+number was lost. It now looks there first, then on every other added line of
+the file, the nearest first. The remark still needs code that the pull
+request added, and the checks of its rule run on the line found. The log of
+the refused remarks now shows their evidence.
+
+Local runs with the evidence search on every added line: #7 B2 and T3 in 2
+runs out of 2 (a false P9 refused in run 1), #6 P9 on line 49 and T3, #23 B5,
+B2, MEM1 on line 23, P1 and T3, #29 B2 on lines 21 and 22 and T3, #24 no
+remark (a false B5 on a field refused): all as expected.

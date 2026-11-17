@@ -724,6 +724,92 @@ class _AState extends State<A> {
     expect(withProject.accepted, hasLength(3));
   });
 
+  test('moves P9 to the widget that does not read the animation', () async {
+    const String badge = '''
+return AnimatedBuilder(
+  animation: _controller,
+  builder: (BuildContext context, Widget? child) {
+    return Opacity(
+      opacity: _controller.value,
+      child: DecoratedBox(
+        decoration: BoxDecoration(color: colors.primary),
+        child: Text('NEW', style: Theme.of(context).textTheme.labelSmall),
+      ),
+    );
+  },
+);''';
+    const String pulse = '''
+return AnimatedBuilder(
+  animation: _pulse,
+  child: const Icon(Icons.star),
+  builder: (BuildContext context, Widget? child) =>
+      Opacity(opacity: _pulse.value, child: child),
+);''';
+    String newFile(String path, String code) => <String>[
+      'diff --git a/$path b/$path',
+      'new file mode 100644',
+      '--- /dev/null',
+      '+++ b/$path',
+      '@@ -0,0 +1,${code.split('\n').length} @@',
+      for (final String line in code.split('\n')) '+$line',
+    ].join('\n');
+    final ModelClient client = ModelClient(
+      provider: 'test-provider',
+      baseUrl: 'https://example.com/v1/',
+      models: <String>['test-model'],
+      apiKey: 'test-key',
+      httpClient: MockClient((http.Request request) async {
+        return http.Response(
+          jsonEncode(<String, Object>{
+            'choices': <Object>[
+              <String, Object>{
+                'message': <String, String>{
+                  'content':
+                      '{"checks": [], "findings": ['
+                      '{"rule": "P9", "file": "lib/badge.dart", "line": 4, '
+                      '"evidence": "return Opacity(", "message": "m"}, '
+                      '{"rule": "P9", "file": "lib/pulse.dart", "line": 5, '
+                      '"evidence": "Opacity(opacity: _pulse.value", '
+                      '"message": "m"}]}',
+                },
+              },
+            ],
+          }),
+          200,
+        );
+      }),
+    );
+
+    final ReviewResult result = await review(
+      diff:
+          '${newFile('lib/badge.dart', badge)}\n'
+          '${newFile('lib/pulse.dart', pulse)}\n',
+      rules: <Rule>[
+        Rule(
+          id: 'P9',
+          title: 't',
+          text:
+              '## P9. t\n\n- **Remark place:** the outermost widget of the '
+              'builder that reads neither the animation nor the value',
+        ),
+      ],
+      client: client,
+      readSource: (String path) => switch (path) {
+        'lib/badge.dart' => badge,
+        'lib/pulse.dart' => pulse,
+        _ => null,
+      },
+    );
+
+    expect(result.accepted.single.file, 'lib/badge.dart');
+    expect(result.accepted.single.line, 6);
+    expect(
+      result.rejected.single.reason,
+      'every widget of the builder reads the animation or the value, or is '
+      'const',
+    );
+  });
+
   group('a request too large for the provider', () {
     // A new file of 120 lines: line 1 is "// first line", line 120 is
     // "// last line".

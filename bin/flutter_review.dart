@@ -269,7 +269,8 @@ void _printReport(ReviewResult result, List<Rule> rules) {
     for (final RejectedFinding item in result.rejected) {
       stdout.writeln(
         '  ${item.finding.file}:${item.finding.line} '
-        '[${item.finding.rule}] ${item.reason}',
+        '[${item.finding.rule}] ${item.reason}\n'
+        '    evidence: ${item.finding.evidence.trim()}',
       );
     }
   }

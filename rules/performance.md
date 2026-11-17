@@ -286,7 +286,9 @@
   does not depend on the animation, even if the `Row` must stay in the
   `builder`. This applies even when the subtree is small (a `Text`, a
   `Padding`). Reading the `context` parameter of the `builder` (for example
-  `Theme.of(context)`) does not count as depending on the value.
+  `Theme.of(context)`), or a variable of `build()` set before the `builder`
+  (for example `theme` from `final ThemeData theme = Theme.of(context);`),
+  does not count as depending on the value.
 - **Do not flag when:**
   - every subtree in the `builder` depends on the animation, the listenable
     or the value;
@@ -304,12 +306,14 @@
      `ValueListenableBuilder` itself is outside the `builder`: it is built once,
      so skip it. Do not judge the `builder` as a whole either: it always uses
      the animation somewhere. Search inside it for one widget whose arguments
-     use only fields of the widget (`widget.version`), constants or `context`,
-     and not the animation, the listenable or `value`. For example, in
-     `Row(children: [Transform.rotate(angle: _controller.value, ...),
-     Padding(child: Text(widget.version))])`, the `Padding` is such a widget,
-     and so is `Text('Saved.', style: Theme.of(context).textTheme.bodySmall)`.
-     If you found one, go to step 3. If not, do not flag.
+     use only fields of the widget (`widget.version`), constants, `context`, or
+     variables of `build()` set before the `builder` (such as `theme` from
+     `Theme.of(context)`), and not the animation, the listenable or `value`. For
+     example, in `Row(children: [Transform.rotate(angle: _controller.value,
+     ...), Padding(child: Text(widget.version))])`, the `Padding` is such a
+     widget, and so is `Text('Saved.', style:
+     Theme.of(context).textTheme.bodySmall)`. If you found one, go to step 3. If
+     not, do not flag.
   3. Is that widget marked `const`? If yes, do not flag. If no, flag it, even
      when it is small and even when it reads `context`: it can be built once,
      outside the `builder`, and passed through the `child` parameter.
@@ -347,4 +351,5 @@
 - **Source:** [Performance best practices, Control build() cost](https://docs.flutter.dev/perf/best-practices#control-build-cost) (the rebuild stops at "the same instance of the child widget"), [StatefulWidget, Performance considerations](https://api.flutter.dev/flutter/widgets/StatefulWidget-class.html#performance-considerations) ("If a subtree does not change, cache the widget that represents that subtree"), [Pitfalls](https://docs.flutter.dev/perf/best-practices#pitfalls), [AnimatedBuilder, Performance optimizations](https://api.flutter.dev/flutter/widgets/AnimatedBuilder-class.html#performance-optimizations), [ValueListenableBuilder](https://api.flutter.dev/flutter/widgets/ValueListenableBuilder-class.html) and [ListenableBuilder.child](https://api.flutter.dev/flutter/widgets/ListenableBuilder/child.html)
 - **Level:** issue
 - **Remark line:** a widget that is not `const`
+- **Remark place:** the outermost widget of the builder that reads neither the animation nor the value
 - **Triggers:** `AnimatedBuilder`, `ListenableBuilder`, `ValueListenableBuilder`

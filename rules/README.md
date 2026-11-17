@@ -50,7 +50,13 @@ Every rule has the same parts:
   is moved to that line. With "right after a" and a second text, as `tap(`
   for T5, the first such line whose line before contains the second text is
   taken first: the `pumpAndSettle()` after a tap, not the one after
-  `pumpWidget`. The model does not get this line.
+  `pumpWidget`. With "the outermost widget of the builder that reads neither
+  the animation nor the value", as for P9, a remark in the `builder` of an
+  `AnimatedBuilder`, a `ListenableBuilder` or a `ValueListenableBuilder` is
+  moved to the outermost widget given to `child:`, returned or listed in
+  `children:` that is not `const` and reads neither the animation, nor the
+  listenable, nor the value, nor the `child` parameter; it is refused when
+  the builder has no such widget. The model does not get this line.
 - **Not on a line of:** optional. The agent refuses a remark of the rule on a
   line that has a remark of one of these rules. MEM1 has `B2`: an object
   created in `build()` is B2, never MEM1. The model does not get this line.

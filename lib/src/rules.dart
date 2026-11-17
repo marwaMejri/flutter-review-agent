@@ -81,6 +81,15 @@ class Rule {
     return _code.allMatches(field).elementAtOrNull(1)?.group(1);
   }
 
+  /// Whether a remark of the rule goes to the widget of the `builder` that
+  /// reads neither the animation nor the value (see `builderPlaces`), from
+  /// `Remark place: the outermost widget of the builder that reads neither
+  /// the animation nor the value`.
+  bool get remarkOnBuilderChild =>
+      _field('Remark place') ==
+      'the outermost widget of the builder that reads neither the animation '
+          'nor the value';
+
   /// Whether a remark of the rule on a `Column` or a `Row` needs a
   /// `SingleChildScrollView` in its file, from a `Remark line: a list widget,
   /// or a Column or Row in a file with a SingleChildScrollView` line.

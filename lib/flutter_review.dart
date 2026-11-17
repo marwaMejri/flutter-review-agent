@@ -1,12 +1,14 @@
 /// A pull request review agent for Flutter projects.
 library;
 
+import 'src/builders.dart';
 import 'src/diff.dart';
 import 'src/findings.dart';
 import 'src/model_client.dart';
 import 'src/prompt.dart';
 import 'src/rules.dart';
 
+export 'src/builders.dart';
 export 'src/config.dart';
 export 'src/diff.dart';
 export 'src/evaluation.dart';
@@ -278,12 +280,60 @@ Future<ReviewResult> review({
     );
   }
 
+  // A rule with "Remark place: the outermost widget of the builder ...",
+  // such as P9, gets its remark on the widget that reads neither the
+  // animation nor the value, and is refused when the builder has none.
+  final List<RejectedFinding> rejected = <RejectedFinding>[...checked.rejected];
+  final List<Finding> placed = <Finding>[];
+  for (final Finding finding in checked.accepted) {
+    final String? source = sources[finding.file];
+    final DiffFile? file = files
+        .where((DiffFile f) => f.path == finding.file)
+        .firstOrNull;
+    final BuilderPlace? builder =
+        source == null ||
+            file == null ||
+            !sent.any(
+              (Rule r) => r.id == finding.rule && r.remarkOnBuilderChild,
+            )
+        ? null
+        : builderPlaces(source)
+              .where(
+                (BuilderPlace b) =>
+                    b.first <= finding.line && finding.line <= b.last,
+              )
+              .firstOrNull;
+    if (builder == null) {
+      placed.add(finding);
+    } else if (builder.line == null) {
+      rejected.add(
+        RejectedFinding(
+          finding,
+          'every widget of the builder reads the animation or the value, or '
+          'is const',
+        ),
+      );
+    } else if (file!.commentableLines.contains(builder.line)) {
+      placed.add(
+        Finding(
+          rule: finding.rule,
+          file: finding.file,
+          line: builder.line!,
+          message: finding.message,
+          evidence: file.newLineText[builder.line]!.trim(),
+          convention: finding.convention,
+        ),
+      );
+    } else {
+      placed.add(finding);
+    }
+  }
+
   // A rule marked "one per pull request" keeps its first remark only, and a
   // rule marked "one per field" its first remark for each field.
   final Set<String> seen = <String>{};
   final List<Finding> accepted = <Finding>[];
-  final List<RejectedFinding> rejected = <RejectedFinding>[...checked.rejected];
-  for (final Finding finding in checked.accepted) {
+  for (final Finding finding in placed) {
     final bool once = sent.any(
       (Rule rule) => rule.id == finding.rule && rule.onePerPullRequest,
     );

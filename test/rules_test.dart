@@ -237,6 +237,9 @@ diff --git a/lib/app/router.dart b/lib/app/router.dart
       isTrue,
     );
     expect(p9.remarkInBuild, isFalse);
+    expect(p9.remarkOnBuilderChild, isTrue);
+    expect(p9.remarkPlace, isNull);
+    expect(b5.remarkOnBuilderChild, isFalse);
   });
 
   test('reads the rules that win on the same line', () {
