@@ -810,6 +810,34 @@ return AnimatedBuilder(
     );
   });
 
+  test('refuses MEM1 on an object that the file disposes', () {
+    // Pull request #24: MEM1 on a line that uses a disposed controller.
+    const String traps = '''
+class _HighlightsState extends State<Highlights> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      ListView(controller: _scrollController);
+}
+''';
+    // Pull request #8: the controller is never disposed.
+    const String leak = '''
+class _ReleasesViewState extends State<ReleasesView> {
+  final ScrollController _scrollController = ScrollController();
+}
+''';
+    expect(disposedOnLine(traps, 12), '_scrollController');
+    expect(disposedOnLine(traps, 2), '_scrollController');
+    expect(disposedOnLine(leak, 2), isNull);
+  });
+
   group('a request too large for the provider', () {
     // A new file of 120 lines: line 1 is "// first line", line 120 is
     // "// last line".

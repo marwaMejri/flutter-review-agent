@@ -98,6 +98,12 @@ class Rule {
       'a list widget, or a `Column` or `Row` in a file with a '
           '`SingleChildScrollView`';
 
+  /// Whether a remark of the rule must be on an object that its file does
+  /// not dispose (see `disposedOnLine`), from a `Remark line: an object that
+  /// the file does not dispose` line.
+  bool get remarkOnUndisposed =>
+      _field('Remark line') == 'an object that the file does not dispose';
+
   /// Whether a remark of the rule must be in a `build()` method, or in a
   /// method that a `build()` calls, from a `Remark line: in build(), or in a
   /// method that a build() calls` line.

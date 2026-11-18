@@ -19,7 +19,8 @@
   - `future:` reads a `Future` stored in a field, such as `future: _unread`,
     and the field is set in `initState`;
   - the code works on one value, with no loop: formatting one date,
-    `items[index]`, a string interpolation;
+    `items[index]`, a string interpolation, or the `join` of a list into a
+    text;
   - the result is computed outside `build()` (in `initState`,
     `didUpdateWidget` or a field), and `build()` only reads it;
   - the code only builds the widget tree, for example a `for` loop or a `.map`
@@ -27,8 +28,9 @@
   - the code only reads values: `Theme.of(context)`, `MediaQuery.of(context)`,
     fields of the widget or of the state;
   - while the tree is built, each item gets one simple operation: a
-    comparison, `contains`, `toLowerCase`, a string interpolation. Parsing
-    each item (a `RegExp`, `DateTime.parse`, `jsonDecode`) is flagged.
+    comparison, `contains`, `toLowerCase`, a string interpolation, `join`.
+    Parsing each item (a `RegExp`, `DateTime.parse`, `jsonDecode`) is
+    flagged.
 - **Decide:**
   1. Does code in `build()`, or in a method it calls, create the `Future` given
      to a `FutureBuilder`, such as `future: load()` or `future: api.fetch()`?
@@ -41,9 +43,9 @@
      item answers no: that is rule P5. If yes, go to step 3. If no, do not flag.
   3. Is that result computed outside `build()` (in `initState`,
      `didUpdateWidget` or a field) and only read in `build()`? Or is it one
-     simple operation, such as `contains`, a comparison or `toLowerCase`?
-     Calling, for each item, a function that compiles a `RegExp` or parses the
-     item is not simple. If yes, do not flag. If no, flag.
+     simple operation, such as `contains`, a comparison, `toLowerCase` or
+     `join`? Calling, for each item, a function that compiles a `RegExp` or
+     parses the item is not simple. If yes, do not flag. If no, flag.
 - **Bad:**
 
   ```dart

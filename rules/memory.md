@@ -115,6 +115,7 @@ These rules target leaks.
   Repeated on every visit to the screen, this is a leak.
 - **Source:** [DevTools, Memory view](https://docs.flutter.dev/tools/devtools/memory) ("To avoid memory leaks, invoke `dispose` when the object isn't needed anymore"), [StatefulWidget, Performance considerations](https://api.flutter.dev/flutter/widgets/StatefulWidget-class.html#performance-considerations), [flutter_hooks](https://pub.dev/packages/flutter_hooks) and [provider](https://pub.dev/packages/provider)
 - **Level:** issue
+- **Remark line:** an object that the file does not dispose
 - **Not on a line of:** B2
 - **Triggers:** `Controller`, `FocusNode`, `ChangeNotifier`, `dispose`, `Timer.periodic`
 

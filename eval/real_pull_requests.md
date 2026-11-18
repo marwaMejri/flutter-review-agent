@@ -1137,3 +1137,46 @@ agent takes the names that end a chain (`unread`, `_controller`), not
 After the fixes: `stream-controller` B2 and T3; `value-builder` P9 on line
 21 and T3; `timer-periodic` MEM1 and T3 (B2 sent, answered no); #7 B2 and
 T3; #29 B2 on lines 21 and 22, and T3: all as expected.
+
+**The 13 challenge pull requests on GitHub (#32 to #44), gemini-3.5-flash-lite,
+agent `684fe13`: 13 out of 13 as expected.** #32 P1; #33 M1 (the pack is on
+in the action); #34 P1; #35 MEM3; #36 P5 on the `GridView.count`; #37 no
+P1; #38 no remark (mocktail `verify`); #39 no remark (no T5); #40 B5 once;
+#41 no remark (rename); #42 B2; #43 MEM1; #44 P9 on line 21. T3 where a
+behavior has no test.
+
+## `openai/gpt-oss-120b`, on GitHub, agent `684fe13`: #19 to #30 and the 13 challenge pull requests
+
+The tokens of the day were enough: every pull request got a review by
+gpt-oss-120b.
+
+| PR | Result |
+|---|---|
+| #19, #20, #21, #27 | no remark, as expected |
+| #22 | M1, as expected |
+| #23 | B5, B2, MEM1 on line 23, P1, T3, as expected |
+| #25 | B2, as expected |
+| #26 | B5, T3, as expected |
+| #29 | B2 on lines 21 and 22, T3, as expected |
+| #24 | **false MEM1** on line 62 (`controller: _scrollController,`): the file disposes `_scrollController` on line 38 |
+| #28 | **CONVENTION, debatable**: "ReleaseTile widget should be placed in the presentation/widgets folder, not in a view file"; CONVENTIONS.md lists the folders of `presentation/`, it does not say that a view file cannot hold a widget |
+| #30 | T3, the import convention (line 10), `Navigator.push` (line 68); **the view that reads a repository (line 54) missed** |
+| #32 to #36, #38 to #44 | as expected (P1, M1, P1, MEM3, P5; no remark on #38, #39, #41; B5 once, B2, MEM1, P9 on line 21) |
+| #37 | **false P1** on line 40, `Text(_years.join(' · '))` in `build()`: a join of a short list, which the rule did not name as a simple operation |
+
+#19 to #30: 9 out of 12 as expected (with #28 counted as an error). The 13
+challenge pull requests: 12 out of 13.
+
+**Fixes.** MEM1: `Remark line: an object that the file does not dispose`;
+the agent refuses a MEM1 remark whose line names an object that the file
+disposes (`name.dispose()`, `.cancel()` or `.close()`), unless the line also
+names an object that the file creates and never disposes. Checked first with
+a Python copy: #24 lines 23 and 62 refused; the true MEM1 of #8 (line 18),
+#23 (line 23) and `timer-periodic` (line 19) kept. P1: `join` is named with
+the simple operations in "Do not flag when" and in step 3.
+
+Local runs after the MEM1 check and `join` in P1: #24 with gpt-oss-120b no
+remark (the model did not propose MEM1 this time); `init-state-sort` with
+gpt-oss-120b not reviewed (HTTP 429, tokens of the day). With flash-lite: #8
+MEM1 on line 18, #23 MEM1 on line 23, `timer-periodic` MEM1, #24 no remark:
+the true MEM1 are kept.

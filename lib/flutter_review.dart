@@ -432,6 +432,8 @@ Future<ReviewResult> review({
           'not in build(), nor in a method that a build() calls',
         ),
       );
+    } else if (_disposedName(finding, sent, sources) case final String name) {
+      rejected.add(RejectedFinding(finding, 'the file disposes $name'));
     } else if (finding.rule == conventionRuleId) {
       final String? text = conventionTexts[conventionId(finding)];
       if (text == null) {
@@ -563,6 +565,52 @@ String? storedField(String code) =>
     }
   }
   return lines.firstOrNull;
+}
+
+/// For a rule marked "Remark line: an object that the file does not
+/// dispose", such as MEM1, the object of the line that the file disposes.
+String? _disposedName(
+  Finding finding,
+  List<Rule> rules,
+  Map<String, String> sources,
+) {
+  final String? source = sources[finding.file];
+  if (source == null ||
+      !rules.any(
+        (Rule rule) => rule.id == finding.rule && rule.remarkOnUndisposed,
+      )) {
+    return null;
+  }
+  return disposedOnLine(source, finding.line);
+}
+
+/// The object on [line] of [source] that the file disposes, for MEM1: a name
+/// of the line with `name.dispose()`, `name.cancel()` or `name.close()` in
+/// the file. Null when there is none, or when the line also names an object
+/// that the file creates (`name = SomeClass(...)`) and never disposes.
+String? disposedOnLine(String source, int line) {
+  final String text = source.replaceAll('\r\n', '\n');
+  final List<String> lines = text.split('\n');
+  if (line < 1 || line > lines.length) {
+    return null;
+  }
+  final Set<String> names = <String>{
+    for (final Match name in RegExp(
+      r'(?<![\w.$])([a-z_$][\w$]*)\b(?!\s*\()',
+    ).allMatches(lines[line - 1]))
+      name.group(1)!,
+  };
+  bool disposed(String name) => RegExp(
+    '\\b${RegExp.escape(name)}\\??\\.(dispose|cancel|close)\\(',
+  ).hasMatch(text);
+  bool created(String name) => RegExp(
+    '\\b${RegExp.escape(name)}\\s*=\\s*(?:const\\s+)?[A-Z][\\w\$]*'
+    '(?:\\.[\\w\$]+)?\\s*(?:<[^;]*?>)?\\(',
+  ).hasMatch(text);
+  if (names.any((String name) => created(name) && !disposed(name))) {
+    return null;
+  }
+  return names.where(disposed).firstOrNull;
 }
 
 /// Whether a remark of a rule that must be in `build()`, such as P1, is in

@@ -244,6 +244,12 @@ diff --git a/lib/app/router.dart b/lib/app/router.dart
       isTrue,
     );
     expect(p9.remarkOnBuilderChild, isTrue);
+    expect(
+      parseRules(
+        File('rules/memory.md').readAsStringSync(),
+      ).firstWhere((Rule r) => r.id == 'MEM1').remarkOnUndisposed,
+      isTrue,
+    );
     expect(p9.remarkPlace, isNull);
     expect(b5.remarkOnBuilderChild, isFalse);
   });
