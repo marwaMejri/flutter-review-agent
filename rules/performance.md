@@ -242,11 +242,12 @@
   2. Are the children made by a `for` loop or a `.map` over a collection? If
      yes, go to step 3. If no (the children are written one by one), do not
      flag.
-  3. Is the collection a `const` literal with its items written one by one, or
-     the values of an enum? Or was the loop already there before the pull
-     request (unchanged lines)? If yes, do not flag. If no (a field, a
-     parameter, data from an API, a database or a provider, or a list computed
-     from data), flag.
+  3. Look at the collection that the loop or the `.map` of step 2 goes over,
+     not at another list of the file. Is it a `const` literal with its items
+     written one by one, or the values of an enum? Or was the loop already
+     there before the pull request (unchanged lines)? If yes, do not flag. If
+     no (a field, a parameter, data from an API, a database or a provider, or
+     a list computed from data), flag.
 - **Bad:**
 
   ```dart

@@ -424,6 +424,33 @@ class _ViewState extends State<View> {
     expect(methodAt(open, 11), 'build');
   });
 
+  test('gives the added exports of the SDK Material or Cupertino', () {
+    // Challenge `limits/cupertino-export`.
+    final List<DiffFile> export = parseDiff('''
+diff --git a/lib/core/cupertino.dart b/lib/core/cupertino.dart
+new file mode 100644
+--- /dev/null
++++ b/lib/core/cupertino.dart
+@@ -0,0 +1,4 @@
++/// The Cupertino widgets, for the pages that follow iOS.
++library;
++
++export 'package:flutter/cupertino.dart';
+''');
+
+    expect(
+      buildUserPrompt(rules: rules, files: export),
+      contains(
+        'Added lines that export `package:flutter/material.dart` or '
+        '`package:flutter/cupertino.dart`: `lib/core/cupertino.dart:4`.',
+      ),
+    );
+    expect(
+      buildUserPrompt(rules: rules, files: files),
+      isNot(contains('Added lines that export')),
+    );
+  });
+
   test('sends only the changed parts when the file is unknown', () {
     final String prompt = buildUserPrompt(rules: rules, files: files);
 

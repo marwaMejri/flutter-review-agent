@@ -372,6 +372,64 @@ void main() {
     );
   });
 
+  test('refuses a convention about a package on a line that is no import', () async {
+    // Pull request #3: "widgets from flutter/material" on a widget line of a
+    // file that does not import package:flutter/material.dart.
+    const String diff = '''
+diff --git a/lib/a.dart b/lib/a.dart
+new file mode 100644
+--- /dev/null
++++ b/lib/a.dart
+@@ -0,0 +1,3 @@
++import 'package:flutter/material.dart';
++
++Widget icon() => const Icon(Icons.info, color: Colors.black);
+''';
+    final ModelClient client = ModelClient(
+      provider: 'test-provider',
+      baseUrl: 'https://example.com/v1/',
+      models: <String>['test-model'],
+      apiKey: 'test-key',
+      httpClient: MockClient((http.Request request) async {
+        return http.Response(
+          jsonEncode(<String, Object>{
+            'choices': <Object>[
+              <String, Object>{
+                'message': <String, String>{
+                  'content':
+                      '{"checks": [], "findings": ['
+                      '{"rule": "CONVENTION", "file": "lib/a.dart", "line": 3, '
+                      '"evidence": "Colors.black", "message": "m", '
+                      '"convention": "C1"}, '
+                      '{"rule": "CONVENTION", "file": "lib/a.dart", "line": 1, '
+                      '"evidence": "import \'package:flutter/material.dart\';", '
+                      '"message": "m", "convention": "C1"}]}',
+                },
+              },
+            ],
+          }),
+          200,
+        );
+      }),
+    );
+
+    final ReviewResult result = await review(
+      diff: diff,
+      rules: <Rule>[],
+      client: client,
+      conventions:
+          '## Design library\n'
+          '- Widgets come from `package:material_ui/material_ui.dart`, never '
+          'from `package:flutter/material.dart`.',
+    );
+
+    expect(result.accepted.single.line, 1);
+    expect(
+      result.rejected.single.reason,
+      'a convention about a package, not on an import or export line',
+    );
+  });
+
   test('moves a T5 remark to the test line with pumpAndSettle', () async {
     final ModelClient client = ModelClient(
       provider: 'test-provider',

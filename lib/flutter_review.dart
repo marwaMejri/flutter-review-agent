@@ -436,9 +436,26 @@ Future<ReviewResult> review({
       rejected.add(RejectedFinding(finding, 'the file disposes $name'));
     } else if (finding.rule == conventionRuleId) {
       final String? text = conventionTexts[conventionId(finding)];
+      final String code =
+          files
+              .where((DiffFile f) => f.path == finding.file)
+              .firstOrNull
+              ?.newLineText[finding.line] ??
+          '';
       if (text == null) {
         rejected.add(
           RejectedFinding(finding, 'convention not found in the conventions'),
+        );
+      } else if (_packageUri.hasMatch(text) && !_importLine.hasMatch(code)) {
+        // A convention that names a package, such as "never from
+        // `package:flutter/material.dart`", is broken by an import or an
+        // export: a remark on another line was about a package that the
+        // file may not even import.
+        rejected.add(
+          RejectedFinding(
+            finding,
+            'a convention about a package, not on an import or export line',
+          ),
         );
       } else {
         checkedKept.add(
@@ -566,6 +583,9 @@ String? storedField(String code) =>
   }
   return lines.firstOrNull;
 }
+
+final RegExp _packageUri = RegExp(r'`package:[^`]+`');
+final RegExp _importLine = RegExp(r'^\s*(import|export)\s');
 
 /// For a rule marked "Remark line: an object that the file does not
 /// dispose", such as MEM1, the object of the line that the file disposes.

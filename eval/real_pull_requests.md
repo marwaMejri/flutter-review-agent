@@ -1180,3 +1180,64 @@ remark (the model did not propose MEM1 this time); `init-state-sort` with
 gpt-oss-120b not reviewed (HTTP 429, tokens of the day). With flash-lite: #8
 MEM1 on line 18, #23 MEM1 on line 23, `timer-periodic` MEM1, #24 no remark:
 the true MEM1 are kept.
+
+## Full run: `gemini-3.5-flash-lite`, on GitHub, agent `07b13e9`, the 43 pull requests
+
+Gemini was very busy: 8 pull requests got no review (HTTP 503 from
+gemini-3.5-flash-lite, then 503 or 429 from the next models): #3, #5, #6,
+#17, #18, #37, #40, #44. #29 was answered by gemini-3.6-flash (B2 on lines
+21 and 22, T3: right, not counted).
+
+| PR | Result |
+|---|---|
+| #2, #4, #7 to #16, #19 to #28, #30, #31 | as expected (#16 with no false CONVENTION; #30 the 3 conventions) |
+| #32, #34, #35, #38, #39, #41, #42, #43 | as expected |
+| #33 | **M1 missed** (no remark) |
+| #36 | T3; **P5 missed** on the `GridView.count` |
+
+**gemini-3.5-flash-lite: 32 out of 34 as expected**, 9 not measured in this
+run (8 with no review, 1 by another model).
+
+**Why M1 and P5 were missed.** #33, the check of M1: "Step 1: no. Do not
+flag." on `export 'package:flutter/cupertino.dart';`. #36, the check of P5:
+"Step 1: yes. Step 2: yes. Step 3: yes. Do not flag.": step 3 asks whether
+the collection is a `const` literal; the file also has the `const` list of
+the `ListView` (the trap), and `releases` is a parameter.
+
+Fixes. M1: the prompt gives the added lines that export
+`package:flutter/material.dart` or `package:flutter/cupertino.dart` as a
+fact; on the 30 + 13 branches, only #22 (`lib/core/ui.dart:4`) and #33
+(`lib/core/cupertino.dart:4`) get it. P5: step 3 says to look at the
+collection that the loop of step 2 goes over, not at another list of the
+file.
+
+Second try of the pull requests with no review (agent `07b13e9`,
+gemini-3.5-flash-lite): #5 P5, T3 missed again; #6 P9 on line 49 and T3; #17
+M4; #18 no remark; #37 no P1, T3; #40 B5 once and T3: as expected. #3 P2
+and T3, and **a CONVENTION remark on line 43** (to read). #29 no review again
+(HTTP 503). #44 not read yet (GitHub API limit of the hour).
+
+**#3, the CONVENTION on line 43: false.** "Widgets from
+package:flutter/material.dart are used directly without importing with 'as
+legacy'": `release_detail_view.dart` does not import
+`package:flutter/material.dart` (its imports: flutter_markdown_plus,
+material_ui, the app, provider); line 43 is `Icons.info_outline_rounded`.
+The same mistake as #16 (line 47, `ColoredBox(color: Colors.white)`).
+
+Fix: a CONVENTION remark whose convention names a `package:` URI is kept
+only on an `import` or `export` line: such a convention is broken by an
+import. #3 and #16 are refused; the export of #22 stays on its line (and the
+M1 remark on that line wins). No other convention of CONVENTIONS.md names a
+package, except `package:equatable` for `domain/`, which an import breaks
+too.
+
+Local runs with the M1 fact, the P5 step 3 and the convention check,
+gemini-3.5-flash-lite (Gemini very busy: #22, #24 and #3 got HTTP 503, and
+the other models of the preset had used their quota of the day):
+
+| PR | Result |
+|---|---|
+| #33, 2 runs | M1 in both ("Step 1: yes, lib/core/cupertino.dart exports package:flutter/cupertino.dart"); a CONVENTION on the same line refused ("the line already has a remark of M1") |
+| #36, 2 runs | P5 in run 2; run 1 missed it again: "Step 3: yes, the loop is over a `const` literal", the `const` list of the `ListView` of the same file |
+| #5 | P5, as expected; T3 missed (the judgment of step 4) |
+| #16 | M3, no CONVENTION: as expected |

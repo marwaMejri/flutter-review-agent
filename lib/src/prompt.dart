@@ -193,6 +193,22 @@ String buildUserPrompt({
     buffer.writeln('- and ${expects.length - maxExpects} more.');
   }
   buffer.writeln();
+  // A fact the model cannot read wrong: a model answered "no" to M1 for an
+  // added `export 'package:flutter/cupertino.dart';`.
+  final List<String> sdkExports = <String>[
+    for (final DiffFile file in files)
+      for (final int line in file.addedLines.toList()..sort())
+        if (_sdkExport.hasMatch(file.newLineText[line] ?? ''))
+          '`${file.path}:$line`',
+  ];
+  if (sdkExports.isNotEmpty) {
+    buffer
+      ..writeln(
+        'Added lines that export `package:flutter/material.dart` or '
+        '`package:flutter/cupertino.dart`: ${sdkExports.join(', ')}.',
+      )
+      ..writeln();
+  }
   // A fact the model cannot read wrong: a model sometimes answers that a new
   // `name:` inside a `GoRoute(` changes no route.
   final Map<String, Map<int, String>> calls =
@@ -394,6 +410,10 @@ String? importedPath(String file, String uri, String? packageName) {
   }
   return parts.join('/');
 }
+
+final RegExp _sdkExport = RegExp(
+  r'''^\s*export\s+['"]package:flutter/(material|cupertino)\.dart['"]''',
+);
 
 /// The calls that make the routes of an app.
 const Set<String> routerCalls = <String>{
