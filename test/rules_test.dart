@@ -43,6 +43,8 @@ void main() {
     expect(rule.triggers, <String>[
       'ListView(',
       'GridView(',
+      'GridView.count(',
+      'GridView.extent(',
       'Column(',
       'SliverChildListDelegate(',
       'SingleChildScrollView(',

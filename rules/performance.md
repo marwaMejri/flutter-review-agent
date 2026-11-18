@@ -220,6 +220,7 @@
 ## P5. A long list built without a builder
 
 - **Check:** `ListView(children: ...)`, `GridView(children: ...)`,
+  `GridView.count(children: ...)`, `GridView.extent(children: ...)`,
   `SliverChildListDelegate(...)`, or a `Column` (or a `Row`) inside a
   `SingleChildScrollView`, whose children come from data.
 - **Flag when:** the children are built from a collection whose size is
@@ -237,8 +238,11 @@
     inside it.
 - **Decide:**
   1. Is it `ListView(children: ...)`, `GridView(children: ...)`,
+     `GridView.count(children: ...)`, `GridView.extent(children: ...)`,
      `SliverChildListDelegate(...)`, or a `Column` or `Row` inside a
-     `SingleChildScrollView`? If yes, go to step 2. If no, do not flag.
+     `SingleChildScrollView`? If yes, go to step 2. If no, do not flag. If
+     the added lines have several of them, answer steps 1 to 3 for each
+     one, one after the other.
   2. Are the children made by a `for` loop or a `.map` over a collection? If
      yes, go to step 3. If no (the children are written one by one), do not
      flag.
@@ -272,10 +276,10 @@
   child, even the ones off screen. A builder only builds the visible items.
   The code rarely shows how long the collection will be, so this is a
   suggestion: it matters when most children are off screen.
-- **Source:** [Performance best practices, Be lazy!](https://docs.flutter.dev/perf/best-practices#be-lazy), [Pitfalls](https://docs.flutter.dev/perf/best-practices#pitfalls) ("if most of the children are not visible on screen"), [ListView](https://api.flutter.dev/flutter/widgets/ListView-class.html) (the default constructor "is appropriate for list views with a small number of children") and [SliverChildListDelegate](https://api.flutter.dev/flutter/widgets/SliverChildListDelegate-class.html)
+- **Source:** [Performance best practices, Be lazy!](https://docs.flutter.dev/perf/best-practices#be-lazy), [Pitfalls](https://docs.flutter.dev/perf/best-practices#pitfalls) ("if most of the children are not visible on screen"), [ListView](https://api.flutter.dev/flutter/widgets/ListView-class.html) (the default constructor "is appropriate for list views with a small number of children"), [GridView](https://api.flutter.dev/flutter/widgets/GridView-class.html) (the `children` of `GridView`, `GridView.count` and `GridView.extent` are a `SliverChildListDelegate`; for many children, use `GridView.builder`) and [SliverChildListDelegate](https://api.flutter.dev/flutter/widgets/SliverChildListDelegate-class.html)
 - **Level:** suggestion
 - **Remark line:** a list widget, or a `Column` or `Row` in a file with a `SingleChildScrollView`
-- **Triggers:** `ListView(`, `GridView(`, `Column(`, `SliverChildListDelegate(`, `SingleChildScrollView(`
+- **Triggers:** `ListView(`, `GridView(`, `GridView.count(`, `GridView.extent(`, `Column(`, `SliverChildListDelegate(`, `SingleChildScrollView(`
 
 ## P9. A builder that rebuilds a subtree that does not change
 

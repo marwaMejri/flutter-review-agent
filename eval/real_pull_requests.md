@@ -1241,3 +1241,20 @@ the other models of the preset had used their quota of the day):
 | #36, 2 runs | P5 in run 2; run 1 missed it again: "Step 3: yes, the loop is over a `const` literal", the `const` list of the `ListView` of the same file |
 | #5 | P5, as expected; T3 missed (the judgment of step 4) |
 | #16 | M3, no CONVENTION: as expected |
+
+**#36, P5 again.** The trigger list of P5 had `GridView(` but not
+`GridView.count(`: a pull request that adds only a `GridView.count` did not
+get P5 (#36 got it from its `ListView(` and `Column(`). The `children` of
+`GridView.count` and `GridView.extent` are a `SliverChildListDelegate`, like
+those of `GridView`
+([GridView](https://api.flutter.dev/flutter/widgets/GridView-class.html)).
+Fix: both are in the check, step 1 and the triggers of P5. Step 1 also asks
+to answer steps 1 to 3 for each list widget, one after the other: in run 1,
+the model answered step 3 with the `const` list of the `ListView`. On the 30
++ 13 branches, only #36 adds `GridView.count(` or `GridView.extent(`, and
+only #36 adds two list widgets in one file.
+
+Local runs after this fix, gemini-3.5-flash-lite: #36 P5 on line 25 in 2
+runs out of 2 (the third got HTTP 503); in run 2 the model answered P5 for
+each list widget ("const literal values": do not flag; "`releases`": flag).
+#5 P5 on line 56, as expected; T3 missed again ("Step 4: yes, tested").
