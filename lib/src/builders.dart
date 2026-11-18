@@ -26,9 +26,9 @@ List<BuilderPlace> builderPlaces(String source) {
     final String call = code.substring(open, close + 1);
     final Set<String> reads = <String>{
       for (final Match argument in RegExp(
-        r'\b(animation|listenable|valueListenable)\s*:\s*([\w.]+)',
+        r'\b(animation|listenable|valueListenable)\s*:',
       ).allMatches(call))
-        argument.group(2)!.split('.').first,
+        ..._chainEnds(_argument(call, argument.end)),
     };
     final Match? parameters = RegExp(
       r'\bbuilder\s*:\s*\(([^)]*)\)',
@@ -69,6 +69,47 @@ List<BuilderPlace> builderPlaces(String source) {
     ));
   }
   return places;
+}
+
+/// The expression of the argument that starts at [from] in [call], up to the
+/// next comma at its level, or the end of the call.
+String _argument(String call, int from) {
+  int depth = 0;
+  int end = from;
+  for (; end < call.length - 1; end++) {
+    final String char = call[end];
+    if ('([{'.contains(char)) {
+      depth++;
+    } else if (')]}'.contains(char)) {
+      if (depth == 0) {
+        break;
+      }
+      depth--;
+    } else if (char == ',' && depth == 0) {
+      break;
+    }
+  }
+  return call.substring(from, end);
+}
+
+/// The names that end a chain in [expression]: `unread` in
+/// `context.read<ReleasesViewModel>().unread`, `_controller` in
+/// `_controller`. A type, `context`, `this`, and a name followed by `.`, `(`
+/// or `<` are left out.
+Iterable<String> _chainEnds(String expression) sync* {
+  for (final Match name in RegExp(r'[A-Za-z_$][\w$]*').allMatches(expression)) {
+    final String text = name.group(0)!;
+    final String rest = expression.substring(name.end).trimLeft();
+    if (text[0].toUpperCase() == text[0] && text[0] != '_' && text[0] != r'$' ||
+        text == 'context' ||
+        text == 'this' ||
+        rest.startsWith('.') ||
+        rest.startsWith('(') ||
+        rest.startsWith('<')) {
+      continue;
+    }
+    yield text;
+  }
 }
 
 /// The line of the outermost widget between [from] and [to] that is not

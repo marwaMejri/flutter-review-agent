@@ -57,6 +57,25 @@ ValueListenableBuilder<UpdateChannel?>(
       expect(builderPlaces(constant).single.line, isNull);
     });
 
+    test('reads the end of the chain given to valueListenable', () {
+      // Challenge `limits/value-builder`: `context` is not the value.
+      const String code = r'''
+ValueListenableBuilder<int>(
+  valueListenable: context.read<ReleasesViewModel>().unread,
+  builder: (BuildContext context, int count, Widget? child) => Row(
+    children: <Widget>[
+      Text(
+        '$appName releases',
+        style: Theme.of(context).textTheme.titleLarge,
+      ),
+      Badge(label: Text('$count')),
+    ],
+  ),
+)
+''';
+      expect(builderPlaces(code).single.line, 5);
+    });
+
     test('skips the calls that are not a child, and the child parameter', () {
       const String code = '''
 AnimatedBuilder(

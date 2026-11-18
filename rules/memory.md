@@ -48,7 +48,8 @@ These rules target leaks.
   user's input and is never disposed.
 - **Source:** [StatefulWidget, Performance considerations](https://api.flutter.dev/flutter/widgets/StatefulWidget-class.html#performance-considerations) (resources allocated in `initState` and disposed of in `dispose`), [State.dispose](https://api.flutter.dev/flutter/widgets/State/dispose.html) ("Subclasses should override this method to release any resources retained by this object") and [TextEditingController](https://api.flutter.dev/flutter/widgets/TextEditingController-class.html) ("Remember to dispose of the TextEditingController when it is no longer needed")
 - **Level:** issue
-- **Triggers:** `Controller(`, `FocusNode(`, `Subscription`, `.listen(`
+- **Remark line:** in `build()`, or in a method that a `build()` calls
+- **Triggers:** `Controller(`, `Controller<`, `FocusNode(`, `ValueNotifier(`, `ValueNotifier<`, `Timer(`, `Timer.periodic(`, `Subscription`, `.listen(`
 
 ## MEM1. An object with `dispose()` that is never disposed
 

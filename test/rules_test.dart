@@ -237,6 +237,12 @@ diff --git a/lib/app/router.dart b/lib/app/router.dart
       isTrue,
     );
     expect(p9.remarkInBuild, isFalse);
+    expect(
+      parseRules(
+        File('rules/memory.md').readAsStringSync(),
+      ).firstWhere((Rule r) => r.id == 'B2').remarkInBuild,
+      isTrue,
+    );
     expect(p9.remarkOnBuilderChild, isTrue);
     expect(p9.remarkPlace, isNull);
     expect(b5.remarkOnBuilderChild, isFalse);

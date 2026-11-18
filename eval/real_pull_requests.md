@@ -1081,3 +1081,59 @@ Local runs with the evidence search on every added line: #7 B2 and T3 in 2
 runs out of 2 (a false P9 refused in run 1), #6 P9 on line 49 and T3, #23 B5,
 B2, MEM1 on line 23, P1 and T3, #29 B2 on lines 21 and 22 and T3, #24 no
 remark (a false B5 on a field refused): all as expected.
+
+## Full run: `gemini-3.5-flash-lite`, on GitHub, agent `c3522a1`
+
+| PR | Result |
+|---|---|
+| #3, #4, #6 to #15, #17 to #31 | as expected (#6 P9 on line 49, #7 B2 and T3, #12 no P1, #26 no P1) |
+| #5 | P5; **T3 missed** (the judgment of step 4, see above) |
+| #16 | M3, and a **false CONVENTION** on line 47 (`ColoredBox(color: Colors.white)` in the shimmer placeholder): "widgets come from material_ui, never from flutter/material", while the file imports no `package:flutter/material.dart` |
+| #2 | no review: HTTP 503 from every Gemini model |
+
+**27 out of 29 as expected** with gemini-3.5-flash-lite (#2 not reviewed).
+
+## Challenge pull requests, second set (`limits/*`)
+
+13 branches of the example project, each for a case the 30 pull requests do
+not have: `verify` of mocktail, P1 in a method called by `build()`, a sort
+in `initState`, a rename, a `FutureBuilder` future, a `StreamController` in
+`build()`, a `Timer.periodic`, a closure given to a global stream, B5 with
+two traps, P5 on `GridView.count` with a `const` `ListView`, P9 in a
+`ValueListenableBuilder`, named routes with a transition test, and an
+`export` of the SDK Cupertino. All pass `flutter analyze` and `flutter test`
+(the closure of `limits/global-stream-context` checks `mounted`, for the
+lint `use_build_context_synchronously`).
+
+Local runs of the 13 challenge branches, gemini-3.5-flash-lite:
+
+| Branch | Result |
+|---|---|
+| `build-helper` | P1 (on the call in `build()`), T3: as expected |
+| `future-builder` | P1, T3: as expected |
+| `global-stream-context` | MEM3, T3: as expected |
+| `grid-children` | P5 on the `GridView.count`, no P5 on the `const` `ListView`, T3: as expected |
+| `init-state-sort` | no P1 ("computed outside build in initState and didUpdateWidget"), T3: as expected |
+| `mocktail-verify` | no remark: the `verify` checks are read: as expected |
+| `named-routes-tested` | no remark: T5 step 2 sees the `pump()` with a duration: as expected |
+| `nullable-traps` | B5 once, on `Stream<int>?`; no B5 on the two traps; T3: as expected |
+| `rename-only` | no remark; a T3 refused by the agent ("no added line under lib/ shows a behavior"): as expected |
+| `timer-periodic` | MEM1, T3: as expected |
+| `cupertino-export` | M1 not sent: the local runs do not turn the pack on; for GitHub |
+| `stream-controller` | **B2 not sent**: the trigger `Controller(` does not match `StreamController<String>()` |
+| `value-builder` | **P9 refused by the agent**: "every widget of the builder reads the value". The agent took `context` from `valueListenable: context.read<ReleasesViewModel>().unread` as the value, so every widget that reads `Theme.of(context)` "read" it |
+
+**Fixes.** B2: the triggers also read `Controller<`, `ValueNotifier(`,
+`ValueNotifier<`, `Timer(` and `Timer.periodic(`, and B2 gets the
+`Remark line` of P1 (a remark in `initState` is refused). On the 30 + 13
+branches, B2 is now also sent on `stream-controller`, `timer-periodic` and
+`value-builder`; the true B2 of #7, #23, #25 and #29 are in `build`, the
+`Timer.periodic` of `timer-periodic` is in `initState`. P9: from the
+expression given to `animation:`, `listenable:` or `valueListenable:`, the
+agent takes the names that end a chain (`unread`, `_controller`), not
+`context` or a name followed by `.`, `(` or `<`; `value-builder` gives the
+`Text` of line 21, and #6, #7, #21, #24 do not change.
+
+After the fixes: `stream-controller` B2 and T3; `value-builder` P9 on line
+21 and T3; `timer-periodic` MEM1 and T3 (B2 sent, answered no); #7 B2 and
+T3; #29 B2 on lines 21 and 22, and T3: all as expected.
