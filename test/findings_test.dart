@@ -23,6 +23,25 @@ void main() {
     );
   });
 
+  test('shows where an answer stops being JSON', () {
+    expect(
+      () => parseFindings(
+        '{"findings": [{"rule": "P1", "message": \'Use a const.\'}]}',
+      ),
+      throwsA(
+        isA<InvalidAnswerException>().having(
+          (InvalidAnswerException error) => error.message,
+          'message',
+          allOf(
+            startsWith('The answer is not JSON: Unexpected character'),
+            contains('at character 40'),
+            contains('"message": \'Use a const.\'}]}"'),
+          ),
+        ),
+      ),
+    );
+  });
+
   test('reads the evidence when there is one', () {
     final List<Finding> findings = parseFindings(
       '{"findings": [{"rule": "P1", "file": "lib/a.dart", "line": 11, '

@@ -1312,3 +1312,24 @@ Local runs after the fixes, gemini-3.5-flash-lite (`dart test`: 141 passed):
 | #20 | no remark: T3 "test checks formatShortDate", as expected |
 | #28 | no remark: T3 "moved code", as expected |
 | #6 | P9 on line 49, T3 on `release_tile.dart:31`; P5 sent and answered no: as expected |
+
+## Clean run: `gemini-3.5-flash-lite`, on GitHub, agent `d13dc8e`, the 44 pull requests
+
+Every review was made by gemini-3.5-flash-lite (#31 needs no model call).
+
+| PR | Result |
+|---|---|
+| #2 P1, T3; #3 P2, T3; #4 P3, T3; #5 P5, T3; #7 B2, T3; #8 MEM1, T3; #9 MEM2, T3; #10 MEM3, T3; #11 B4, T3; #12 B5, T3 | as expected |
+| #13 T4; #14 T5 on line 12; #15 M2; #16 M3; #17 M4; #22 M1 | as expected |
+| #18, #19, #20, #21, #24, #27, #28, #31 no remark; #25 B2 | as expected |
+| #23 B5, B2, MEM1 on line 23, P1, T3; #26 B5, T3; #29 B2 on lines 21 and 22, T3; #30 T3 and the conventions on lines 10, 53, 68 | as expected |
+| #32 P1, T3; #33 M1; #34 P1, T3; #35 MEM3, T3; #36 P5, T3; #37 T3 (no P1); #38, #39, #41 no remark; #40 B5 once, T3; #42 B2, T3; #43 MEM1, T3; #44 P9 on line 21, T3; #45 P9 on line 25 | as expected |
+| #6 | **no review**: "The answer is not JSON: Unexpected character", twice (the agent asks once more), the job said so and did not block |
+
+**gemini-3.5-flash-lite: 43 out of 43 reviewed pull requests as expected**;
+#6 got no review (an answer that was not JSON, twice).
+
+The job log of #6 does not show the answer, so its cause cannot be read. The
+error now gives the position where the answer stops being JSON and the text
+around it, for example `Unexpected character at character 40, near
+"... "message": 'Use a const.'}]}"`, so the next such error shows its cause.

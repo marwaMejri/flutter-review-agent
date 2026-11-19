@@ -122,8 +122,25 @@ Object? _decodeAnswer(String answer) {
         // Not JSON either: the error below explains the first failure.
       }
     }
-    throw InvalidAnswerException('The answer is not JSON: ${error.message}');
+    throw InvalidAnswerException(
+      'The answer is not JSON: ${error.message}${_near(text, error.offset)}',
+    );
   }
+}
+
+/// Where [text] stops being JSON: the position [offset], and the text around
+/// it on one line, so that the log shows the cause.
+String _near(String text, int? offset) {
+  if (offset == null) {
+    return '';
+  }
+  final int at = offset.clamp(0, text.length);
+  final int start = (at - 30).clamp(0, text.length);
+  final int end = (at + 30).clamp(0, text.length);
+  final String excerpt = text
+      .substring(start, end)
+      .replaceAll(RegExp(r'\s+'), ' ');
+  return ' at character $at, near "$excerpt"';
 }
 
 /// Reads the checks of the answer: `{"checks": [...]}`. Checks that are
