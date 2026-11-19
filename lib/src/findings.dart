@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'diff.dart';
+import 'packages.dart';
 
 /// The rule ID the model uses for a remark based on the project's
 /// `CONVENTIONS.md`.
@@ -201,6 +202,14 @@ List<Finding> parseFindings(String answer) {
   return findings;
 }
 
+/// The name of the file of [path], without its extension: `a` for
+/// `lib/a.dart` and for `lib/a.tsx`.
+String _stem(String path) {
+  final String name = path.split('/').last;
+  final int dot = name.indexOf('.');
+  return dot < 0 ? name : name.substring(0, dot);
+}
+
 /// How many lines around the cited line the agent looks for the evidence.
 /// Models sometimes cite the line before or after the code they quote.
 const int evidenceWindow = 3;
@@ -241,13 +250,14 @@ const int evidenceWindow = 3;
     DiffFile? file = filesByPath[finding.file];
     if (file == null) {
       // Models sometimes get the folder wrong in a pull request with many
-      // files (`lib/widgets/a.dart` for `lib/features/a.dart`). When one file
-      // of the diff has the same name and holds the evidence, the remark is
-      // moved to it.
-      final String name = finding.file.split('/').last;
+      // files (`lib/widgets/a.dart` for `lib/features/a.dart`), or the
+      // extension (`a.tsx` for `a.dart`). When one file of the diff has the
+      // same name, without its extension, and holds the evidence, the remark
+      // is moved to it.
+      final String name = _stem(finding.file);
       final List<DiffFile> sameName = <DiffFile>[
         for (final DiffFile candidate in files)
-          if (candidate.path.split('/').last == name) candidate,
+          if (_stem(candidate.path) == name) candidate,
       ];
       if (sameName.length == 1 &&
           _lineWithEvidence(sameName.single, finding) != null) {
@@ -267,7 +277,7 @@ const int evidenceWindow = 3;
     } else if (file == null) {
       rejected.add(RejectedFinding(finding, 'file not in the diff'));
     } else if (fileScopes[finding.rule] case final List<String> scope
-        when !scope.any(file.path.startsWith)) {
+        when !scope.any(inPackage(file.path).startsWith)) {
       // A rule that only applies to some files, such as T3 to `lib/`, cannot
       // be reported anywhere else.
       rejected.add(

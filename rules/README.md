@@ -80,8 +80,11 @@ Every rule has the same parts:
   is kept only when the second answer flags it too. This costs one more
   request, only in that case. The model does not get this line.
 - **Triggers:** the rule is sent to the model only when a line added by the
-  pull request contains one of these texts, or, for `file:…`, when a changed
-  file path starts with it. For `around:…`, the text can also be on an
+  pull request contains one of these texts, or, for `file:…`, when the path
+  of a changed file in its package starts with it: `file:lib/` matches
+  `lib/a.dart`, and `packages/core/lib/a.dart` in a monorepo (a package is
+  the folder that holds `lib/`, `test/`, `integration_test/` or
+  `pubspec.yaml`). For `around:…`, the text can also be on an
   unchanged line shown around an added line in the diff (3 lines by default),
   for example `GoRoute(` above a `name:` that the pull request adds. A rule
   with no triggers is always sent. Fewer rules make a shorter request, and

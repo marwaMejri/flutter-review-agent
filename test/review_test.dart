@@ -12,6 +12,8 @@ void main() {
     expect(isReviewed('lib/main.dart'), isTrue);
     expect(isReviewed('test/main_test.dart'), isTrue);
     expect(isReviewed('pubspec.yaml'), isTrue);
+    expect(isReviewed('packages/core/pubspec.yaml'), isTrue);
+    expect(isReviewed('packages/core/lib/a.dart'), isTrue);
   });
 
   test('skips generated and other files', () {

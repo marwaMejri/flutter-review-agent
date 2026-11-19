@@ -1,6 +1,7 @@
 import 'builders.dart';
 import 'diff.dart';
 import 'findings.dart';
+import 'packages.dart';
 import 'rules.dart';
 
 /// The instructions the model receives before the rules and the diff.
@@ -68,13 +69,16 @@ Answer with JSON only, in this form:
 /// [deletedFiles] are sent with their removed lines, so the model sees where
 /// moved code comes from. [testFiles] are the test files of the whole pull
 /// request, and [testExpects] their added checks (see
-/// [addedExpects]), when [files] is only a part of it. [packageName] is the
-/// name in the pubspec of the project, to read its `package:` imports.
+/// [addedExpects]), when [files] is only a part of it. [packages] gives the
+/// folder of each package of the repository by its name in its pubspec (see
+/// [packageRoot]), to read the `package:` imports.
 /// [routerLines] are the added lines inside a router or app call, by file and
 /// line (see [routerLinesOf]); they are found in [sources] when not given.
 /// [widgetLines] are the added lines of a widget that no test of the pull
 /// request renders (see [untestedWidgetLines]); they are found in [files] and
-/// [sources] when not given.
+/// [sources] when not given. [builders] are the changed builders, for a rule
+/// such as P9 (see [builderFacts]); they are found in [files] and [sources]
+/// when not given.
 String buildUserPrompt({
   required List<Rule> rules,
   required List<DiffFile> files,
@@ -83,9 +87,10 @@ String buildUserPrompt({
   List<DiffFile> deletedFiles = const <DiffFile>[],
   List<String>? testFiles,
   List<String>? testExpects,
-  String? packageName,
+  Map<String, String> packages = const <String, String>{},
   Map<String, Map<int, String>>? routerLines,
   List<String>? widgetLines,
+  List<String>? builders,
 }) {
   // A fact the model cannot guess wrong: without it, a small model sometimes
   // answers that a test checks a behavior when the pull request has no test.
@@ -157,7 +162,7 @@ String buildUserPrompt({
       ..writeln();
     // A fact the model cannot read wrong: a small model sometimes takes a
     // `domain/` file of another feature for a `data/` file of its own.
-    final List<String> imports = importFacts(files, packageName);
+    final List<String> imports = importFacts(files, packages);
     if (imports.isNotEmpty) {
       buffer
         ..writeln(
@@ -218,6 +223,25 @@ String buildUserPrompt({
         'widget (`testWidgets`, `tester.`, `find.`): no test of this pull '
         'request checks them.',
       )
+      ..writeln();
+  }
+  // A fact the model cannot read wrong: a model answered "no" to P9 while
+  // the `builder` rebuilt a `DecoratedBox` that reads neither the animation
+  // nor the value. The agent places P9 on the same widget.
+  final List<String> changedBuilders =
+      !rules.any((Rule rule) => rule.remarkOnBuilderChild)
+      ? const <String>[]
+      : builders ?? builderFacts(files, sources);
+  if (changedBuilders.isNotEmpty) {
+    buffer
+      ..writeln(
+        'Builders changed by this pull request (`AnimatedBuilder`, '
+        '`ListenableBuilder`, `ValueListenableBuilder`, '
+        '`TweenAnimationBuilder`), with the outermost widget of their '
+        '`builder` that is not `const` and reads neither the animation, nor '
+        'the listenable, nor the value:',
+      )
+      ..writeAll(changedBuilders.map((String fact) => '- $fact\n'))
       ..writeln();
   }
   // A fact the model cannot read wrong: a model answered "no" to M1 for an
@@ -348,6 +372,41 @@ List<String> addedExpects(List<DiffFile> files) => <String>[
           '`${file.path}:$line` `${_statement(file, line)}`',
 ];
 
+/// The builders of [files] that hold an added line (see [builderPlaces]),
+/// each with the outermost widget of its `builder` that is not `const` and
+/// reads neither the animation, nor the listenable, nor the value, such as
+/// `` `lib/a.dart:12`: `lib/a.dart:17` (`child: DecoratedBox(`) ``, or with
+/// "none: every widget reads one of them, or is `const`". A file with no
+/// source in [sources] is left out.
+List<String> builderFacts(
+  List<DiffFile> files,
+  Map<String, String> sources,
+) => <String>[
+  for (final DiffFile file in files)
+    if (sources[file.path] case final String source)
+      for (final BuilderPlace place in builderPlaces(source))
+        if (file.addedLines.any(
+          (int line) => place.first <= line && line <= place.last,
+        ))
+          switch (place.line) {
+            null =>
+              '`${file.path}:${place.first}`: none: every widget reads one of '
+                  'them, or is `const`',
+            final int line =>
+              '`${file.path}:${place.first}`: `${file.path}:$line` '
+                  '(`${_lineText(source, line)}`)',
+          },
+];
+
+/// The code of [line] of [source], trimmed, at most 80 characters.
+String _lineText(String source, int line) {
+  final String text = source
+      .replaceAll('\r\n', '\n')
+      .split('\n')[line - 1]
+      .trim();
+  return text.length > 80 ? '${text.substring(0, 79)}…' : text;
+}
+
 /// The start of a test that renders a widget: `testWidgets(` of
 /// `flutter_test`, `patrolTest(` of `patrol`, `testGoldens(` of
 /// `golden_toolkit`, `goldenTest(` of `alchemist`, and the `tester.` and
@@ -385,7 +444,7 @@ List<String> untestedWidgetLines(
   final List<String> found = <String>[];
   for (final DiffFile file in files) {
     final String? source = sources[file.path];
-    if (!file.path.startsWith('lib/') || source == null) {
+    if (!inPackage(file.path).startsWith('lib/') || source == null) {
       continue;
     }
     final Set<int> conditions = widgetConditionLines(source);
@@ -430,14 +489,14 @@ final RegExp _featureLayer = RegExp(r'^lib/(?:.+/)?features/([^/]+)/([^/]+)/');
 final RegExp _importUri = RegExp(r'''^\s*import\s+['"]([^'"]+)['"]''');
 
 /// The added `import` lines of [files] where both the importing file and the
-/// imported file are in `features/<feature>/<layer>/` under `lib/`, such as
-/// `lib/features/` or `lib/src/features/`, with the feature
-/// and the layer of each side, and whether the features are the same. Other
-/// imports are left out.
-List<String> importFacts(List<DiffFile> files, String? packageName) {
+/// imported file are in `features/<feature>/<layer>/` under the `lib/` of
+/// their package, such as `lib/features/` or `lib/src/features/`, with the
+/// feature and the layer of each side, and whether the features are the
+/// same. Other imports are left out. [packages] is read by [importedPath].
+List<String> importFacts(List<DiffFile> files, Map<String, String> packages) {
   final List<String> facts = <String>[];
   for (final DiffFile file in files) {
-    final Match? from = _featureLayer.firstMatch(file.path);
+    final Match? from = _featureLayer.firstMatch(inPackage(file.path));
     if (from == null || file.deleted) {
       continue;
     }
@@ -445,10 +504,10 @@ List<String> importFacts(List<DiffFile> files, String? packageName) {
       final Match? uri = _importUri.firstMatch(file.newLineText[line] ?? '');
       final String? target = uri == null
           ? null
-          : importedPath(file.path, uri.group(1)!, packageName);
+          : importedPath(file.path, uri.group(1)!, packages);
       final Match? to = target == null
           ? null
-          : _featureLayer.firstMatch(target);
+          : _featureLayer.firstMatch(inPackage(target));
       if (to != null) {
         facts.add(
           '`${file.path}:$line` (${from.group(1)}, ${from.group(2)}) imports '
@@ -462,15 +521,16 @@ List<String> importFacts(List<DiffFile> files, String? packageName) {
 }
 
 /// The path in the project of the file that [file] imports with [uri]:
-/// `package:<packageName>/a.dart` is `lib/a.dart`, and a relative path is
-/// read from the folder of [file]. Null for any other import, such as
-/// `dart:` or another package.
-String? importedPath(String file, String uri, String? packageName) {
+/// `package:<name>/a.dart` is `lib/a.dart` in the folder of the package
+/// `<name>` in [packages] (`packages/core/lib/a.dart` in a monorepo), and a
+/// relative path is read from the folder of [file]. Null for any other
+/// import, such as `dart:` or a package that is not in [packages].
+String? importedPath(String file, String uri, Map<String, String> packages) {
   if (uri.startsWith('package:')) {
-    final String prefix = 'package:$packageName/';
-    return packageName != null && uri.startsWith(prefix)
-        ? 'lib/${uri.substring(prefix.length)}'
-        : null;
+    final String rest = uri.substring('package:'.length);
+    final int slash = rest.indexOf('/');
+    final String? root = slash < 0 ? null : packages[rest.substring(0, slash)];
+    return root == null ? null : '${root}lib/${rest.substring(slash + 1)}';
   }
   if (uri.contains(':')) {
     return null;
@@ -512,7 +572,9 @@ Map<String, Map<int, String>> routerLinesOf(
   final Map<String, Map<int, String>> lines = <String, Map<int, String>>{};
   for (final DiffFile file in files) {
     final String? source = sources[file.path];
-    if (!file.path.startsWith('lib/') || file.deleted || source == null) {
+    if (!inPackage(file.path).startsWith('lib/') ||
+        file.deleted ||
+        source == null) {
       continue;
     }
     final Map<int, List<String>> open = openCalls(source);

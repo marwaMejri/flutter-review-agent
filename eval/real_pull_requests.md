@@ -1382,3 +1382,63 @@ request. On the 44 branches, 12 have an added check (#5, #13, #14, #18 to
 #21, #24, #25, #38, #39, #45); in the clean runs, T3 was flagged on two of
 them: #5 (no second request) and #14 with gpt-oss-120b (the false T3). The
 cost is one more request in that case only.
+
+## Monorepos
+
+The agent read paths from the top of the repository: `file:lib/` (T3), the
+behavior check of T3, the widget and router facts and the import facts
+looked for `lib/` at the top, only the top `pubspec.yaml` was reviewed (M2,
+M3) and read (package name), and only the top `lib/` was listed (P1, B2 in a
+method that `build()` calls). In a monorepo (`packages/core/lib/...`), T3 was
+never sent, with no message.
+
+Fix: each path is read in its package, the folder that holds `lib/`,
+`test/`, `integration_test/` or `pubspec.yaml` (`packages/core/` for
+`packages/core/lib/a.dart`). `file:` triggers, the `lib/` checks and the
+facts use the path in the package; every `pubspec.yaml` is reviewed; the
+name of each package is read in its pubspec, so `package:core/a.dart` is
+`packages/core/lib/a.dart`; the Dart files of every `lib/` of the project are
+listed (hidden folders, `build/` and `node_modules/` skipped). On the 44
+branches every path is at the top (`lib/`, `test/`, `pubspec.yaml`), so
+nothing changes for them.
+
+New challenge branch `limits/workspace-package` (#46): a pub workspace with
+`packages/release_badges`, whose widget sorts its tags in `build()` and has an
+`if` with no test. Expected: P1 and T3.
+
+## `gemini-3.5-flash-lite`, on GitHub, agent `e10b0a8`, the 44 pull requests
+
+40 reviewed, 38 as expected (#5 P5 on the `Column` of line 54, #45 P9 on
+line 25). No review (HTTP 503 or no answer within 180 s): #21, #23, #30, #44.
+
+| PR | Result | Cause, from the log |
+|---|---|---|
+| #3 | T3; **P2 refused by the agent** | the model answered P2 right, but wrote the file `release_detail_view.tsx`: "file not in the diff" |
+| #6 | T3; **P9 missed** | "Step 2: no, no subtree inside the builder uses only fields, constants, context ... without depending on the animation" (the `DecoratedBox` reads none of them); P9 had been missed on GitHub twice before |
+
+Fixes:
+
+- A remark on a file that is not in the diff goes to the one file of the
+  diff with the same name without its extension (`release_detail_view.tsx`
+  to `release_detail_view.dart`), when that file holds the evidence: the
+  same check as for a wrong folder.
+- P9: the prompt gives, for each builder changed by the pull request, the
+  outermost widget of its `builder` that is not `const` and reads neither
+  the animation, nor the listenable, nor the value (the widget where the
+  agent puts P9), or "none". On the 44 branches, six change a builder: #6
+  (the `DecoratedBox`), #44 (line 21), #45 (line 25), and #7, #21, #24
+  (none: the value is read, the widgets are `const`, the child is passed).
+- In a monorepo, the file scope of T3 (`lib/`) is read in the package of
+  the file too: a T3 remark on `packages/core/lib/a.dart` was refused as
+  "file outside the scope of T3".
+
+Local runs after these fixes, gemini-3.5-flash-lite (`dart test`: 156
+passed):
+
+| PR | Result |
+|---|---|
+| #3, 2 runs | P2 on line 39 and T3 in both: as expected |
+| #6, 2 runs | P9 on `new_badge.dart:49` and T3 in both ("Step 2: yes, the DecoratedBox ... no animation value"): as expected |
+| #7 | B2, T3, no P9 ("Step 2: no"): as expected |
+| #21 | no remark; P9: "every widget reads one of the animation/listenable/value or is const": as expected |
+| #24 | no remark; a B5 on the field `final List<String>? tags;` refused by the agent (the trap): as expected |

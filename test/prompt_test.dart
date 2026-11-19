@@ -238,7 +238,7 @@ diff --git a/lib/features/settings/presentation/views/settings_view.dart b/lib/f
 ''');
 
     test('gives the feature and the layer of each side', () {
-      expect(importFacts(diff, 'app'), <String>[
+      expect(importFacts(diff, <String, String>{'app': ''}), <String>[
         '`lib/features/settings/presentation/views/settings_view.dart:2` '
             '(settings, presentation) imports '
             '`lib/features/releases/domain/entities/release.dart` '
@@ -255,7 +255,7 @@ diff --git a/lib/features/settings/presentation/views/settings_view.dart b/lib/f
     });
 
     test('reads only the relative imports with no package name', () {
-      expect(importFacts(diff, null), hasLength(2));
+      expect(importFacts(diff, const <String, String>{}), hasLength(2));
     });
 
     test('are in the conventions part of the prompt only', () {
@@ -264,12 +264,16 @@ diff --git a/lib/features/settings/presentation/views/settings_view.dart b/lib/f
           rules: rules,
           files: diff,
           conventions: '- A feature never imports another feature.',
-          packageName: 'app',
+          packages: <String, String>{'app': ''},
         ),
         contains('(settings, presentation) imports'),
       );
       expect(
-        buildUserPrompt(rules: rules, files: diff, packageName: 'app'),
+        buildUserPrompt(
+          rules: rules,
+          files: diff,
+          packages: <String, String>{'app': ''},
+        ),
         isNot(contains('Imports added by this pull request')),
       );
     });
@@ -283,11 +287,40 @@ diff --git a/lib/src/features/a/ui/a_view.dart b/lib/src/features/a/ui/a_view.da
  import 'package:flutter/widgets.dart';
 +import 'package:app/src/features/b/data/b_repository.dart';
 ''');
-      expect(importFacts(src, 'app'), <String>[
+      expect(importFacts(src, <String, String>{'app': ''}), <String>[
         '`lib/src/features/a/ui/a_view.dart:2` (a, ui) imports '
             '`lib/src/features/b/data/b_repository.dart` (b, data): '
             'another feature',
       ]);
+    });
+
+    test('reads the packages of a monorepo', () {
+      // `packages/releases` imports the package `core` of `packages/core`.
+      final List<DiffFile> mono = parseDiff('''
+diff --git a/packages/releases/lib/src/features/list/presentation/list_view.dart b/packages/releases/lib/src/features/list/presentation/list_view.dart
+--- a/packages/releases/lib/src/features/list/presentation/list_view.dart
++++ b/packages/releases/lib/src/features/list/presentation/list_view.dart
+@@ -1,1 +1,3 @@
+ import 'package:flutter/widgets.dart';
++import 'package:core/src/features/settings/data/settings_api.dart';
++import 'package:releases/src/features/list/domain/release.dart';
+''');
+      expect(
+        importFacts(mono, <String, String>{
+          'core': 'packages/core/',
+          'releases': 'packages/releases/',
+        }),
+        <String>[
+          '`packages/releases/lib/src/features/list/presentation/list_view.dart:2` '
+              '(list, presentation) imports '
+              '`packages/core/lib/src/features/settings/data/settings_api.dart` '
+              '(settings, data): another feature',
+          '`packages/releases/lib/src/features/list/presentation/list_view.dart:3` '
+              '(list, presentation) imports '
+              '`packages/releases/lib/src/features/list/domain/release.dart` '
+              '(list, domain): same feature',
+        ],
+      );
     });
 
     test('reads the package name in the pubspec', () {
@@ -543,6 +576,60 @@ deleted file mode 100644
         isEmpty,
       );
     });
+  });
+
+  test('gives the changed builders to a rule such as P9', () {
+    // Pull request #6: the `builder` rebuilds the `DecoratedBox`.
+    const String source = '''
+class _NewBadgeState extends State<NewBadge> {
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (BuildContext context, Widget? child) {
+        return Opacity(
+          opacity: _controller.value,
+          child: DecoratedBox(
+            decoration: BoxDecoration(color: colors.primary),
+            child: const Text('NEW'),
+          ),
+        );
+      },
+    );
+  }
+}
+''';
+    final List<DiffFile> diff = parseDiff('''
+diff --git a/lib/new_badge.dart b/lib/new_badge.dart
+new file mode 100644
+--- /dev/null
++++ b/lib/new_badge.dart
+@@ -0,0 +1,17 @@
+${source.trimRight().split('\n').map((String line) => '+$line').join('\n')}
+''');
+    final Rule p9 = Rule(
+      id: 'P9',
+      title: 't',
+      text:
+          '## P9. t\n\n- **Remark place:** the outermost widget of the '
+          'builder that reads neither the animation nor the value',
+    );
+    const Map<String, String> sources = <String, String>{
+      'lib/new_badge.dart': source,
+    };
+
+    expect(builderFacts(diff, sources), <String>[
+      '`lib/new_badge.dart:4`: `lib/new_badge.dart:9` '
+          '(`child: DecoratedBox(`)',
+    ]);
+    expect(
+      buildUserPrompt(rules: <Rule>[p9], files: diff, sources: sources),
+      contains('- `lib/new_badge.dart:4`: `lib/new_badge.dart:9`'),
+    );
+    expect(
+      buildUserPrompt(rules: rules, files: diff, sources: sources),
+      isNot(contains('Builders changed by this pull request')),
+    );
   });
 
   test('sends only the changed parts when the file is unknown', () {

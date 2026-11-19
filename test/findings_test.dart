@@ -241,6 +241,27 @@ new file mode 100644
     expect(result.rejected.single.reason, 'file not in the diff');
   });
 
+  test('fixes a wrong extension when one file has the same name', () {
+    // Pull request #3: `release_detail_view.tsx` for the `.dart` file.
+    final List<DiffFile> files = parseDiff(sampleDiff);
+    final ({List<Finding> accepted, List<RejectedFinding> rejected}) result =
+        validateFindings(
+          <Finding>[
+            Finding(
+              rule: 'P1',
+              file: 'lib/a.tsx',
+              line: 11,
+              message: 'wrong extension',
+              evidence: 'final int z;',
+            ),
+          ],
+          files: files,
+          ruleIds: <String>{'P1'},
+        );
+
+    expect(result.accepted.single.file, 'lib/a.dart');
+  });
+
   test(
     'refuses a remark outside the files of a rule that has a file scope',
     () {
@@ -277,6 +298,37 @@ new file mode 100644
       );
     },
   );
+
+  test('reads the file scope in the package of a monorepo', () {
+    final List<DiffFile> files = parseDiff('''
+diff --git a/packages/core/lib/a.dart b/packages/core/lib/a.dart
+--- a/packages/core/lib/a.dart
++++ b/packages/core/lib/a.dart
+@@ -1,1 +1,2 @@
+ class A {}
++int twice(int a) => a * 2;
+''');
+
+    expect(
+      validateFindings(
+        <Finding>[
+          Finding(
+            rule: 'T3',
+            file: 'packages/core/lib/a.dart',
+            line: 2,
+            message: 'm',
+            evidence: 'int twice(int a) => a * 2;',
+          ),
+        ],
+        files: files,
+        ruleIds: <String>{'T3'},
+        fileScopes: <String, List<String>>{
+          'T3': <String>['lib/'],
+        },
+      ).accepted,
+      hasLength(1),
+    );
+  });
 
   test('reads the JSON even when the model writes text around it', () {
     final List<Finding> findings = parseFindings(

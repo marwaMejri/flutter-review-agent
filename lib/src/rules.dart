@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'packages.dart';
+
 /// One review rule, read from a Markdown file in `rules/` or `packs/`.
 class Rule {
   Rule({
@@ -154,7 +156,9 @@ class Rule {
   /// the lines [addedCode]. [aroundCode] is the code of the hunks that add a
   /// line, unchanged lines included.
   ///
-  /// A trigger `file:test/` matches a changed path that starts with `test/`.
+  /// A trigger `file:test/` matches a changed path that starts with `test/`
+  /// in its package (see [inPackage]): `test/a_test.dart`, and
+  /// `packages/core/test/a_test.dart` in a monorepo.
   /// A trigger `around:GoRoute` matches a hunk that adds a line and contains
   /// `GoRoute`, on an added or an unchanged line. Any other trigger matches an
   /// added line that contains it. A rule without triggers always applies.
@@ -169,7 +173,7 @@ class Rule {
     for (final String trigger in triggers) {
       if (trigger.startsWith('file:')) {
         final String prefix = trigger.substring('file:'.length);
-        if (paths.any((String path) => path.startsWith(prefix))) {
+        if (paths.any((String path) => inPackage(path).startsWith(prefix))) {
           return true;
         }
       } else if (trigger.startsWith('around:')) {

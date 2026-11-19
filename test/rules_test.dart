@@ -57,6 +57,30 @@ void main() {
     expect(rule.text, isNot(contains('Triggers')));
   });
 
+  test('reads a file trigger in the package of a monorepo', () {
+    final Rule rule = Rule(
+      id: 'X1',
+      title: 't',
+      text: 't',
+      triggers: <String>['file:lib/'],
+    );
+
+    expect(
+      rule.isTriggeredBy(
+        paths: <String>['packages/core/lib/a.dart'],
+        addedCode: <String>['int a = 1;'],
+      ),
+      isTrue,
+    );
+    expect(
+      rule.isTriggeredBy(
+        paths: <String>['packages/core/test/a_test.dart'],
+        addedCode: <String>['int a = 1;'],
+      ),
+      isFalse,
+    );
+  });
+
   test('applies a rule only when a trigger matches', () {
     final Rule rule = Rule(
       id: 'X1',

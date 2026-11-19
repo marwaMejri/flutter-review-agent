@@ -288,16 +288,35 @@ void _printReport(ReviewResult result, List<Rule> rules) {
   }
 }
 
-/// The Dart files under `lib/` of [project], by their path in the project,
-/// such as `lib/main.dart`.
+/// The Dart files under the `lib/` of each package of [project], by their
+/// path in the project: `lib/main.dart`, and `packages/core/lib/a.dart` in a
+/// monorepo (see [inPackage]). Hidden folders, `build/`, and the folders of
+/// the tools (`.dart_tool/`, `node_modules/`) are skipped.
 List<String> _dartFiles(String project) {
-  final Directory lib = Directory('$project/lib');
-  if (!lib.existsSync()) {
+  final Directory top = Directory(project.replaceAll(RegExp(r'[/\\]+$'), ''));
+  if (!top.existsSync()) {
     return const <String>[];
   }
-  return <String>[
-    for (final FileSystemEntity entity in lib.listSync(recursive: true))
-      if (entity is File && entity.path.endsWith('.dart'))
-        'lib/${entity.path.substring(lib.path.length + 1).replaceAll('\\', '/')}',
-  ];
+  final List<String> found = <String>[];
+  void visit(Directory folder) {
+    for (final FileSystemEntity entity in folder.listSync(followLinks: false)) {
+      final String path = entity.path
+          .substring(top.path.length + 1)
+          .replaceAll('\\', '/');
+      final String name = path.split('/').last;
+      if (entity is Directory &&
+          !name.startsWith('.') &&
+          name != 'build' &&
+          name != 'node_modules') {
+        visit(entity);
+      } else if (entity is File &&
+          name.endsWith('.dart') &&
+          inPackage(path).startsWith('lib/')) {
+        found.add(path);
+      }
+    }
+  }
+
+  visit(top);
+  return found;
 }

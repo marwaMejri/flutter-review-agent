@@ -5,6 +5,7 @@ import 'src/builders.dart';
 import 'src/diff.dart';
 import 'src/findings.dart';
 import 'src/model_client.dart';
+import 'src/packages.dart';
 import 'src/prompt.dart';
 import 'src/rules.dart';
 
@@ -15,6 +16,7 @@ export 'src/evaluation.dart';
 export 'src/findings.dart';
 export 'src/github.dart';
 export 'src/model_client.dart';
+export 'src/packages.dart';
 export 'src/prompt.dart';
 export 'src/rules.dart';
 
@@ -62,9 +64,10 @@ const List<String> generatedSuffixes = <String>[
 ];
 
 /// Returns true for the files the agent reviews: Dart code written by hand,
-/// and the pubspec.
+/// and the pubspec of each package.
 bool isReviewed(String path) =>
     path == 'pubspec.yaml' ||
+    path.endsWith('/pubspec.yaml') ||
     (path.endsWith('.dart') &&
         !generatedSuffixes.any((String suffix) => path.endsWith(suffix)));
 
@@ -72,7 +75,8 @@ bool isReviewed(String path) =>
 ///
 /// [readSource] reads a file of the project by its path, such as
 /// `lib/main.dart`. [projectFiles] lists the Dart files of the project under
-/// `lib/`: P1 looks for the `build()` methods that call a method.
+/// the `lib/` of each package: P1 looks for the `build()` methods that call a
+/// method, and the agent reads the name of each package in its pubspec.
 Future<ReviewResult> review({
   required String diff,
   required List<Rule> rules,
@@ -125,12 +129,26 @@ Future<ReviewResult> review({
       if (isTestFile(file.path)) file.path,
   ];
   final List<String> testExpects = addedExpects(files);
-  final String? packageName = packageNameOf(readSource?.call('pubspec.yaml'));
+  // The packages of the repository by their name, read in their pubspec:
+  // the top of the repository, and in a monorepo each folder that holds a
+  // `lib/` (see packageRoot).
+  final List<String> projectPaths = projectFiles?.call() ?? const <String>[];
+  final Map<String, String> packages = <String, String>{
+    for (final String root in <String>{
+      '',
+      for (final DiffFile file in files) packageRoot(file.path),
+      for (final String path in projectPaths) packageRoot(path),
+    })
+      if (packageNameOf(readSource?.call('${root}pubspec.yaml'))
+          case final String name)
+        name: root,
+  };
   // Read in the whole files, also when the model gets the changed parts only.
   final Map<String, Map<int, String>> routerLines = routerLinesOf(
     files,
     sources,
   );
+  final List<String> builders = builderFacts(files, sources);
   final List<String> widgetLines = untestedWidgetLines(
     files,
     sources,
@@ -176,9 +194,10 @@ Future<ReviewResult> review({
             sources: whole ? sources : const <String, String>{},
             testFiles: testFiles,
             testExpects: testExpects,
-            packageName: packageName,
+            packages: packages,
             routerLines: routerLines,
             widgetLines: widgetLines,
+            builders: builders,
           ),
         ),
       );
@@ -427,7 +446,7 @@ Future<ReviewResult> review({
   // such as T3: with no such line, the pull request has nothing to test.
   final bool behavior = files.any(
     (DiffFile file) =>
-        file.path.startsWith('lib/') &&
+        inPackage(file.path).startsWith('lib/') &&
         !isTestFile(file.path) &&
         (file.addedCode.any(showsBehavior) || changesComputation(file)),
   );
@@ -440,8 +459,8 @@ Future<ReviewResult> review({
   // needs it.
   String? allBuildCode;
   String buildCode() => allBuildCode ??= _buildCode(<String, String>{
-    if (projectFiles != null && readSource != null)
-      for (final String path in projectFiles())
+    if (readSource != null)
+      for (final String path in projectPaths)
         if (readSource(path) case final String code) path: code,
     ...sources,
   });
@@ -560,9 +579,10 @@ Future<ReviewResult> review({
             sources: changedPartsOnly ? const <String, String>{} : sources,
             testFiles: testFiles,
             testExpects: testExpects,
-            packageName: packageName,
+            packages: packages,
             routerLines: routerLines,
             widgetLines: widgetLines,
+            builders: builders,
           ),
         );
       } on Exception {
