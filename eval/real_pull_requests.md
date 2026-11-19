@@ -1258,3 +1258,57 @@ Local runs after this fix, gemini-3.5-flash-lite: #36 P5 on line 25 in 2
 runs out of 2 (the third got HTTP 503); in run 2 the model answered P5 for
 each list widget ("const literal values": do not flag; "`releases`": flag).
 #5 P5 on line 56, as expected; T3 missed again ("Step 4: yes, tested").
+
+## Review of every rule before the clean run
+
+**T3: the conditions of a widget that no test renders.** Deciding which
+check tests which behavior is a judgment of the model: only mutation testing
+(remove the new code, run the tests again) would answer it exactly. One case
+can be computed: a condition or an action inside a widget or a `State` class
+(`if`, `? :`, `??`, `switch`, `case`, an `on...:` callback, `setState(`) can
+only be checked by a test that renders the widget (`testWidgets`, `tester.`,
+`find.`). When the pull request adds such lines and no added test line
+renders a widget, the prompt now says so, with the lines. A line that is
+also a removed line of the pull request (moved code) is left out. The T3 rule
+text does not change: a sentence about widgets in step 4 could give a false
+T3 on #20 (the tile only calls `formatShortDate`, which is tested).
+
+Checked first with a Python copy on the 30 + 13 branches. The fact is given
+on #3, #4, #5, #6, #7, #8, #12, #29, #30, #34, #35, #37, #42 and #43: T3 is
+expected on each. It is not given on the pull requests with no T3: #13, #14,
+#18, #19, #21, #24, #25 and #39 render a widget in their tests; #22 (a
+re-indented `onChanged:`) and #28 (`onTap:` moved from `release_tile.dart`)
+only move code. Still a judgment of the model: a pull request whose widget
+tests do not check the new condition, and code outside a widget checked by an
+unrelated test.
+
+**Rules not sent when they should be (triggers).**
+
+| Rule | Hole | Fix |
+|---|---|---|
+| B2 | `StreamController.broadcast()` and `FocusScopeNode()` in `build()` | both are triggers |
+| MEM1 | a `ValueNotifier` field never disposed: no `Controller` or `ChangeNotifier` in the text | `ValueNotifier` and `FocusScopeNode` are triggers |
+| P5 | `Row(` was in the check, not in the triggers; a `.map` added inside a `ListView` whose `ListView(` line does not change | `Row(`, and `around:ListView(`, `around:GridView`, `around:SliverChildListDelegate(`, `around:SingleChildScrollView(` |
+| P9 | `TweenAnimationBuilder` has the same `child` parameter ([TweenAnimationBuilder.child](https://api.flutter.dev/flutter/widgets/TweenAnimationBuilder/child.html)) | in the rule, the triggers, and the agent placement: its builder is `(context, value, child)`, as for `ValueListenableBuilder` |
+
+On the 30 + 13 branches, only P5 changes: it is also sent on #6 and #44,
+where it must answer no; a remark on a `Column` or a `Row` in a file with no
+`SingleChildScrollView` is refused by the agent anyway.
+
+New challenge branch `limits/tween-builder` (#45): a `TweenAnimationBuilder`
+whose `builder` rebuilds `Text(label, ...)`, which reads neither the value nor
+the animation, with a widget test. Expected: P9 on the `Text` line, no T3.
+
+#45 on GitHub with the agent of `main` (before these fixes): "Rules
+checked: MEM3, P1, P3, P5, T3, T5, CONVENTION. No remark.": P9 was not sent,
+the hole that this fix closes.
+
+Local runs after the fixes, gemini-3.5-flash-lite (`dart test`: 141 passed):
+
+| PR | Result |
+|---|---|
+| #45 `limits/tween-builder` | P9 on line 25 (`Text(label, ...)`); T3 not flagged (the widget test checks it): as expected |
+| #5, 2 runs | P5 (line 54, the `Column`, then line 56) and T3 on line 46 in both: "Step 4: no, no test renders a widget or checks this condition" |
+| #20 | no remark: T3 "test checks formatShortDate", as expected |
+| #28 | no remark: T3 "moved code", as expected |
+| #6 | P9 on line 49, T3 on `release_tile.dart:31`; P5 sent and answered no: as expected |

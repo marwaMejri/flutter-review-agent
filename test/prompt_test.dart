@@ -451,6 +451,97 @@ new file mode 100644
     );
   });
 
+  group('the conditions of a widget that no test renders', () {
+    // Pull request #5: a new `if` on a screen, and a test of the parsing
+    // only.
+    const String widget = '''
+class Issues extends StatelessWidget {
+  const Issues({required this.issues, super.key});
+
+  final List<String> issues;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    children: <Widget>[
+      if (issues.isNotEmpty) const Text('Known issues'),
+    ],
+  );
+}
+''';
+    String diffOf(String test) =>
+        '''
+diff --git a/lib/issues.dart b/lib/issues.dart
+new file mode 100644
+--- /dev/null
++++ b/lib/issues.dart
+@@ -0,0 +1,12 @@
+${widget.trimRight().split('\n').map((String line) => '+$line').join('\n')}
+diff --git a/test/a_test.dart b/test/a_test.dart
+new file mode 100644
+--- /dev/null
++++ b/test/a_test.dart
+@@ -0,0 +1,3 @@
+$test
+''';
+    const Map<String, String> sources = <String, String>{
+      'lib/issues.dart': widget,
+    };
+
+    test('are given when no added test line renders a widget', () {
+      final List<DiffFile> unit = parseDiff(
+        diffOf("+test('reads', () {\n+  expect(read(), 1);\n+});"),
+      );
+
+      expect(untestedWidgetLines(unit, sources), <String>[
+        '`lib/issues.dart:9`',
+      ]);
+      expect(
+        buildUserPrompt(rules: rules, files: unit, sources: sources),
+        contains(
+          'Added lines under `lib/` with a condition or an action inside a '
+          'widget or a `State` class: `lib/issues.dart:9`. No added test '
+          'line renders a widget (`testWidgets`, `tester.`, `find.`): no '
+          'test of this pull request checks them.',
+        ),
+      );
+    });
+
+    test('are not given when an added test line renders a widget', () {
+      final List<DiffFile> rendered = parseDiff(
+        diffOf(
+          "+testWidgets('shows', (WidgetTester tester) async {\n"
+          "+  expect(find.text('Known issues'), findsOneWidget);\n"
+          '+});',
+        ),
+      );
+
+      expect(untestedWidgetLines(rendered, sources), isEmpty);
+      expect(
+        buildUserPrompt(rules: rules, files: rendered, sources: sources),
+        isNot(contains('with a condition or an action')),
+      );
+    });
+
+    test('leave out a line moved from another file', () {
+      final List<DiffFile> unit = parseDiff(
+        diffOf("+test('reads', () {\n+  expect(read(), 1);\n+});"),
+      );
+      final List<DiffFile> deleted = parseDeletedFiles('''
+diff --git a/lib/old.dart b/lib/old.dart
+deleted file mode 100644
+--- a/lib/old.dart
++++ /dev/null
+@@ -1,1 +0,0 @@
+-      if (issues.isNotEmpty) const Text('Known issues'),
+''');
+
+      expect(
+        untestedWidgetLines(unit, sources, deletedFiles: deleted),
+        isEmpty,
+      );
+    });
+  });
+
   test('sends only the changed parts when the file is unknown', () {
     final String prompt = buildUserPrompt(rules: rules, files: files);
 

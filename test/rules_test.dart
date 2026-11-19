@@ -46,8 +46,13 @@ void main() {
       'GridView.count(',
       'GridView.extent(',
       'Column(',
+      'Row(',
       'SliverChildListDelegate(',
       'SingleChildScrollView(',
+      'around:ListView(',
+      'around:GridView',
+      'around:SliverChildListDelegate(',
+      'around:SingleChildScrollView(',
     ]);
     expect(rule.text, isNot(contains('Triggers')));
   });

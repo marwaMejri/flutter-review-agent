@@ -131,6 +131,11 @@ Future<ReviewResult> review({
     files,
     sources,
   );
+  final List<String> widgetLines = untestedWidgetLines(
+    files,
+    sources,
+    deletedFiles: deleted,
+  );
 
   // A request too large for the provider is sent again with the changed
   // parts only, then cut in two until each part fits: the diff while it is
@@ -173,6 +178,7 @@ Future<ReviewResult> review({
             testExpects: testExpects,
             packageName: packageName,
             routerLines: routerLines,
+            widgetLines: widgetLines,
           ),
         ),
       );

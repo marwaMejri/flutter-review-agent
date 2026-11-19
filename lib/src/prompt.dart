@@ -1,3 +1,4 @@
+import 'builders.dart';
 import 'diff.dart';
 import 'findings.dart';
 import 'rules.dart';
@@ -71,6 +72,9 @@ Answer with JSON only, in this form:
 /// name in the pubspec of the project, to read its `package:` imports.
 /// [routerLines] are the added lines inside a router or app call, by file and
 /// line (see [routerLinesOf]); they are found in [sources] when not given.
+/// [widgetLines] are the added lines of a widget that no test of the pull
+/// request renders (see [untestedWidgetLines]); they are found in [files] and
+/// [sources] when not given.
 String buildUserPrompt({
   required List<Rule> rules,
   required List<DiffFile> files,
@@ -81,6 +85,7 @@ String buildUserPrompt({
   List<String>? testExpects,
   String? packageName,
   Map<String, Map<int, String>>? routerLines,
+  List<String>? widgetLines,
 }) {
   // A fact the model cannot guess wrong: without it, a small model sometimes
   // answers that a test checks a behavior when the pull request has no test.
@@ -193,6 +198,27 @@ String buildUserPrompt({
     buffer.writeln('- and ${expects.length - maxExpects} more.');
   }
   buffer.writeln();
+  // A fact the model cannot read wrong: a model counted an `expect` on the
+  // parsing as a test of a new condition on a screen. Only a test that
+  // renders the widget can check such a condition.
+  final List<String> untested =
+      widgetLines ??
+      untestedWidgetLines(files, sources, deletedFiles: deletedFiles);
+  if (untested.isNotEmpty) {
+    final String lines = <String>[
+      ...untested.take(maxExpects),
+      if (untested.length > maxExpects)
+        'and ${untested.length - maxExpects} more',
+    ].join(', ');
+    buffer
+      ..writeln(
+        'Added lines under `lib/` with a condition or an action inside a '
+        'widget or a `State` class: $lines. No added test line renders a '
+        'widget (`testWidgets`, `tester.`, `find.`): no test of this pull '
+        'request checks them.',
+      )
+      ..writeln();
+  }
   // A fact the model cannot read wrong: a model answered "no" to M1 for an
   // added `export 'package:flutter/cupertino.dart';`.
   final List<String> sdkExports = <String>[
@@ -320,6 +346,57 @@ List<String> addedExpects(List<DiffFile> files) => <String>[
         if (_expectCall.hasMatch(file.newLineText[line] ?? ''))
           '`${file.path}:$line` `${_statement(file, line)}`',
 ];
+
+/// The start of a test that renders a widget: `testWidgets(` of
+/// `flutter_test`, `patrolTest(` of `patrol`, `testGoldens(` of
+/// `golden_toolkit`, `goldenTest(` of `alchemist`, and the `tester.` and
+/// `find.` they use.
+final RegExp _rendersWidget = RegExp(
+  r'\b(testWidgets|patrolTest|testGoldens|goldenTest)\s*\(|\btester\.|'
+  r'\bfind\.',
+);
+
+/// The added lines under `lib/` of [files] with a condition or an action
+/// inside a widget or a `State` class (see [widgetConditionLines]), as
+/// `` `path:line` ``, when no added line of a test file renders a widget:
+/// a unit test cannot check them. Empty when an added test line renders a
+/// widget, or when the source of the file is not in [sources].
+///
+/// An added line that is also a removed line of the pull request, in
+/// [files] or in [deletedFiles], is moved code: it is left out.
+List<String> untestedWidgetLines(
+  List<DiffFile> files,
+  Map<String, String> sources, {
+  List<DiffFile> deletedFiles = const <DiffFile>[],
+}) {
+  final bool rendered = files.any(
+    (DiffFile file) =>
+        isTestFile(file.path) && file.addedCode.any(_rendersWidget.hasMatch),
+  );
+  if (rendered) {
+    return const <String>[];
+  }
+  final Set<String> removed = <String>{
+    for (final DiffFile file in <DiffFile>[...files, ...deletedFiles])
+      for (final List<String> lines in file.removedBefore.values)
+        for (final String line in lines) line.trim(),
+  };
+  final List<String> found = <String>[];
+  for (final DiffFile file in files) {
+    final String? source = sources[file.path];
+    if (!file.path.startsWith('lib/') || source == null) {
+      continue;
+    }
+    final Set<int> conditions = widgetConditionLines(source);
+    for (final int line in file.addedLines.toList()..sort()) {
+      if (conditions.contains(line) &&
+          !removed.contains((file.newLineText[line] ?? '').trim())) {
+        found.add('`${file.path}:$line`');
+      }
+    }
+  }
+  return found;
+}
 
 /// The statement that starts on [line] of [file], up to the bracket that
 /// closes it, on one line: at most 12 lines of the diff and 200 characters.

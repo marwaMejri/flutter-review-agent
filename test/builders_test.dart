@@ -90,5 +90,76 @@ AnimatedBuilder(
 ''';
       expect(builderPlaces(code).single.line, 7);
     });
+
+    test('reads the value parameter of a TweenAnimationBuilder', () {
+      // Challenge `limits/tween-builder`.
+      const String code = '''
+TweenAnimationBuilder<double>(
+  tween: Tween<double>(begin: 0, end: progress),
+  duration: const Duration(milliseconds: 300),
+  builder: (BuildContext context, double value, Widget? child) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(label, style: Theme.of(context).textTheme.labelLarge),
+        LinearProgressIndicator(value: value),
+      ],
+    );
+  },
+)
+''';
+      expect(builderPlaces(code), <BuilderPlace>[
+        (first: 1, last: 13, line: 8),
+      ]);
+    });
+  });
+
+  group('the lines with a condition or an action in a widget', () {
+    test('are inside a widget or a State class only', () {
+      const String code = r'''
+String label(int count) => count == 1 ? 'one' : 'many';
+
+class Counter extends StatefulWidget {
+  const Counter({super.key});
+
+  @override
+  State<Counter> createState() => _CounterState();
+}
+
+class _CounterState extends State<Counter> {
+  int _count = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: <Widget>[
+        if (_count > 0) Text('$_count'),
+        TextButton(
+          onPressed: () => setState(() => _count++),
+          child: Text(widget.title ?? 'Add'),
+        ),
+      ],
+    );
+  }
+}
+''';
+      expect(widgetConditionLines(code), <int>{17, 19, 20});
+    });
+
+    test('leave out the comments, the strings and the nullable types', () {
+      const String code = r'''
+class Hint extends StatelessWidget {
+  const Hint({this.text, super.key});
+
+  // if (text == null) it shows nothing
+  final String? text;
+
+  @override
+  Widget build(BuildContext context, [Widget? child]) =>
+      Text('Is it new ? Yes');
+}
+''';
+      expect(widgetConditionLines(code), isEmpty);
+    });
   });
 }

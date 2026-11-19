@@ -52,7 +52,8 @@ Every rule has the same parts:
   taken first: the `pumpAndSettle()` after a tap, not the one after
   `pumpWidget`. With "the outermost widget of the builder that reads neither
   the animation nor the value", as for P9, a remark in the `builder` of an
-  `AnimatedBuilder`, a `ListenableBuilder` or a `ValueListenableBuilder` is
+  `AnimatedBuilder`, a `ListenableBuilder`, a `ValueListenableBuilder` or a
+  `TweenAnimationBuilder` is
   moved to the outermost widget given to `child:`, returned or listed in
   `children:` that is not `const` and reads neither the animation, nor the
   listenable, nor the value, nor the `child` parameter; it is refused when
@@ -85,7 +86,7 @@ Every rule has the same parts:
 | P2 | `setState` higher in the tree than needed | performance.md | suggestion |
 | P3 | A method that returns a widget tree instead of a widget | performance.md | suggestion |
 | P5 | A long list built without a builder | performance.md | suggestion |
-| P9 | A builder (`AnimatedBuilder`, `ListenableBuilder`, `ValueListenableBuilder`) that rebuilds a subtree that does not change | performance.md | issue |
+| P9 | A builder (`AnimatedBuilder`, `ListenableBuilder`, `ValueListenableBuilder`, `TweenAnimationBuilder`) that rebuilds a subtree that does not change | performance.md | issue |
 | B2 | A resource created in `build()` | memory.md | issue |
 | MEM1 | An object with `dispose()` that is never disposed | memory.md | issue |
 | MEM2 | A `BuildContext` stored in a field | memory.md | issue |

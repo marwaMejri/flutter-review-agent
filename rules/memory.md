@@ -49,7 +49,7 @@ These rules target leaks.
 - **Source:** [StatefulWidget, Performance considerations](https://api.flutter.dev/flutter/widgets/StatefulWidget-class.html#performance-considerations) (resources allocated in `initState` and disposed of in `dispose`), [State.dispose](https://api.flutter.dev/flutter/widgets/State/dispose.html) ("Subclasses should override this method to release any resources retained by this object") and [TextEditingController](https://api.flutter.dev/flutter/widgets/TextEditingController-class.html) ("Remember to dispose of the TextEditingController when it is no longer needed")
 - **Level:** issue
 - **Remark line:** in `build()`, or in a method that a `build()` calls
-- **Triggers:** `Controller(`, `Controller<`, `FocusNode(`, `ValueNotifier(`, `ValueNotifier<`, `Timer(`, `Timer.periodic(`, `Subscription`, `.listen(`
+- **Triggers:** `Controller(`, `Controller<`, `StreamController.broadcast(`, `FocusNode(`, `FocusScopeNode(`, `ValueNotifier(`, `ValueNotifier<`, `Timer(`, `Timer.periodic(`, `Subscription`, `.listen(`
 
 ## MEM1. An object with `dispose()` that is never disposed
 
@@ -117,7 +117,7 @@ These rules target leaks.
 - **Level:** issue
 - **Remark line:** an object that the file does not dispose
 - **Not on a line of:** B2
-- **Triggers:** `Controller`, `FocusNode`, `ChangeNotifier`, `dispose`, `Timer.periodic`
+- **Triggers:** `Controller`, `FocusNode`, `FocusScopeNode`, `ValueNotifier`, `ChangeNotifier`, `dispose`, `Timer.periodic`
 
 ## MEM2. A `BuildContext` stored in a field
 

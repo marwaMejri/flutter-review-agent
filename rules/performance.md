@@ -279,12 +279,13 @@
 - **Source:** [Performance best practices, Be lazy!](https://docs.flutter.dev/perf/best-practices#be-lazy), [Pitfalls](https://docs.flutter.dev/perf/best-practices#pitfalls) ("if most of the children are not visible on screen"), [ListView](https://api.flutter.dev/flutter/widgets/ListView-class.html) (the default constructor "is appropriate for list views with a small number of children"), [GridView](https://api.flutter.dev/flutter/widgets/GridView-class.html) (the `children` of `GridView`, `GridView.count` and `GridView.extent` are a `SliverChildListDelegate`; for many children, use `GridView.builder`) and [SliverChildListDelegate](https://api.flutter.dev/flutter/widgets/SliverChildListDelegate-class.html)
 - **Level:** suggestion
 - **Remark line:** a list widget, or a `Column` or `Row` in a file with a `SingleChildScrollView`
-- **Triggers:** `ListView(`, `GridView(`, `GridView.count(`, `GridView.extent(`, `Column(`, `SliverChildListDelegate(`, `SingleChildScrollView(`
+- **Triggers:** `ListView(`, `GridView(`, `GridView.count(`, `GridView.extent(`, `Column(`, `Row(`, `SliverChildListDelegate(`, `SingleChildScrollView(`, `around:ListView(`, `around:GridView`, `around:SliverChildListDelegate(`, `around:SingleChildScrollView(`
 
 ## P9. A builder that rebuilds a subtree that does not change
 
 - **Check:** the `builder` function of an `AnimatedBuilder`, a
-  `ListenableBuilder` or a `ValueListenableBuilder`.
+  `ListenableBuilder`, a `ValueListenableBuilder` or a
+  `TweenAnimationBuilder`.
 - **Flag when:** the `builder` contains a subtree that does not depend on the
   animation, the listenable or the `value` parameter, and that subtree is not
   `const`. It should be built once and passed through the `child` parameter.
@@ -302,16 +303,17 @@
   - the subtrees that do not depend on them are `const`: Flutter reuses the
     same instance and skips rebuilding them;
   - the widget is given to the `child:` argument of the `AnimatedBuilder`,
-    `ListenableBuilder` or `ValueListenableBuilder` itself: it is outside the
-    `builder`, and built once. This is the fix the rule asks for.
+    `ListenableBuilder`, `ValueListenableBuilder` or `TweenAnimationBuilder`
+    itself: it is outside the `builder`, and built once. This is the fix the
+    rule asks for.
 - **Decide:**
   1. Does the pull request add or change the `builder` of an `AnimatedBuilder`,
-     a `ListenableBuilder` or a `ValueListenableBuilder`? If yes, go to step 2.
-     If no, do not flag.
+     a `ListenableBuilder`, a `ValueListenableBuilder` or a
+     `TweenAnimationBuilder`? If yes, go to step 2. If no, do not flag.
   2. Look only inside the `builder` function. The widget given to the `child:`
-     argument of the `AnimatedBuilder`, `ListenableBuilder` or
-     `ValueListenableBuilder` itself is outside the `builder`: it is built once,
-     so skip it. Do not judge the `builder` as a whole either: it always uses
+     argument of the `AnimatedBuilder`, `ListenableBuilder`,
+     `ValueListenableBuilder` or `TweenAnimationBuilder` itself is outside the
+     `builder`: it is built once, so skip it. Do not judge the `builder` as a whole either: it always uses
      the animation somewhere. Search inside it for one widget whose arguments
      use only fields of the widget (`widget.version`), constants, `context`, or
      variables of `build()` set before the `builder` (such as `theme` from
@@ -355,8 +357,8 @@
 
 - **Why:** the `builder` runs on every tick of the animation, or on every
   change of the value. A subtree passed as `child` is built once.
-- **Source:** [Performance best practices, Control build() cost](https://docs.flutter.dev/perf/best-practices#control-build-cost) (the rebuild stops at "the same instance of the child widget"), [StatefulWidget, Performance considerations](https://api.flutter.dev/flutter/widgets/StatefulWidget-class.html#performance-considerations) ("If a subtree does not change, cache the widget that represents that subtree"), [Pitfalls](https://docs.flutter.dev/perf/best-practices#pitfalls), [AnimatedBuilder, Performance optimizations](https://api.flutter.dev/flutter/widgets/AnimatedBuilder-class.html#performance-optimizations), [ValueListenableBuilder](https://api.flutter.dev/flutter/widgets/ValueListenableBuilder-class.html) and [ListenableBuilder.child](https://api.flutter.dev/flutter/widgets/ListenableBuilder/child.html)
+- **Source:** [Performance best practices, Control build() cost](https://docs.flutter.dev/perf/best-practices#control-build-cost) (the rebuild stops at "the same instance of the child widget"), [StatefulWidget, Performance considerations](https://api.flutter.dev/flutter/widgets/StatefulWidget-class.html#performance-considerations) ("If a subtree does not change, cache the widget that represents that subtree"), [Pitfalls](https://docs.flutter.dev/perf/best-practices#pitfalls), [AnimatedBuilder, Performance optimizations](https://api.flutter.dev/flutter/widgets/AnimatedBuilder-class.html#performance-optimizations), [ValueListenableBuilder](https://api.flutter.dev/flutter/widgets/ValueListenableBuilder-class.html), [ListenableBuilder.child](https://api.flutter.dev/flutter/widgets/ListenableBuilder/child.html) and [TweenAnimationBuilder.child](https://api.flutter.dev/flutter/widgets/TweenAnimationBuilder/child.html) ("it's more efficient to build that subtree once instead of rebuilding it on every animation tick")
 - **Level:** issue
 - **Remark line:** a widget that is not `const`
 - **Remark place:** the outermost widget of the builder that reads neither the animation nor the value
-- **Triggers:** `AnimatedBuilder`, `ListenableBuilder`, `ValueListenableBuilder`
+- **Triggers:** `AnimatedBuilder`, `ListenableBuilder`, `ValueListenableBuilder`, `TweenAnimationBuilder`

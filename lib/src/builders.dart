@@ -1,10 +1,11 @@
-/// The `builder` of an `AnimatedBuilder`, a `ListenableBuilder` or a
-/// `ValueListenableBuilder`: its first and last line, and the line of the
-/// widget that P9 is about.
+/// The `builder` of an `AnimatedBuilder`, a `ListenableBuilder`, a
+/// `ValueListenableBuilder` or a `TweenAnimationBuilder`: its first and last
+/// line, and the line of the widget that P9 is about.
 typedef BuilderPlace = ({int first, int last, int? line});
 
 final RegExp _builderCall = RegExp(
-  r'\b(AnimatedBuilder|ListenableBuilder|ValueListenableBuilder)\s*'
+  r'\b(AnimatedBuilder|ListenableBuilder|ValueListenableBuilder|'
+  r'TweenAnimationBuilder)\s*'
   r'(?:<[^()]*>)?\(',
 );
 final RegExp _childPosition = RegExp(r'(child:|=>|return|\[|,|\?|\s:)$');
@@ -41,7 +42,10 @@ List<BuilderPlace> builderPlaces(String source) {
         if (parameter.trim().isNotEmpty)
           parameter.trim().split(RegExp(r'\s+')).last,
     ];
-    if (builder.group(1) == 'ValueListenableBuilder' && names.length >= 2) {
+    // The value parameter: `(context, value, child)`.
+    if ((builder.group(1) == 'ValueListenableBuilder' ||
+            builder.group(1) == 'TweenAnimationBuilder') &&
+        names.length >= 2) {
       reads.add(names[1]);
     }
     // The child parameter: a subtree that holds it cannot be the child.
@@ -69,6 +73,36 @@ List<BuilderPlace> builderPlaces(String source) {
     ));
   }
   return places;
+}
+
+final RegExp _widgetClass = RegExp(
+  r'\bclass\s+\w+(?:<[^{]*?>)?\s+extends\s+\w*(?:Widget|State)\b[^{]*\{',
+);
+final RegExp _conditionOrAction = RegExp(
+  r'\bif\s*\(|\bswitch\b|\bcase\b|\s\?\s|^\s*\?\s|\?\?|'
+  r'\bon[A-Z]\w*\s*:|\bsetState\s*\(',
+);
+
+/// The lines of [source] with a condition or an action (`if`, `? :`, `??`,
+/// `switch`, `case`, an `on...:` callback, `setState(`) inside a widget or
+/// `State` class: a class that extends a class whose name ends with `Widget`
+/// or `State`, such as `StatelessWidget`, `ConsumerWidget` or
+/// `State<Counter>`. Comments and the text of strings are left out.
+Set<int> widgetConditionLines(String source) {
+  final String text = source.replaceAll('\r\n', '\n');
+  final String code = _codeOnly(text);
+  final List<String> lines = code.split('\n');
+  final Set<int> found = <int>{};
+  for (final Match match in _widgetClass.allMatches(code)) {
+    final int open = match.end - 1;
+    final int last = _lineOf(text, _closing(code, open));
+    for (int line = _lineOf(text, open); line <= last; line++) {
+      if (_conditionOrAction.hasMatch(lines[line - 1])) {
+        found.add(line);
+      }
+    }
+  }
+  return found;
 }
 
 /// The expression of the argument that starts at [from] in [call], up to the
