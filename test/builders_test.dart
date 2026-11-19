@@ -114,6 +114,53 @@ TweenAnimationBuilder<double>(
     });
   });
 
+  group('the list widget that P5 is about', () {
+    // Pull request #5: the known issues in a `Column`, inside the `Column` of
+    // a `SingleChildScrollView`.
+    const String code = '''
+SingleChildScrollView(
+  child: Column(
+    children: <Widget>[
+      MarkdownBody(data: release.notes),
+      if (release.knownIssues.isNotEmpty)
+        Column(
+          children: release.knownIssues.map(Text.new).toList(),
+        ),
+    ],
+  ),
+)
+''';
+
+    test('is the list built with the .map, not a widget around it', () {
+      expect(listPlace(code, 1), 6);
+      expect(listPlace(code, 2), 6);
+    });
+
+    test('keeps a remark that is already on that list', () {
+      expect(listPlace(code, 6), isNull);
+      expect(listPlace(code, 7), isNull);
+    });
+
+    test('keeps a remark on a list with no loop and no .map', () {
+      // Challenge `limits/grid-children`: the `const` list of the `ListView`.
+      const String grid = '''
+Column(
+  children: <Widget>[
+    ListView(children: const <Widget>[Chip(label: Text('Stable'))]),
+    GridView.count(
+      crossAxisCount: 2,
+      children: <Widget>[
+        for (final Release release in releases) Text(release.version),
+      ],
+    ),
+  ],
+)
+''';
+      expect(listPlace(grid, 3), isNull);
+      expect(listPlace(grid, 1), 4);
+    });
+  });
+
   group('the lines with a condition or an action in a widget', () {
     test('are inside a widget or a State class only', () {
       const String code = r'''

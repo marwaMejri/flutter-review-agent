@@ -279,6 +279,7 @@
 - **Source:** [Performance best practices, Be lazy!](https://docs.flutter.dev/perf/best-practices#be-lazy), [Pitfalls](https://docs.flutter.dev/perf/best-practices#pitfalls) ("if most of the children are not visible on screen"), [ListView](https://api.flutter.dev/flutter/widgets/ListView-class.html) (the default constructor "is appropriate for list views with a small number of children"), [GridView](https://api.flutter.dev/flutter/widgets/GridView-class.html) (the `children` of `GridView`, `GridView.count` and `GridView.extent` are a `SliverChildListDelegate`; for many children, use `GridView.builder`) and [SliverChildListDelegate](https://api.flutter.dev/flutter/widgets/SliverChildListDelegate-class.html)
 - **Level:** suggestion
 - **Remark line:** a list widget, or a `Column` or `Row` in a file with a `SingleChildScrollView`
+- **Remark place:** the list widget built with the loop or the `.map`, not a widget around it
 - **Triggers:** `ListView(`, `GridView(`, `GridView.count(`, `GridView.extent(`, `Column(`, `Row(`, `SliverChildListDelegate(`, `SingleChildScrollView(`, `around:ListView(`, `around:GridView`, `around:SliverChildListDelegate(`, `around:SingleChildScrollView(`
 
 ## P9. A builder that rebuilds a subtree that does not change

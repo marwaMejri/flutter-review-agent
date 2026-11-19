@@ -221,6 +221,96 @@ void main() {
     );
   });
 
+  group('a rule marked Confirm', () {
+    // A test file with an added check: the model judges whether it tests the
+    // new code.
+    const String tested =
+        '$sampleDiff'
+        'diff --git a/test/a_test.dart b/test/a_test.dart\n'
+        'new file mode 100644\n'
+        '--- /dev/null\n'
+        '+++ b/test/a_test.dart\n'
+        '@@ -0,0 +1,1 @@\n'
+        '+  test(\'z\', () => expect(A().z, 1));\n';
+    final Rule t3 = Rule(
+      id: 'T3',
+      title: 't',
+      text:
+          '## T3. t\n\n- **Confirm:** when a test of the pull request has an '
+          'added check',
+    );
+    const String flagged =
+        '{"checks": [], "findings": [{"rule": "T3", "file": "lib/a.dart", '
+        '"line": 11, "evidence": "final int z;", "message": "Test it."}]}';
+    const String notFlagged =
+        '{"checks": [{"rule": "T3", "applies": false, "reason": "Step 4: '
+        'yes, a_test.dart checks z."}], "findings": []}';
+
+    ModelClient clientOf(List<String> answers, List<String> prompts) =>
+        ModelClient(
+          provider: 'test-provider',
+          baseUrl: 'https://example.com/v1/',
+          models: <String>['test-model'],
+          apiKey: 'test-key',
+          httpClient: MockClient((http.Request request) async {
+            prompts.add(request.body);
+            return http.Response(
+              jsonEncode(<String, Object>{
+                'choices': <Object>[
+                  <String, Object>{
+                    'message': <String, String>{
+                      'content': answers[prompts.length - 1],
+                    },
+                  },
+                ],
+              }),
+              200,
+            );
+          }),
+        );
+
+    test('is refused when the second answer does not flag it', () async {
+      final List<String> prompts = <String>[];
+      final ReviewResult result = await review(
+        diff: tested,
+        rules: <Rule>[t3],
+        client: clientOf(<String>[flagged, notFlagged], prompts),
+      );
+
+      expect(prompts, hasLength(2));
+      expect(result.accepted, isEmpty);
+      expect(
+        result.rejected.single.reason,
+        'not flagged again by a second answer: Step 4: yes, a_test.dart '
+        'checks z.',
+      );
+    });
+
+    test('is kept when the second answer flags it too', () async {
+      final List<String> prompts = <String>[];
+      final ReviewResult result = await review(
+        diff: tested,
+        rules: <Rule>[t3],
+        client: clientOf(<String>[flagged, flagged], prompts),
+      );
+
+      expect(prompts, hasLength(2));
+      expect(result.accepted.single.rule, 'T3');
+    });
+
+    test('is not asked again when no test has an added check', () async {
+      final List<String> prompts = <String>[];
+      final ReviewResult result = await review(
+        diff: sampleDiff,
+        rules: <Rule>[t3],
+        client: clientOf(<String>[flagged], prompts),
+      );
+
+      expect(prompts, hasLength(1));
+      expect(result.accepted.single.rule, 'T3');
+    });
+  });
+
   test('refuses MEM1 on a line that has B2', () async {
     final ModelClient client = ModelClient(
       provider: 'test-provider',

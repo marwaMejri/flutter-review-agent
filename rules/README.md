@@ -53,11 +53,14 @@ Every rule has the same parts:
   `pumpWidget`. With "the outermost widget of the builder that reads neither
   the animation nor the value", as for P9, a remark in the `builder` of an
   `AnimatedBuilder`, a `ListenableBuilder`, a `ValueListenableBuilder` or a
-  `TweenAnimationBuilder` is
-  moved to the outermost widget given to `child:`, returned or listed in
-  `children:` that is not `const` and reads neither the animation, nor the
-  listenable, nor the value, nor the `child` parameter; it is refused when
-  the builder has no such widget. The model does not get this line.
+  `TweenAnimationBuilder` is moved to the outermost widget given to
+  `child:`, returned or listed in `children:` that is not `const` and reads
+  neither the animation, nor the listenable, nor the value, nor the `child`
+  parameter; it is refused when the builder has no such widget. With "the
+  list widget built with the loop or the `.map`, not a widget around it", as
+  for P5, a remark on a `Column`, a `Row`, a list widget or a
+  `SingleChildScrollView` that holds the list is moved to the innermost list
+  widget around the loop or the `.map`. The model does not get this line.
 - **Not on a line of:** optional. The agent refuses a remark of the rule on a
   line that has a remark of one of these rules. MEM1 has `B2`: an object
   created in `build()` is B2, never MEM1. The model does not get this line.
@@ -70,6 +73,12 @@ Every rule has the same parts:
   other than `build()`; or when an added line with an operator replaces a
   removed line with an operator, such as `a + b` changed to `a * b`. The
   model does not get this line.
+- **Confirm:** optional. With "when a test of the pull request has an added
+  check", as for T3, a remark of the rule is asked again, with the rule
+  alone, when a test of the pull request has an added `expect` or `verify`:
+  the model then judges whether these checks test the new code. The remark
+  is kept only when the second answer flags it too. This costs one more
+  request, only in that case. The model does not get this line.
 - **Triggers:** the rule is sent to the model only when a line added by the
   pull request contains one of these texts, or, for `file:…`, when a changed
   file path starts with it. For `around:…`, the text can also be on an

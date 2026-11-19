@@ -1333,3 +1333,52 @@ The job log of #6 does not show the answer, so its cause cannot be read. The
 error now gives the position where the answer stops being JSON and the text
 around it, for example `Unexpected character at character 40, near
 "... "message": 'Use a const.'}]}"`, so the next such error shows its cause.
+
+#6 again (agent `13e1981`, gemini-3.5-flash-lite): P9 on `new_badge.dart:49`
+and T3 on `release_tile.dart:31`, P5 sent and answered no: as expected.
+
+**gemini-3.5-flash-lite on the 44 pull requests: 44 out of 44 as expected**
+(#6 on its second run; its first run got an answer that was not JSON).
+
+## `openai/gpt-oss-120b`, on GitHub, agent `13e1981`, #2 to #24
+
+Every review was made by gpt-oss-120b (one model in the variables, no
+fallback).
+
+| PR | Result |
+|---|---|
+| #2, #3, #4, #6 to #13, #15 to #22, #24 | as expected (T3 sometimes on another added line of the behavior, such as `isNew: ... == ...` on #6) |
+| #5 | P5 on line 33, the outer `Column` of the `SingleChildScrollView`; the list built with `.map` is the `Column` of line 54. T3 as expected |
+| #14 | T5 as expected, and **a false T3** on `releases_view.dart:22`: "Step 2: yes (adds navigation action) ... Step 4: no test checks behavior". The pull request replaces `context.go('/settings')` with `context.goNamed('settings')`, and `router_test.dart` checks `find.byType(SettingsView)` |
+| #23 | B5, B2, MEM1, P1; **T3 missed**: the model answered every rule in one sentence, with no steps ("no. No new behavior added that lacks test."), while the pull request has no test file |
+
+**20 out of 23 as expected.**
+
+Fixes (no judgment of the model in either):
+
+- P5: `Remark place: the list widget built with the loop or the .map, not a
+  widget around it`. A remark on a `Column`, a `Row`, a list widget or a
+  `SingleChildScrollView` that holds the list goes to the innermost list
+  widget around the loop or the `.map`; a remark already on that widget, or
+  on a list with no loop (the `const` `ListView` of #36), stays. Checked with
+  a Python copy: #5 line 33 goes to line 54 (line 56 of the flash-lite runs
+  stays); #36 line 25 stays, the outer `Column` of line 12 would go to 25.
+- T3: with no test file, the prompt now says "Test files changed by this
+  pull request: none: no test of this pull request checks a new behavior.",
+  as it already did for test files with no added check.
+
+#14 is not fixed by a change of the T3 text: to say that `goNamed` does the
+same as `go`, the model must judge two calls equal, and a text that lets it
+skip T3 there could hide a missing test elsewhere.
+
+**T3: a second answer when the model judges the tests.** The false T3 of #14
+(gpt-oss-120b) came where the model must judge whether the added checks test
+the new code; it was not there in the two runs of #14 before. T3 is now
+marked `Confirm: when a test of the pull request has an added check`: in
+that case only, T3 is asked again, with T3 alone, and its remark is kept only
+when the second answer flags it too. When the agent already gives the widget
+lines that no test renders (#5), there is nothing to judge: no second
+request. On the 44 branches, 12 have an added check (#5, #13, #14, #18 to
+#21, #24, #25, #38, #39, #45); in the clean runs, T3 was flagged on two of
+them: #5 (no second request) and #14 with gpt-oss-120b (the false T3). The
+cost is one more request in that case only.

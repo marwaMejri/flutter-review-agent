@@ -182,7 +182,8 @@ String buildUserPrompt({
     ..writeln()
     ..writeln(
       tests.isEmpty
-          ? 'Test files changed by this pull request: none.'
+          ? 'Test files changed by this pull request: none: no test of this '
+                'pull request checks a new behavior.'
           : expects.isEmpty
           ? 'Test files changed by this pull request: ${tests.join(', ')}. '
                 'None of their added lines has a check (`expect`, `verify`): '
@@ -722,7 +723,7 @@ bool isTestFile(String path) => path.endsWith('_test.dart');
 /// `Do not flag when` are written again as the steps of `Decide`, which every
 /// model follows more reliably. `Source` and `Level` are for the people who
 /// read the rules. `Remarks`, `Remark line`, `Remark place`,
-/// `Not on a line of` and `Only when` are applied by the agent. Leaving them
+/// `Not on a line of`, `Only when` and `Confirm` are applied by the agent. Leaving them
 /// out saves tokens on every review.
 const List<String> fieldsNotForModel = <String>[
   'Check',
@@ -735,6 +736,7 @@ const List<String> fieldsNotForModel = <String>[
   'Not on a line of',
   'Only when',
   'Remark place',
+  'Confirm',
 ];
 
 /// The rule as the model gets it: its title, `Decide`, `Bad`, `Good` and

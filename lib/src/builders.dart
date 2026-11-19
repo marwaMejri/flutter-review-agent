@@ -105,6 +105,80 @@ Set<int> widgetConditionLines(String source) {
   return found;
 }
 
+final RegExp _listCall = RegExp(
+  r'(?<![\w.])(ListView|GridView(?:\.count|\.extent)?|Column|Row|'
+  r'SliverChildListDelegate|SingleChildScrollView)\s*(?:<[^()]*>)?\(',
+);
+final RegExp _loop = RegExp(
+  r'\.(map|expand)\s*(?:<[^()]*>)?\(|\bfor\s*\(|\bList\.generate\s*\(',
+);
+
+/// A call of a list widget: its position in the code and its lines.
+typedef _ListCall = ({int start, int end, int first, int last});
+
+/// The innermost of [calls], or null when there is none.
+_ListCall? _innermost(Iterable<_ListCall> calls) => calls.fold<_ListCall?>(
+  null,
+  (_ListCall? inner, _ListCall call) =>
+      inner == null || call.start > inner.start ? call : inner,
+);
+
+/// For P5: the line where a remark on [line] of [source] goes, when the
+/// remark is on a widget around the list that is built with a loop or a
+/// `.map`. The widgets are `ListView(`, `GridView(`, `GridView.count(`,
+/// `GridView.extent(`, `Column(`, `Row(`, `SliverChildListDelegate(` and
+/// `SingleChildScrollView(`. The widget of [line] is the one that opens on
+/// it, or else the innermost one around it. When a loop or a `.map` has that
+/// widget as its innermost one, the remark is already right: null. Otherwise
+/// the answer is the first widget inside it that has a loop or a `.map`: in
+/// `Column(children: [Text(...), Column(children: items.map(...).toList())])`,
+/// the inner `Column`. Null when there is none: the remark stays where it
+/// is.
+int? listPlace(String source, int line) {
+  final String text = source.replaceAll('\r\n', '\n');
+  final String code = _codeOnly(text);
+  final List<_ListCall> calls = <_ListCall>[
+    for (final Match match in _listCall.allMatches(code))
+      (
+        start: match.start,
+        end: _closing(code, match.end - 1),
+        first: _lineOf(text, match.start),
+        last: _lineOf(text, _closing(code, match.end - 1)),
+      ),
+  ];
+  // The innermost list widget of each loop or `.map`.
+  final Set<int> withLoop = <int>{
+    for (final Match loop in _loop.allMatches(code))
+      if (_innermost(
+            calls.where(
+              (_ListCall call) =>
+                  call.start < loop.start && loop.start < call.end,
+            ),
+          )
+          case final _ListCall inner)
+        inner.first,
+  };
+  final _ListCall? widget =
+      calls.where((_ListCall call) => call.first == line).firstOrNull ??
+      _innermost(
+        calls.where(
+          (_ListCall call) => call.first <= line && line <= call.last,
+        ),
+      );
+  if (widget == null) {
+    return null;
+  }
+  if (withLoop.contains(widget.first)) {
+    return null;
+  }
+  final List<int> inside =
+      withLoop
+          .where((int other) => widget.first <= other && other <= widget.last)
+          .toList()
+        ..sort();
+  return inside.firstOrNull;
+}
+
 /// The expression of the argument that starts at [from] in [call], up to the
 /// next comma at its level, or the end of the call.
 String _argument(String call, int from) {

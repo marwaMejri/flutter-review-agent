@@ -90,6 +90,21 @@ class Rule {
       'the outermost widget of the builder that reads neither the animation '
           'nor the value';
 
+  /// Whether a remark of the rule is asked again when a test of the pull
+  /// request has an added check, and kept only when the second answer flags
+  /// it too, from `Confirm: when a test of the pull request has an added
+  /// check`.
+  bool get confirmWhenChecks =>
+      _field('Confirm') == 'when a test of the pull request has an added check';
+
+  /// Whether a remark of the rule on a widget around the list goes to the
+  /// list widget built with the loop or the `.map` (see `listPlace`), from
+  /// `Remark place: the list widget built with the loop or the .map, not a widget around it`.
+  bool get remarkOnListWithLoop =>
+      _field('Remark place') ==
+      'the list widget built with the loop or the `.map`, not a widget '
+          'around it';
+
   /// Whether a remark of the rule on a `Column` or a `Row` needs a
   /// `SingleChildScrollView` in its file, from a `Remark line: a list widget,
   /// or a Column or Row in a file with a SingleChildScrollView` line.

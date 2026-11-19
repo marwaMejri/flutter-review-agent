@@ -286,6 +286,33 @@ Future<ReviewResult> review({
     );
   }
 
+  // A rule with "Remark place: the list widget built with the loop ...", such
+  // as P5, gets its remark on that widget when the model put it on a widget
+  // around it, such as the `Column` that holds the list.
+  for (int i = 0; i < checked.accepted.length; i++) {
+    final Finding finding = checked.accepted[i];
+    final String? source = sources[finding.file];
+    final DiffFile? file = files
+        .where((DiffFile f) => f.path == finding.file)
+        .firstOrNull;
+    if (source == null ||
+        file == null ||
+        !sent.any((Rule r) => r.id == finding.rule && r.remarkOnListWithLoop)) {
+      continue;
+    }
+    final int? line = listPlace(source, finding.line);
+    if (line != null && file.commentableLines.contains(line)) {
+      checked.accepted[i] = Finding(
+        rule: finding.rule,
+        file: finding.file,
+        line: line,
+        message: finding.message,
+        evidence: file.newLineText[line]!.trim(),
+        convention: finding.convention,
+      );
+    }
+  }
+
   // A rule with "Remark place: the outermost widget of the builder ...",
   // such as P9, gets its remark on the widget that reads neither the
   // animation nor the value, and is refused when the builder has none.
@@ -506,8 +533,62 @@ Future<ReviewResult> review({
     }
   }
 
+  // A rule marked "Confirm when a test of the pull request has an added
+  // check", such as T3: the model then judges whether these checks test the
+  // new code, and a model was seen to get it wrong once out of three runs.
+  // The rule is asked again, alone, and its remark is kept only when the
+  // second answer flags it too. When the agent already gives the lines that
+  // no test renders, there is nothing to judge. A failed second request
+  // keeps the remark.
+  final List<Finding> confirmed = <Finding>[];
+  final Map<String, String?> secondAnswers = <String, String?>{};
+  for (final Finding finding in shown) {
+    final Rule? rule = sent
+        .where((Rule r) => r.id == finding.rule && r.confirmWhenChecks)
+        .firstOrNull;
+    if (rule == null || testExpects.isEmpty || widgetLines.isNotEmpty) {
+      confirmed.add(finding);
+      continue;
+    }
+    if (!secondAnswers.containsKey(rule.id)) {
+      try {
+        secondAnswers[rule.id] = await _ask(
+          client,
+          buildUserPrompt(
+            rules: <Rule>[rule],
+            files: files,
+            sources: changedPartsOnly ? const <String, String>{} : sources,
+            testFiles: testFiles,
+            testExpects: testExpects,
+            packageName: packageName,
+            routerLines: routerLines,
+            widgetLines: widgetLines,
+          ),
+        );
+      } on Exception {
+        secondAnswers[rule.id] = null;
+      }
+    }
+    final String? again = secondAnswers[rule.id];
+    if (again == null ||
+        parseFindings(again).any((Finding f) => f.rule == rule.id)) {
+      confirmed.add(finding);
+    } else {
+      final String? reason = parseChecks(
+        again,
+      ).where((RuleCheck check) => check.rule == rule.id).firstOrNull?.reason;
+      rejected.add(
+        RejectedFinding(
+          finding,
+          'not flagged again by a second answer'
+          '${reason == null ? '' : ': $reason'}',
+        ),
+      );
+    }
+  }
+
   return ReviewResult(
-    accepted: shown,
+    accepted: confirmed,
     rejected: rejected,
     reviewedFiles: <String>[for (final DiffFile file in files) file.path],
     sentRules: <String>[

@@ -60,6 +60,7 @@ a test **verifies** the change.
 - **Level:** issue
 - **Remarks:** one per pull request
 - **Only when:** an added line under `lib/` shows a behavior
+- **Confirm:** when a test of the pull request has an added check
 - **Triggers:** `file:lib/`
 
 ## T4. An appearance test that reads the wrong widget

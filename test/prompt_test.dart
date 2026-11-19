@@ -62,7 +62,10 @@ void main() {
   test('says which test files the pull request changes', () {
     expect(
       buildUserPrompt(rules: rules, files: files),
-      contains('Test files changed by this pull request: none.'),
+      contains(
+        'Test files changed by this pull request: none: no test of this '
+        'pull request checks a new behavior.',
+      ),
     );
     expect(
       buildUserPrompt(

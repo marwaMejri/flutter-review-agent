@@ -259,6 +259,12 @@ diff --git a/lib/app/router.dart b/lib/app/router.dart
     );
     expect(p9.remarkPlace, isNull);
     expect(b5.remarkOnBuilderChild, isFalse);
+    final Rule p5 = parseRules(
+      File('rules/performance.md').readAsStringSync(),
+    ).firstWhere((Rule r) => r.id == 'P5');
+    expect(p5.remarkOnListWithLoop, isTrue);
+    expect(p5.remarkPlace, isNull);
+    expect(p9.remarkOnListWithLoop, isFalse);
   });
 
   test('reads the rules that win on the same line', () {
