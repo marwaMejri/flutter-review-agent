@@ -47,7 +47,7 @@ Every rule has the same parts:
   A remark on a `///` comment is first moved to the member below it.
 - **Remark place:** optional. With "the first added test line that
   contains" and a text, as `pumpAndSettle(` for T5, every remark of the rule
-  is moved to that line. With "right after a" and a second text, as `tap(`
+  is moved to that line; with no such line, the remark is refused. With "right after a" and a second text, as `tap(`
   for T5, the first such line whose line before contains the second text is
   taken first: the `pumpAndSettle()` after a tap, not the one after
   `pumpWidget`. With "the outermost widget of the builder that reads neither

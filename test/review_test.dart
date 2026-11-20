@@ -573,6 +573,54 @@ new file mode 100644
     expect(result.accepted.single.line, 2);
   });
 
+  test('refuses a T5 remark when no added test line has its place', () async {
+    // flutter/samples #2819: the router changes, and the pull request adds no
+    // test that taps and waits with pumpAndSettle.
+    final ModelClient client = ModelClient(
+      provider: 'test-provider',
+      baseUrl: 'https://example.com/v1/',
+      models: <String>['test-model'],
+      apiKey: 'test-key',
+      httpClient: MockClient((http.Request request) async {
+        return http.Response(
+          jsonEncode(<String, Object>{
+            'choices': <Object>[
+              <String, Object>{
+                'message': <String, String>{
+                  'content':
+                      '{"checks": [], "findings": [{"rule": "T5", '
+                      '"file": "lib/a.dart", "line": 11, '
+                      '"evidence": "final int z;", "message": "m"}]}',
+                },
+              },
+            ],
+          }),
+          200,
+        );
+      }),
+    );
+
+    final ReviewResult result = await review(
+      diff: sampleDiff,
+      rules: <Rule>[
+        Rule(
+          id: 'T5',
+          title: 't',
+          text:
+              '## T5. t\n\n- **Remark place:** the first added test line '
+              'that contains `pumpAndSettle(`',
+        ),
+      ],
+      client: client,
+    );
+
+    expect(result.accepted, isEmpty);
+    expect(
+      result.rejected.single.reason,
+      'no added test line contains `pumpAndSettle(`',
+    );
+  });
+
   test('moves a T5 remark to the pumpAndSettle after the tap', () async {
     // Pull request #14: the model put T5 on the tap line of a test.
     final ModelClient client = ModelClient(

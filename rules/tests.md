@@ -17,8 +17,10 @@ a test **verifies** the change.
 - **Do not flag when:**
   - the change has no behavior to test: a constant, an import or an export,
     a rename, a comment, a change of padding, color or text style, a widget
-    that only shows a text or an icon with no condition and no action, or a
-    widget wrapped in another one with no new condition;
+    that only shows a text or an icon with no condition and no action, a
+    widget wrapped in another one with no new condition, or wiring that
+    creates, provides or disposes an object (a view model created in
+    `initState` and disposed in `dispose`) with no condition and no action;
   - the pull request moves existing code without changing what it does, for
     example a part of a screen extracted into a new widget. The call that
     replaces the removed lines is part of the move;
@@ -31,8 +33,9 @@ a test **verifies** the change.
      import or an export, a rename, a comment, a style change (padding,
      color, text style), a widget that only shows a text or an icon with no
      condition and no action, a widget wrapped in another one with no new
-     condition, or a generated file? If yes, do not flag. If no, go to
-     step 2.
+     condition, wiring that creates, provides or disposes an object with no
+     condition and no action, or a generated file? If yes, do not flag. If
+     no, go to step 2.
   2. Does it add a behavior: a new public method, a new branch of an `if` or
      `switch`, a new screen state, a new button action, a changed condition
      or computation? If yes, go to step 3. If no, do not flag.

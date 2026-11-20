@@ -1489,3 +1489,65 @@ files, at the boundary nearest the middle, and a single file between two
 hunks; a hunk is cut in the middle only when it is the whole diff. Only the
 requests refused as too large change: no review of the final Gemini run was
 cut in parts.
+
+## Real pull requests of open-source projects (agent `857a4d5`, gemini-3.5-flash-lite)
+
+12 merged pull requests written by other developers, reviewed locally with
+no `CONVENTIONS.md` and no pack. Each remark was judged by reading the code,
+after the run. Both projects keep their app in a folder of the repository
+(`compass_app/app/`, `mobile/`), like a package of a monorepo.
+
+| Pull request | Remarks | Judgment |
+|---|---|---|
+| flutter/samples [#2819](https://github.com/flutter/samples/pull/2819) (`LogoutViewModel` created in the route builder) | T5 on `router.dart:50` | **false**: the pull request adds no navigation test; T5 is about the tests of the pull request. A T3 refused by the agent ("no added line under lib/ shows a behavior") |
+| flutter/samples [#2769](https://github.com/flutter/samples/pull/2769) (placeholder for a broken image) | none | debatable: the new `errorWidget:` is shown when an image fails, with no test |
+| flutter/samples [#2839](https://github.com/flutter/samples/pull/2839) (redundant `notifyListeners` removed) | none (a T3 on an unchanged line refused) | right |
+| flutter/samples [#2841](https://github.com/flutter/samples/pull/2841) (move to `SharedPreferencesAsync`) | T3 on `background_isolate_channels/lib/main.dart:68` | debatable: a migration to another API that does the same |
+| flutter/samples [#2838](https://github.com/flutter/samples/pull/2838) (`HomeScreenContainer` creates and disposes the view model) | T3 on `home_screen_container.dart:9` | **false**: wiring in `initState` and `dispose`, no condition and no action |
+| flutter/samples [#2741](https://github.com/flutter/samples/pull/2741) (two `dispose()` added) | none (a T3 refused: no behavior) | right: no MEM1 on the fix |
+| immich [#33242](https://github.com/immich-app/immich/pull/33242) (assets kept selected, tested) | none | right |
+| immich [#32771](https://github.com/immich-app/immich/pull/32771) (OpenStreetMap attribution) | T3 on `map.widget.dart:203`; a B5 on `MapAttribution?` refused (not a collection) | right: new `if (attribution case ...)`, `setState` after a fetch, no test |
+| immich [#32784](https://github.com/immich-app/immich/pull/32784) (rename passkeys) | T3 on `passkey.action.dart:33` (asked twice: the pull request adds checks) | right: the test checks the API call, not the rename action |
+| immich [#33408](https://github.com/immich-app/immich/pull/33408) (scrubber notifications) | T3 on `scrubber.widget.dart:169` | right: the conditions on the notifications change, no test |
+| immich [#33030](https://github.com/immich-app/immich/pull/33030) (memories after login, tested) | none | right |
+| immich [#32522](https://github.com/immich-app/immich/pull/32522) (deletion cancelled, tested) | none | right |
+
+6 remarks: 3 right, 2 false (T5 on #2819, T3 on #2838), 1 debatable
+(#2841). 6 pull requests with no remark: 5 right, 1 debatable (#2769). The
+checks of the agent refused 4 wrong remarks.
+
+Fix: a rule with "Remark place: the first added test line that contains
+..." (T5) is refused when the pull request adds no such line: #2819 adds no
+test with `pumpAndSettle(`. On the 45 pull requests of the example, T5 is
+expected on #14 only, which has the line.
+
+**T3 on wiring (#2838).** The model answered step 1 "no, it adds a new
+HomeScreenContainer stateful widget with a view model": the list of step 1
+had no word for wiring. A check in the code (no remark when the only new
+method is `initState` or `dispose`) was left out: an `initState` that adds
+`viewModel.load()` is a behavior (the screen loads its data when it opens),
+and such a check would hide its missing test with no message. The text of
+T3 now says, in "Do not flag" and in step 1: "wiring that creates, provides
+or disposes an object (a view model created in `initState` and disposed in
+`dispose`) with no condition and no action".
+
+Expectation of #44 changed (written before the next runs): the pull request
+adds a `ValueNotifier` that it never changes, its `dispose()`, and a badge
+that shows the value: no condition, no action, no method. Expected: P9 (T3
+allowed), as for #16.
+
+API migrations (#2841, and #14 with gpt-oss-120b) stay a measured limit of
+T3: saying that two APIs do the same thing is a judgment of the model.
+
+Local runs after the T3 and T5 fixes, gemini-3.5-flash-lite:
+
+| Pull request | Result |
+|---|---|
+| flutter/samples #2838 | no remark: T3 "wiring that creates, provides or disposes an object with no condition and no action? Yes. Do not flag." |
+| flutter/samples #2819 | no remark: T5 step 1 no; a T3 refused by the agent (no behavior) |
+| immich #32771, #32784, #33408 | T3 kept on each (#32784: "the test passkey_test.dart only tests PasskeyApiRepository.update") |
+| #8 | MEM1, T3 |
+| #37 | T3, no P1 |
+| #42 | B2, T3 |
+| #43 | MEM1, T3 |
+| #44 | P9 on line 21, and T3 (allowed) |

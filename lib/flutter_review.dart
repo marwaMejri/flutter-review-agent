@@ -282,16 +282,31 @@ Future<ReviewResult> review({
       );
 
   // A rule with a "Remark place", such as T5, gets its remark on the test
-  // line that shows the problem, wherever the model put it.
+  // line that shows the problem, wherever the model put it. With no such
+  // line, the pull request has nothing that the rule is about: T5 is about
+  // the tests of the pull request, and a pull request that adds no
+  // `pumpAndSettle(` has no test that waits for the end only.
+  final List<RejectedFinding> noPlace = <RejectedFinding>[];
   for (int i = 0; i < checked.accepted.length; i++) {
     final Finding finding = checked.accepted[i];
     final Rule? rule = sent
         .where((Rule r) => r.id == finding.rule && r.remarkPlace != null)
         .firstOrNull;
-    final (DiffFile, int)? place = rule == null
-        ? null
-        : _remarkPlace(files, rule.remarkPlace!, rule.remarkPlaceAfter);
+    if (rule == null) {
+      continue;
+    }
+    final (DiffFile, int)? place = _remarkPlace(
+      files,
+      rule.remarkPlace!,
+      rule.remarkPlaceAfter,
+    );
     if (place == null) {
+      noPlace.add(
+        RejectedFinding(
+          finding,
+          'no added test line contains `${rule.remarkPlace}`',
+        ),
+      );
       continue;
     }
     final (DiffFile file, int line) = place;
@@ -304,6 +319,10 @@ Future<ReviewResult> review({
       convention: finding.convention,
     );
   }
+  checked.accepted.removeWhere(
+    (Finding finding) =>
+        noPlace.any((RejectedFinding r) => identical(r.finding, finding)),
+  );
 
   // A rule with "Remark place: the list widget built with the loop ...", such
   // as P5, gets its remark on that widget when the model put it on a widget
@@ -335,7 +354,10 @@ Future<ReviewResult> review({
   // A rule with "Remark place: the outermost widget of the builder ...",
   // such as P9, gets its remark on the widget that reads neither the
   // animation nor the value, and is refused when the builder has none.
-  final List<RejectedFinding> rejected = <RejectedFinding>[...checked.rejected];
+  final List<RejectedFinding> rejected = <RejectedFinding>[
+    ...checked.rejected,
+    ...noPlace,
+  ];
   final List<Finding> placed = <Finding>[];
   for (final Finding finding in checked.accepted) {
     final String? source = sources[finding.file];
