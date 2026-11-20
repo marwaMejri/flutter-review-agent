@@ -1442,3 +1442,50 @@ passed):
 | #7 | B2, T3, no P9 ("Step 2: no"): as expected |
 | #21 | no remark; P9: "every widget reads one of the animation/listenable/value or is const": as expected |
 | #24 | no remark; a B5 on the field `final List<String>? tags;` refused by the agent (the trap): as expected |
+
+Local runs of #46 `limits/workspace-package`, gemini-3.5-flash-lite (agent
+`6f1c244`, conventions with the packages of the workspace), 2 runs: P1 on
+`packages/release_badges/lib/src/release_badge.dart:12` (the `..sort()` in
+`build()`) and T3 on line 13 (`if (sorted.isEmpty)`), no CONVENTION: as
+expected. Before the fix, T3 was not sent for this pull request.
+
+## Final run: `gemini-3.5-flash-lite`, on GitHub, agent `6f1c244`, the 45 pull requests (#2 to #46)
+
+`CONVENTIONS.md` of `main` describes the packages of the workspace. Gemini
+was busy: #3, #34, #38, #43 and #46 got no review (HTTP 503), and #16 and #40
+were answered by a fallback model; they were pushed again.
+
+| PR | Result |
+|---|---|
+| #2 P1, T3; #3 P2, T3; #4 P3, T3; #5 P5, T3; #6 P9 on line 49, T3; #7 B2, T3; #8 MEM1, T3; #9 MEM2, T3; #10 MEM3, T3; #11 B4, T3; #12 B5, T3 | as expected |
+| #13 T4; #14 T5 on line 12 (no T3); #15 M2; #16 M3; #17 M4; #22 M1 | as expected |
+| #18, #19, #20, #21, #24, #27, #28, #31 no remark; #25 B2 | as expected |
+| #23 B5, B2, MEM1 on line 23, P1, T3; #26 B5, T3; #29 B2 on lines 21 and 22, T3; #30 T3 and the conventions on lines 10, 54 (`.read<ReleaseRepository>()`, the same statement as line 53 before) and 68 | as expected |
+| #32 P1, T3; #33 M1; #34 P1, T3; #35 MEM3, T3; #36 P5, T3; #37 T3 (no P1); #38, #39, #41 no remark; #42 B2, T3; #43 MEM1, T3; #44 P9 on line 21, T3; #45 P9 on line 25 | as expected |
+| #46 (monorepo) | P1 on `packages/release_badges/lib/src/release_badge.dart:12`, T3 on line 13; M1, M2, M3 sent and answered no: as expected |
+| #40 | B5 once, T3, as expected, but answered twice by a fallback model (gemini-3.6-flash, then gemini-3.8-flash): not measured with flash-lite |
+
+**gemini-3.5-flash-lite: 44 out of 44 measured pull requests as expected**
+(#40 not measured: flash-lite was busy twice; the fallback models gave the
+expected remarks).
+
+## `openai/gpt-oss-120b`, on GitHub, agent `6f1c244`, 19 November in the evening
+
+The tokens of the day of the free Groq plan were still used by the morning
+run: #3 P2, T3 and #4 P3, T3 as expected; #10, #13, #19 answered by the
+fallback gpt-oss-20b (as expected, not measured); the others got HTTP 429.
+
+**#5: P5 missed.** The request was too large for the 8,000 tokens a minute
+of the free Groq plan: "reviewed in 4 parts, with the changed parts only".
+The diff was cut in two by its number of lines, in the middle of a hunk of
+`release_detail_view.dart`: the part with the `.map` of line 56 did not have
+the `SingleChildScrollView` of line 31. P5 was answered "no" in every part.
+(A T3 with the invented evidence "// added line with new condition/action
+(exact code not shown)" was refused by the agent; T3 was kept from another
+part.)
+
+Fix: a diff too large is cut where the code keeps its context: between two
+files, at the boundary nearest the middle, and a single file between two
+hunks; a hunk is cut in the middle only when it is the whole diff. Only the
+requests refused as too large change: no review of the final Gemini run was
+cut in parts.

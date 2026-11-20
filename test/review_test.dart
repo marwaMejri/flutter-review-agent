@@ -1084,6 +1084,71 @@ class _ReleasesViewState extends State<ReleasesView> {
       expect(result.note, contains('reviewed in 2 parts'));
     });
 
+    test('cuts between two files, not inside a file', () async {
+      // Two new files of 40 lines; the first one starts with a scroll view
+      // and ends with the list: the two must stay in the same request.
+      String fileDiff(String name, String first, String last) => <String>[
+        'diff --git a/lib/$name b/lib/$name',
+        'new file mode 100644',
+        '--- /dev/null',
+        '+++ b/lib/$name',
+        '@@ -0,0 +1,40 @@',
+        for (int i = 0; i < 40; i++)
+          i == 0
+              ? '+$first'
+              : i == 39
+              ? '+$last'
+              : '+// $name $i',
+      ].join('\n');
+      final String twoFiles =
+          '${fileDiff('a.dart', '// scroll view', '// list')}\n'
+          '${fileDiff('b.dart', '// b first', '// b last')}\n';
+      final List<String> parts = <String>[];
+      final ModelClient client = clientWith((String body) async {
+        if (body.contains('scroll view') && body.contains('b first')) {
+          return http.Response('too large', 413);
+        }
+        parts.add(body);
+        return modelAnswer('{"checks": [], "findings": []}');
+      });
+
+      await review(diff: twoFiles, rules: rules, client: client);
+
+      expect(parts, hasLength(2));
+      expect(parts.first, allOf(contains('scroll view'), contains('// list')));
+      expect(parts.last, allOf(contains('b first'), contains('b last')));
+    });
+
+    test('cuts one file between two hunks', () async {
+      String hunk(int start, String first, String last) => <String>[
+        '@@ -$start,0 +$start,30 @@',
+        for (int i = 0; i < 30; i++)
+          i == 0
+              ? '+$first'
+              : i == 29
+              ? '+$last'
+              : '+// line $i',
+      ].join('\n');
+      final String twoHunks =
+          '${<String>['diff --git a/lib/c.dart b/lib/c.dart', '--- a/lib/c.dart', '+++ b/lib/c.dart'].join('\n')}\n'
+          '${hunk(1, '// h1 first', '// h1 last')}\n'
+          '${hunk(100, '// h2 first', '// h2 last')}\n';
+      final List<String> parts = <String>[];
+      final ModelClient client = clientWith((String body) async {
+        if (body.contains('h1 first') && body.contains('h2 first')) {
+          return http.Response('too large', 413);
+        }
+        parts.add(body);
+        return modelAnswer('{"checks": [], "findings": []}');
+      });
+
+      await review(diff: twoHunks, rules: rules, client: client);
+
+      expect(parts, hasLength(2));
+      expect(parts.first, allOf(contains('h1 first'), contains('h1 last')));
+      expect(parts.last, allOf(contains('h2 first'), contains('h2 last')));
+    });
+
     test(
       'stops with a clear error when a small part is still too large',
       () async {

@@ -803,26 +803,41 @@ const int minPartLines = 50;
 int _lineCount(List<DiffFile> files) =>
     files.fold(0, (int count, DiffFile file) => count + file.annotated.length);
 
-/// Cuts [files] in two parts with the same number of diff lines. A file in
-/// the middle is cut too.
+/// Cuts [files] in two parts with about the same number of diff lines,
+/// where the code keeps its context: between two files, or, for one file,
+/// between two hunks. A hunk is cut in the middle only when it is the whole
+/// diff. A model that sees half of a hunk can miss what the other half holds,
+/// such as the `SingleChildScrollView` around a list (P5).
 (List<DiffFile>, List<DiffFile>) _halves(List<DiffFile> files) {
-  int left = _lineCount(files) ~/ 2;
-  final List<DiffFile> first = <DiffFile>[];
-  final List<DiffFile> second = <DiffFile>[];
-  for (final DiffFile file in files) {
-    final int length = file.annotated.length;
-    if (left >= length) {
-      first.add(file);
-      left -= length;
-    } else if (left > 0) {
-      first.add(file.part(0, left));
-      second.add(file.part(left, length));
-      left = 0;
-    } else {
-      second.add(file);
+  final int total = _lineCount(files);
+  if (files.length > 1) {
+    int cut = 1;
+    int best = total;
+    int count = 0;
+    for (int i = 1; i < files.length; i++) {
+      count += files[i - 1].annotated.length;
+      final int gap = (2 * count - total).abs();
+      if (gap < best) {
+        cut = i;
+        best = gap;
+      }
+    }
+    return (files.sublist(0, cut), files.sublist(cut));
+  }
+  final DiffFile file = files.single;
+  final int length = file.annotated.length;
+  int cut = length ~/ 2;
+  int best = length;
+  for (int i = 1; i < length; i++) {
+    if (file.annotated[i].startsWith('      | @@')) {
+      final int gap = (2 * i - length).abs();
+      if (gap < best) {
+        cut = i;
+        best = gap;
+      }
     }
   }
-  return (first, second);
+  return (<DiffFile>[file.part(0, cut)], <DiffFile>[file.part(cut, length)]);
 }
 
 /// The checks of several parts. For each rule: the checks that say it
