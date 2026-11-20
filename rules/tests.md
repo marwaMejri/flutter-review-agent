@@ -60,7 +60,7 @@ a test **verifies** the change.
 - **Why:** coverage says that a line ran, not that its result was checked.
 - **Source:** team rule of this project: every case needs a unit test or a
   widget test.
-- **Level:** issue
+- **Level:** suggestion
 - **Remarks:** one per pull request
 - **Only when:** an added line under `lib/` shows a behavior
 - **Confirm:** when a test of the pull request has an added check, or when its only new behavior is a lifecycle method

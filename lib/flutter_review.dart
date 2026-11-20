@@ -503,6 +503,8 @@ Future<ReviewResult> review({
       rejected.add(
         RejectedFinding(finding, 'no added line under lib/ shows a behavior'),
       );
+    } else if (_outsideListWidget(finding, sent, sources)) {
+      rejected.add(RejectedFinding(finding, 'not in a list widget'));
     } else if (_columnWithNoScrollView(finding, sent, files, sources)) {
       rejected.add(
         RejectedFinding(finding, 'no SingleChildScrollView in the file'),
@@ -671,6 +673,21 @@ Future<ReviewResult> review({
     ]),
     note: notes.isEmpty ? null : notes,
   );
+}
+
+/// Whether [finding] is a remark of a rule like P5 on a line that is in no
+/// list widget (see [inListWidget]), such as a `for` in a `Stack`.
+bool _outsideListWidget(
+  Finding finding,
+  List<Rule> rules,
+  Map<String, String> sources,
+) {
+  final String? source = sources[finding.file];
+  return source != null &&
+      rules.any(
+        (Rule rule) => rule.id == finding.rule && rule.remarkInScrollView,
+      ) &&
+      !inListWidget(source, finding.line);
 }
 
 /// Whether [finding] is a remark of a rule like P5 on a `Column` or a `Row`,

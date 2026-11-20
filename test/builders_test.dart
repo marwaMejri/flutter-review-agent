@@ -141,6 +141,22 @@ SingleChildScrollView(
       expect(listPlace(code, 7), isNull);
     });
 
+    test('finds the lines in no list widget', () {
+      // bloc #4566: a `for` in the children of a `Stack`.
+      const String stack = '''
+SizedBox(
+  child: Stack(
+    children: <Widget>[
+      for (final Task task in tasks) Bar(task: task),
+    ],
+  ),
+)
+''';
+      expect(inListWidget(stack, 4), isFalse);
+      expect(inListWidget(code, 7), isTrue);
+      expect(inListWidget(code, 1), isTrue);
+    });
+
     test('keeps a remark on a list with no loop and no .map', () {
       // Challenge `limits/grid-children`: the `const` list of the `ListView`.
       const String grid = '''

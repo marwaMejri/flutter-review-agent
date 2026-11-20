@@ -146,6 +146,21 @@ _ListCall? _innermost(Iterable<_ListCall> calls) => calls.fold<_ListCall?>(
       inner == null || call.start > inner.start ? call : inner,
 );
 
+/// Whether [line] of [source] is inside a list widget (see [listPlace]), or
+/// on the line that opens one: a remark of P5 anywhere else, such as on a
+/// `for` in the children of a `Stack`, is about no list.
+bool inListWidget(String source, int line) {
+  final String text = source.replaceAll('\r\n', '\n');
+  final String code = _codeOnly(text);
+  return _listCall
+      .allMatches(code)
+      .any(
+        (Match match) =>
+            _lineOf(text, match.start) <= line &&
+            line <= _lineOf(text, _closing(code, match.end - 1)),
+      );
+}
+
 /// For P5: the line where a remark on [line] of [source] goes, when the
 /// remark is on a widget around the list that is built with a loop or a
 /// `.map`. The widgets are `ListView(`, `GridView(`, `GridView.count(`,

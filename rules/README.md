@@ -35,8 +35,11 @@ Every rule has the same parts:
   - "a return type that ends with `>?`" (B5): the line must declare a method,
     a function or a getter with such a type, not a field or a parameter.
   - "a list widget, or a `Column` or `Row` in a file with a
-    `SingleChildScrollView`" (P5): a remark on a `Column` or a `Row` needs a
-    `SingleChildScrollView` in the file.
+    `SingleChildScrollView`" (P5): the line must be inside a list widget
+    (`ListView(`, `GridView(`, `Column(`, `Row(`,
+    `SliverChildListDelegate(`, `SingleChildScrollView(`), or open one, and a
+    remark on a `Column` or a `Row` needs a `SingleChildScrollView` in the
+    file.
   - "a widget that is not `const`" (P9): the first widget of the line must not
     be `const`.
   - "in `build()`, or in a method that a `build()` calls" (P1): a remark in
@@ -110,7 +113,7 @@ Every rule has the same parts:
 | MEM3 | A long-lived closure that captures `context` | memory.md | issue |
 | B4 | A `late` variable checked for initialization | dart.md | issue |
 | B5 | A nullable `Future`, `Stream` or collection returned | dart.md | suggestion |
-| T3 | A new case with no test that checks it | tests.md | issue |
+| T3 | A new case with no test that checks it | tests.md | suggestion |
 | T4 | An appearance test that reads the wrong widget | tests.md | issue |
 | T5 | An animated navigation tested only at the end | tests.md | suggestion |
 | M1 | An `export` of the SDK Material or Cupertino | ../packs/material_ui_migration.md | issue |

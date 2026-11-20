@@ -1691,3 +1691,40 @@ Local runs after the P1 step 3 fix, gemini-3.5-flash-lite (`dart test`: 162
 passed): #2 P1 and T3 ("Step 3: no, the filtering is not computed outside
 build() nor is it a simple operation"); #37 T3, no P1; #24 no remark; #12 B5
 and T3, no P1: as expected.
+
+## Real pull requests on agent `3a0dd40`, gemini-3.5-flash-lite
+
+The 35 pull requests again, with no change of the agent during the run.
+
+**The 25 pull requests used to find traps:** 15 remarks.
+
+| | Pull requests |
+|---|---|
+| right | immich #32771 T3, #33408 T3; localsend #3597, #3609, #3608, #3591, #3558 T3; bloc #4566 T3 (8) |
+| debatable | samples #2841 T3 (API migration); immich #32771 P2 and #33408 P2 (a `setState` that moves one thumb or shows one attribution: true by the rule, small cost); bloc #4760 T3 (4) |
+| **false** | samples #2838 T3 (asked twice, both answers flag it; in 3 more runs, 2 T3 confirmed twice, 1 no remark); samples #2839 T3 on the code of `deleteBooking`, which a refactor only reorders; bloc #4566 **P5 on a `for` inside a `Stack`**, which is not a list widget (3) |
+| right silence | samples #2819 (T5 refused: no added test with `pumpAndSettle(`), #2769, #2741; immich #33242, #33030, #32522; localsend #3730, #3192, #3589, #3490; bloc #4584, #4814 (12) |
+| missed | immich #32784: T3 not flagged ("passkey_test.dart:107 checks the update behavior": the test checks the API call, not the rename dialog), debatable |
+
+**The blind set again (lichess):** 9 out of 10 right. New: **a false T4**
+on #4014: the test finds each `Text` by its content (`find.text('0')`) and
+reads its own style; `DefaultTextStyle.of(element)` only gives the expected
+color. The model took it for a style read on a wrapper.
+
+The remarks that need the judgment of the model (T3 on refactors and wiring,
+P2, T4) change from one run to the next; the checks of the agent (T5 with no
+test, P1 and B2 in callbacks, unchanged lines, fields for B5) gave the same
+result in every run.
+
+Fixes after this run, with no change of the prompt (the results of the
+model stay the same):
+
+- P5 is refused on a line that is in no list widget (`ListView(`,
+  `GridView(`, `Column(`, `Row(`, `SliverChildListDelegate(`,
+  `SingleChildScrollView(`), such as the `for` in the `Stack` of bloc #4566.
+  Checked with the Python copy: the P5 lines of #5 (31, 33, 54, 56) and #36
+  (12, 16, 25) are in a list widget.
+- T3 is a suggestion, not an issue: a missing test is a risk that the author
+  can decide on, not a bug (the definition of the levels in
+  `rules/README.md`), and its source is a team rule. The level is not sent to
+  the model.
