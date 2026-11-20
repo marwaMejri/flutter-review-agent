@@ -105,6 +105,29 @@ Set<int> widgetConditionLines(String source) {
   return found;
 }
 
+final RegExp _callbackArgument = RegExp(r'\bon[A-Z]\w*\s*:');
+
+/// The lines of [source] inside a function given to a callback argument,
+/// such as `onPressed: () { ... }` or `onTap: () => ...`: that code runs
+/// when the event happens, not when `build()` runs. A method given by name,
+/// as in `onChanged: viewModel.search`, has no lines here.
+Set<int> callbackLines(String source) {
+  final String text = source.replaceAll('\r\n', '\n');
+  final String code = _codeOnly(text);
+  final Set<int> lines = <int>{};
+  for (final Match argument in _callbackArgument.allMatches(code)) {
+    final String value = _argument(code, argument.end);
+    final int end = argument.end + value.length;
+    if (value.contains('=>') || RegExp(r'\)\s*(async\s*)?\{').hasMatch(value)) {
+      final int last = _lineOf(text, end);
+      for (int line = _lineOf(text, argument.start); line <= last; line++) {
+        lines.add(line);
+      }
+    }
+  }
+  return lines;
+}
+
 final RegExp _listCall = RegExp(
   r'(?<![\w.])(ListView|GridView(?:\.count|\.extent)?|Column|Row|'
   r'SliverChildListDelegate|SingleChildScrollView)\s*(?:<[^()]*>)?\(',

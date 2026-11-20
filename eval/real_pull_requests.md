@@ -1551,3 +1551,50 @@ Local runs after the T3 and T5 fixes, gemini-3.5-flash-lite:
 | #42 | B2, T3 |
 | #43 | MEM1, T3 |
 | #44 | P9 on line 21, and T3 (allowed) |
+
+## Real pull requests, second set (agent `32afcde`, gemini-3.5-flash-lite)
+
+13 merged pull requests of [localsend](https://github.com/localsend/localsend)
+(`app/`, its own state management) and [bloc](https://github.com/felangel/bloc)
+(`flutter_bloc`, and packages inside an example:
+`examples/flutter_todos/packages/...`), judged after the run by reading the
+code.
+
+| Pull request | Remarks | Judgment |
+|---|---|---|
+| localsend [#3730](https://github.com/localsend/localsend/pull/3730) (tested) | none | right |
+| localsend [#3192](https://github.com/localsend/localsend/pull/3192) (tested) | none (a P5 on an unchanged loop refused) | right |
+| localsend [#3589](https://github.com/localsend/localsend/pull/3589) (tested) | none | right |
+| localsend [#3597](https://github.com/localsend/localsend/pull/3597) (taskbar progress) | T3 on the new `if (total > 0 && ...)` | right |
+| localsend [#3609](https://github.com/localsend/localsend/pull/3609) (Cancel button) | T3 on the new `TextButton(` | right |
+| localsend [#3608](https://github.com/localsend/localsend/pull/3608) (name kept on cancel) | T3 on `final bool allowEmpty;` (a P9 on an unchanged line refused) | right: the new `allowEmpty` check and the restored text have no test |
+| localsend [#3591](https://github.com/localsend/localsend/pull/3591) (copy buttons) | **P1 three times**, on `logs.map(...).join('\n')`; T3 | P1 **false**: the code is in `onPressed: () async { ... }`, it runs when the button is tapped, not in `build()`. T3 right |
+| localsend [#3490](https://github.com/localsend/localsend/pull/3490) (tested) | none | right |
+| localsend [#3558](https://github.com/localsend/localsend/pull/3558) (settings migration) | T3 on the new condition | right |
+| bloc [#4760](https://github.com/felangel/bloc/pull/4760) (no empty list added) | T3 on `if (todosJson == null) return;` | debatable: the stream no longer gets `[]` when nothing is stored |
+| bloc [#4584](https://github.com/felangel/bloc/pull/4584) (tested) | none | right |
+| bloc [#4566](https://github.com/felangel/bloc/pull/4566) (new example, 770 lines, no test) | T3 | right |
+| bloc [#4814](https://github.com/felangel/bloc/pull/4814) (stack traces kept) | none (a T3 refused: no behavior) | right |
+
+7 pull requests with remarks: 6 right T3, 1 debatable T3, and 3 false P1 in
+one pull request. The checks of the agent refused 3 wrong remarks.
+
+Fix: a remark of a rule that must be in `build()` (P1, B2) is refused on a
+line inside a function given to a callback argument (`onPressed: () {...}`,
+`onTap: () => ...`): that code runs on an event. A method given by name
+(`onChanged: viewModel.search`) is not such a function. Checked with a
+Python copy: #3591 lines 31, 33 and 138 are in a callback; the P1 and B2
+lines of #2, #7, #23, #25, #29, #32, #34, #42 and #46 are not.
+
+## Blind set, chosen before the run: lichess mobile
+
+[lichess-org/mobile](https://github.com/lichess-org/mobile) (Riverpod, never
+used before by this evaluation). The pull requests are not picked by hand:
+the 10 most recent merged ones that change `lib/`, with 20 to 400 changed
+lines, as of 20 November 2026. They are reviewed once, with the agent of the
+clean run, and the result is written as it is: no fix of the agent before
+the result is written.
+
+`7b32d80f7` (#4048), `ddb9e4e3c` (#3792), `4c3ad919a` (#4011), `36c82e7c3`
+(#4014), `20f3350f8` (#4000), `2cdff7777` (#3981), `dec80cfa3` (#3992),
+`6fb9cae1f` (#3985), `dfadf2b3c` (#3949), `2e454a789` (#3952).

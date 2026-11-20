@@ -161,6 +161,29 @@ Column(
     });
   });
 
+  test('finds the lines of a function given to a callback', () {
+    // localsend #3591: the logs are joined when the button is tapped.
+    const String code = r'''
+IconButton(
+  onPressed: logs.isEmpty
+      ? null
+      : () async {
+          await Clipboard.setData(
+            ClipboardData(text: logs.map((log) => log.text).join('\n')),
+          );
+        },
+  icon: const Icon(Icons.copy),
+),
+Text(logs.map((log) => log.text).join(', ')),
+TextField(onChanged: viewModel.search),
+''';
+    final Set<int> lines = callbackLines(code);
+
+    expect(lines, containsAll(<int>[2, 6, 8]));
+    expect(lines, isNot(contains(11)));
+    expect(lines, isNot(contains(12)));
+  });
+
   group('the lines with a condition or an action in a widget', () {
     test('are inside a widget or a State class only', () {
       const String code = r'''

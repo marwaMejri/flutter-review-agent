@@ -499,6 +499,14 @@ Future<ReviewResult> review({
       rejected.add(
         RejectedFinding(finding, 'no SingleChildScrollView in the file'),
       );
+    } else if (_inCallback(finding, sent, sources)) {
+      rejected.add(
+        RejectedFinding(
+          finding,
+          'in a callback such as onPressed, which runs on an event, not in '
+          'build()',
+        ),
+      );
     } else if (_outsideBuild(finding, sent, sources, buildCode)) {
       rejected.add(
         RejectedFinding(
@@ -785,6 +793,20 @@ bool _outsideBuild(
   }
   final String name = method.split('.').last;
   return !RegExp('\\b${RegExp.escape(name)}\\b').hasMatch(buildCode());
+}
+
+/// Whether [finding] is a remark of a rule like P1 (in `build()`) on a line
+/// inside a function given to a callback such as `onPressed:` (see
+/// [callbackLines]): that code runs when the user taps, not in `build()`.
+bool _inCallback(
+  Finding finding,
+  List<Rule> rules,
+  Map<String, String> sources,
+) {
+  final String? source = sources[finding.file];
+  return source != null &&
+      rules.any((Rule rule) => rule.id == finding.rule && rule.remarkInBuild) &&
+      callbackLines(source).contains(finding.line);
 }
 
 /// The lines of every `build()` method of [sources], joined.

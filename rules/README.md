@@ -41,8 +41,10 @@ Every rule has the same parts:
     be `const`.
   - "in `build()`, or in a method that a `build()` calls" (P1): a remark in
     the body of another method, such as `initState` or `load`, is refused
-    when no `build()` of the project names that method. A line in a getter or
-    in a method written with `=>` is kept.
+    when no `build()` of the project names that method. A line in a getter
+    or in a method written with `=>` is kept. A remark inside a function
+    given to a callback, such as `onPressed: () { ... }`, is refused: that
+    code runs when the user taps, not in `build()`.
 
   A remark on a `///` comment is first moved to the member below it.
 - **Remark place:** optional. With "the first added test line that
