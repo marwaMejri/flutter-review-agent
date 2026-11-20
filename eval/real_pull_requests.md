@@ -1598,3 +1598,96 @@ the result is written.
 `7b32d80f7` (#4048), `ddb9e4e3c` (#3792), `4c3ad919a` (#4011), `36c82e7c3`
 (#4014), `20f3350f8` (#4000), `2cdff7777` (#3981), `dec80cfa3` (#3992),
 `6fb9cae1f` (#3985), `dfadf2b3c` (#3949), `2e454a789` (#3952).
+
+## Clean run on real pull requests: agent `6df9a56`, gemini-3.5-flash-lite
+
+The 25 pull requests of flutter/samples, immich, localsend and bloc, then
+the 10 of the blind set, in one run with no change of the agent. Judged by
+reading the code.
+
+**The 25 pull requests used to find traps:**
+
+| Result | Pull requests |
+|---|---|
+| no remark, right | samples #2819, #2769, #2839, #2741; immich #33242, #33030, #32522; bloc #4584, #4814; localsend #3730, #3192, #3589, #3490 |
+| right remarks | immich #32771 T3, #32784 T3, #33408 T3; bloc #4566 T3; localsend #3597 T3, #3609 T3, #3608 T3, #3591 T3 (no P1 this time), #3558 T3 |
+| debatable | samples #2841 T3 (a migration to another API); bloc #4760 T3 (the stream no longer gets `[]`); immich #32771 P2 (the `setState` after the attribution is fetched rebuilds the whole map screen once: true by the rule, small cost) |
+| **false** | samples #2838 T3: "a widget that adds behavior/wiring": the wiring sentence kept T3 away in one local run out of two |
+
+13 remarks: 9 right, 3 debatable, 1 false. 13 pull requests with no remark,
+all right. The agent refused 8 wrong remarks (B5 on fields and on a type that
+is not a collection, P5 and P9 on unchanged lines, T3 with no behavior or on
+an unchanged line).
+
+**The blind set, lichess mobile (10 pull requests chosen by the rule written
+above, reviewed once):**
+
+| Pull request | Result | Judgment |
+|---|---|---|
+| #4048 (batch solve in chunks, tested) | no remark | right |
+| #3792 (link handling, tested) | no remark | right |
+| #4011 (computer name and bot title, tested) | no remark | right |
+| #4014 (dim zero error counts, tested; a color test found by text) | no remark; T4 answered no | right |
+| #4000 (user search for 3 characters, tested) | no remark | right |
+| #3981 (online indicators, no test) | T3 on `if (friend.user.isOnline == true)` | right |
+| #3992 (bookmark count refreshed, tested) | no remark | right |
+| #3985 (`showRatings` option, tested) | no remark | right |
+| #3949 (clock colors, tested; a color test found with `find.descendant`) | no remark; T4 answered no | right |
+| #3952 (emergency thresholds, tested) | no remark | right |
+
+**10 out of 10 right**: 1 right remark and 9 right silences. No added line of
+these pull requests sorts, filters or maps in `build()`, creates a
+controller, or adds a builder or a nullable return type: no remark of these
+rules was missed. 9 of the 10 pull requests are tested, so this set measures
+mostly the false remarks, not the missed ones.
+
+**Fix after the clean run (from the 25 pull requests, not from the blind
+set):** T3 is also confirmed when the only added lines that show a behavior
+declare a lifecycle method (`initState`, `dispose`, `createState`,
+`didUpdateWidget`, ...): the model answered both ways on #2838. Refusing T3
+there would hide the missing test of an `initState` that calls `load()`;
+two answers are asked instead. Checked with the Python copy on the 45 + 35
+pull requests: only #44 and samples #2838 are in this case, so the prompts
+and the results of all the others do not change.
+
+Local runs: samples #2838, 2 runs: run 1 T3 kept (the log did not say
+whether it was asked twice), run 2 no remark ("wiring that creates,
+provides, and disposes a ViewModel"). #44: P9 on line 21, and T3 (allowed).
+The review now says when a remark was asked a second time: "T3 was asked a
+second time, alone: both answers flag it."
+
+## `openai/gpt-oss-120b`, on GitHub, agent `6df9a56`, #2 to #24 and #46
+
+| PR | Result |
+|---|---|
+| #3 P2, T3; #4 P3, T3; #5 P5 on line 56, T3; #7 B2, T3; #8 MEM1, T3; #9 MEM2, T3; #10 MEM3, T3; #11 B4, T3; #12 B5 (getter and `_headingsOf`), T3 | as expected (#5: the cut between files kept the context) |
+| #13 T4; #14 T5 only (no false T3); #15 M2; #16 M3; #17 M4; #22 M1 | as expected |
+| #18, #19, #20, #21 no remark | as expected |
+| #2 | T3; **P1 missed** (to read) |
+| #6 | P9 and T3, but **P9 three times on line 49**: reviewed in 3 parts; the model flagged three widgets of the builder, and the agent moved the three remarks to the same widget |
+| #23, #46 | no review yet; #24 HTTP 429 (tokens of the day) |
+
+Fix: two remarks of a rule on the same line are one; the others are
+refused with "the same remark is already on this line".
+
+**#2, P1 missed by gpt-oss-120b:** "Step2: yes (filtering collection).
+Step3: yes (simple date comparison). Do not flag." Step 3 called "one simple
+operation, such as a comparison" simple, and the model took the `where` with
+a comparison inside for such an operation, while "Flag when" says that
+filtering a collection is flagged. Fix of step 3: the simple operations are
+the ones done on each item while the tree is built, and "Sorting, filtering
+(`where`) or grouping the collection is never simple, even with a simple
+comparison inside." On the 45 branches, the added `where` and `sort` are on
+#2, #23, #32, #46 (P1 expected), #34 (in the function of the `FutureBuilder`,
+P1 expected for the future) and #37 (in `initState`, no P1): no expectation
+changes.
+
+#23: no review: "The answer was cut: the model reached its length limit",
+with an empty answer (the reasoning of the model used all the tokens);
+asked again with fewer rules, cut again. #24 and #46: HTTP 429, tokens of the
+day used. They are pushed again with the second half.
+
+Local runs after the P1 step 3 fix, gemini-3.5-flash-lite (`dart test`: 162
+passed): #2 P1 and T3 ("Step 3: no, the filtering is not computed outside
+build() nor is it a simple operation"); #37 T3, no P1; #24 no remark; #12 B5
+and T3, no P1: as expected.

@@ -239,7 +239,7 @@ void main() {
       title: 't',
       text:
           '## T3. t\n\n- **Confirm:** when a test of the pull request has an '
-          'added check',
+          'added check, or when its only new behavior is a lifecycle method',
     );
     const String flagged =
         '{"checks": [], "findings": [{"rule": "T3", "file": "lib/a.dart", '
@@ -298,7 +298,43 @@ void main() {
 
       expect(prompts, hasLength(2));
       expect(result.accepted.single.rule, 'T3');
+      expect(
+        result.note,
+        'T3 was asked a second time, alone: both answers flag it.',
+      );
     });
+
+    test(
+      'is asked again when the only behavior is a lifecycle method',
+      () async {
+        // flutter/samples #2838: a view model created in initState and disposed
+        // in dispose.
+        const String wiring =
+            'diff --git a/lib/b.dart b/lib/b.dart\n'
+            'new file mode 100644\n'
+            '--- /dev/null\n'
+            '+++ b/lib/b.dart\n'
+            '@@ -0,0 +1,6 @@\n'
+            '+class _BState extends State<B> {\n'
+            '+  @override\n'
+            '+  void initState() {\n'
+            '+    super.initState();\n'
+            '+    _model = Model();\n'
+            '+  }\n';
+        const String flaggedHere =
+            '{"checks": [], "findings": [{"rule": "T3", "file": "lib/b.dart", '
+            '"line": 3, "evidence": "void initState() {", "message": "m"}]}';
+        final List<String> prompts = <String>[];
+        final ReviewResult result = await review(
+          diff: wiring,
+          rules: <Rule>[t3],
+          client: clientOf(<String>[flaggedHere, notFlagged], prompts),
+        );
+
+        expect(prompts, hasLength(2));
+        expect(result.accepted, isEmpty);
+      },
+    );
 
     test('is not asked again when no test has an added check', () async {
       final List<String> prompts = <String>[];
@@ -311,6 +347,46 @@ void main() {
       expect(prompts, hasLength(1));
       expect(result.accepted.single.rule, 'T3');
     });
+  });
+
+  test('keeps one remark of a rule on one line', () async {
+    final ModelClient client = ModelClient(
+      provider: 'test-provider',
+      baseUrl: 'https://example.com/v1/',
+      models: <String>['test-model'],
+      apiKey: 'test-key',
+      httpClient: MockClient((http.Request request) async {
+        return http.Response(
+          jsonEncode(<String, Object>{
+            'choices': <Object>[
+              <String, Object>{
+                'message': <String, String>{
+                  'content':
+                      '{"checks": [], "findings": ['
+                      '{"rule": "P1", "file": "lib/a.dart", "line": 11, '
+                      '"evidence": "final int z;", "message": "a"}, '
+                      '{"rule": "P1", "file": "lib/a.dart", "line": 11, '
+                      '"evidence": "final int z;", "message": "b"}]}',
+                },
+              },
+            ],
+          }),
+          200,
+        );
+      }),
+    );
+
+    final ReviewResult result = await review(
+      diff: sampleDiff,
+      rules: <Rule>[Rule(id: 'P1', title: 't', text: '## P1. t')],
+      client: client,
+    );
+
+    expect(result.accepted.single.message, 'a');
+    expect(
+      result.rejected.single.reason,
+      'the same remark is already on this line',
+    );
   });
 
   test('refuses MEM1 on a line that has B2', () async {

@@ -43,9 +43,12 @@
      item answers no: that is rule P5. If yes, go to step 3. If no, do not flag.
   3. Is that result computed outside `build()` (in `initState`,
      `didUpdateWidget` or a field) and only read in `build()`? Or is it one
-     simple operation, such as `contains`, a comparison, `toLowerCase` or
-     `join`? Calling, for each item, a function that compiles a `RegExp` or
-     parses the item is not simple. If yes, do not flag. If no, flag.
+     simple operation on each item while the tree is built, such as
+     `contains`, a comparison, `toLowerCase` or `join`? Sorting, filtering
+     (`where`) or grouping the collection is never simple, even with a simple
+     comparison inside. Calling, for each item, a function that compiles a
+     `RegExp` or parses the item is not simple either. If yes, do not flag.
+     If no, flag.
 - **Bad:**
 
   ```dart

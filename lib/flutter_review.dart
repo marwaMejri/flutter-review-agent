@@ -404,10 +404,18 @@ Future<ReviewResult> review({
   }
 
   // A rule marked "one per pull request" keeps its first remark only, and a
-  // rule marked "one per field" its first remark for each field.
+  // rule marked "one per field" its first remark for each field. Two remarks
+  // of a rule on the same line are one: a model flagged three widgets of one
+  // builder, and P9 put the three remarks on the same widget.
   final Set<String> seen = <String>{};
   final List<Finding> accepted = <Finding>[];
   for (final Finding finding in placed) {
+    if (!seen.add('${finding.rule} ${finding.file}:${finding.line}')) {
+      rejected.add(
+        RejectedFinding(finding, 'the same remark is already on this line'),
+      );
+      continue;
+    }
     final bool once = sent.any(
       (Rule rule) => rule.id == finding.rule && rule.onePerPullRequest,
     );
@@ -582,20 +590,25 @@ Future<ReviewResult> review({
     }
   }
 
-  // A rule marked "Confirm when a test of the pull request has an added
-  // check", such as T3: the model then judges whether these checks test the
-  // new code, and a model was seen to get it wrong once out of three runs.
-  // The rule is asked again, alone, and its remark is kept only when the
-  // second answer flags it too. When the agent already gives the lines that
-  // no test renders, there is nothing to judge. A failed second request
-  // keeps the remark.
+  // A rule marked "Confirm", such as T3, is asked again, alone, in the two
+  // cases where the model judges: a test of the pull request has an added
+  // check (do these checks test the new code?), or the only new behavior is
+  // a lifecycle method such as `initState()` (is it a behavior, or wiring?).
+  // A model was seen to answer both ways in the same case. The remark is
+  // kept only when the second answer flags it too. When the agent already
+  // gives the lines that no test renders, there is nothing to judge. A
+  // failed second request keeps the remark.
+  final bool onlyLifecycle = _onlyLifecycleBehavior(files);
   final List<Finding> confirmed = <Finding>[];
   final Map<String, String?> secondAnswers = <String, String?>{};
+  final Set<String> confirmations = <String>{};
   for (final Finding finding in shown) {
     final Rule? rule = sent
         .where((Rule r) => r.id == finding.rule && r.confirmWhenChecks)
         .firstOrNull;
-    if (rule == null || testExpects.isEmpty || widgetLines.isNotEmpty) {
+    final bool judged =
+        (testExpects.isNotEmpty && widgetLines.isEmpty) || onlyLifecycle;
+    if (rule == null || !judged) {
       confirmed.add(finding);
       continue;
     }
@@ -623,6 +636,13 @@ Future<ReviewResult> review({
     if (again == null ||
         parseFindings(again).any((Finding f) => f.rule == rule.id)) {
       confirmed.add(finding);
+      confirmations.add(
+        again == null
+            ? '${rule.id} could not be asked a second time: the first answer '
+                  'is kept.'
+            : '${rule.id} was asked a second time, alone: both answers flag '
+                  'it.',
+      );
     } else {
       final String? reason = parseChecks(
         again,
@@ -637,6 +657,7 @@ Future<ReviewResult> review({
     }
   }
 
+  final String notes = <String>[?note, ...confirmations].join(' ');
   return ReviewResult(
     accepted: confirmed,
     rejected: rejected,
@@ -648,7 +669,7 @@ Future<ReviewResult> review({
     checks: _mergeChecks(<List<RuleCheck>>[
       for (final String answer in answers) parseChecks(answer),
     ]),
-    note: note,
+    note: notes.isEmpty ? null : notes,
   );
 }
 
@@ -807,6 +828,29 @@ bool _inCallback(
   return source != null &&
       rules.any((Rule rule) => rule.id == finding.rule && rule.remarkInBuild) &&
       callbackLines(source).contains(finding.line);
+}
+
+final RegExp _lifecycleMethod = RegExp(
+  r'\b(initState|dispose|didChangeDependencies|didUpdateWidget|deactivate|'
+  r'activate|createState)\s*\(',
+);
+
+/// Whether the only added lines under `lib/` that show a behavior (see
+/// `showsBehavior`) declare a lifecycle method of a `State`, such as
+/// `void initState() {` or `void dispose() {`: a view model created in
+/// `initState` and disposed in `dispose` is wiring, while an `initState`
+/// that calls `load()` is a behavior. The lines inside these methods that
+/// have a condition, a callback or a `setState` are behaviors of their own.
+bool _onlyLifecycleBehavior(List<DiffFile> files) {
+  final List<String> lines = <String>[
+    for (final DiffFile file in files)
+      if (inPackage(file.path).startsWith('lib/') && !isTestFile(file.path))
+        for (final String code in file.addedCode)
+          if (showsBehavior(code)) code,
+  ];
+  return lines.isNotEmpty &&
+      lines.every(_lifecycleMethod.hasMatch) &&
+      !files.any(changesComputation);
 }
 
 /// The lines of every `build()` method of [sources], joined.

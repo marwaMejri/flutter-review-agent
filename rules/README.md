@@ -76,11 +76,14 @@ Every rule has the same parts:
   removed line with an operator, such as `a + b` changed to `a * b`. The
   model does not get this line.
 - **Confirm:** optional. With "when a test of the pull request has an added
-  check", as for T3, a remark of the rule is asked again, with the rule
-  alone, when a test of the pull request has an added `expect` or `verify`:
-  the model then judges whether these checks test the new code. The remark
-  is kept only when the second answer flags it too. This costs one more
-  request, only in that case. The model does not get this line.
+  check, or when its only new behavior is a lifecycle method", as for T3, a
+  remark of the rule is asked again, with the rule alone, in two cases where
+  the model judges: a test of the pull request has an added `expect` or
+  `verify` (do they test the new code?), or the only added lines that show a
+  behavior declare `initState`, `dispose` or another lifecycle method (is it
+  a behavior, or wiring?). The remark is kept only when the second answer
+  flags it too. This costs one more request, only in these cases. The model
+  does not get this line.
 - **Triggers:** the rule is sent to the model only when a line added by the
   pull request contains one of these texts, or, for `file:…`, when the path
   of a changed file in its package starts with it: `file:lib/` matches

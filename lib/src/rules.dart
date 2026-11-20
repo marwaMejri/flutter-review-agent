@@ -93,11 +93,15 @@ class Rule {
           'nor the value';
 
   /// Whether a remark of the rule is asked again when a test of the pull
-  /// request has an added check, and kept only when the second answer flags
-  /// it too, from `Confirm: when a test of the pull request has an added
-  /// check`.
+  /// request has an added check, or when the only new behavior of the pull
+  /// request is a lifecycle method such as `initState()`, and kept only when
+  /// the second answer flags it too, from `Confirm: when a test of the pull
+  /// request has an added check, or when its only new behavior is a
+  /// lifecycle method`.
   bool get confirmWhenChecks =>
-      _field('Confirm') == 'when a test of the pull request has an added check';
+      _field('Confirm') ==
+      'when a test of the pull request has an added check, or when its only '
+          'new behavior is a lifecycle method';
 
   /// Whether a remark of the rule on a widget around the list goes to the
   /// list widget built with the loop or the `.map` (see `listPlace`), from
