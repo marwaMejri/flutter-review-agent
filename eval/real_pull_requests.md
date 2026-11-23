@@ -1728,3 +1728,84 @@ model stay the same):
   can decide on, not a bug (the definition of the levels in
   `rules/README.md`), and its source is a team rule. The level is not sent to
   the model.
+
+Local checks of agent `4fb1669`, gemini-3.5-flash-lite:
+
+| Run | Result |
+|---|---|
+| bloc #4566 | T3; the model did not propose P5 this time; **a T5 on `return MaterialApp(` refused by the agent** ("no added test line contains `pumpAndSettle(`"): the pull request has no test |
+| localsend #3609 | T3, written with `"level": "suggestion"` |
+| #36 | P5 on the `GridView.count` (line 25), T3 |
+| #5 | T3; **P5 missed**: "Step 2: no, children are written explicitly, not from a loop or .map", while the P1 answer of the same review names `release.knownIssues.map(Text.new)` (one run; P5 was found on #5 in the GitHub run of `3a0dd40` the same evening) |
+
+#5, 2 more local runs on `4fb1669`: P5 (lines 54 and 56) and T3 in both.
+P5 on #5 with gemini-3.5-flash-lite this evening: 3 runs out of 4 (with the
+GitHub run of `3a0dd40`).
+
+## Final run: `gemini-3.5-flash-lite`, on GitHub, agent `3a0dd40`, the 45 pull requests
+
+Every review was made by gemini-3.5-flash-lite (#31 needs no model call). #21
+got no review in the loop: the `test` job of the example app failed, so the
+`review` job was skipped; pushed again, its review came.
+
+| PR | Result |
+|---|---|
+| #2 P1, T3; #3 P2, T3; #4 P3, T3; #5 P5 on line 56, T3; #6 P9 on line 49, T3; #7 B2, T3; #8 MEM1, T3; #9 MEM2, T3; #10 MEM3, T3; #11 B4, T3; #12 B5, T3 | as expected |
+| #13 T4; #14 T5 on line 12; #15 M2; #16 M3; #17 M4; #22 M1 | as expected |
+| #18, #19, #20, #21, #24, #27, #28, #31, #38, #39, #41 no remark; #25 B2 | as expected |
+| #23 B5, B2, MEM1 on line 23, P1, T3; #26 B5, T3; #29 B2 on lines 21 and 22, T3; #30 T3 and the conventions on lines 10, 54, 68 | as expected |
+| #32 P1, T3; #33 M1; #34 P1, T3; #35 MEM3, T3; #36 P5, T3; #37 T3 (no P1); #40 B5, T3; #42 B2, T3; #43 MEM1, T3; #44 P9 on line 21, T3 (allowed); #45 P9 on line 25; #46 P1 and T3 in `packages/release_badges` | as expected |
+
+**gemini-3.5-flash-lite: 45 out of 45 as expected.** `4fb1669` (v1) only adds
+a check that refuses P5 outside a list widget and makes T3 a suggestion: the
+prompts are the same, and no remark of this run is refused by the new check.
+
+## Run: `openai/gpt-oss-120b`, on GitHub, agent `4fb1669`, first half (#2 to #24, #46)
+
+Every review was made by gpt-oss-120b. The free Groq plan allows about 20
+reviews a day, so the 45 pull requests are run in two halves.
+
+| PR | Result |
+|---|---|
+| #2 P1, T3; #3 P2, T3; #4 P3, T3; #6 P9 on line 49 (once), T3; #7 B2, T3; #8 MEM1, T3; #9 MEM2, T3; #10 MEM3, T3; #11 B4, T3; #12 B5, T3 | as expected |
+| #5 P5 on line 54, T3 on `release_model.dart:31` (reviewed in 3 parts) | as expected: T3 is one per pull request, its line is on the model, not the view |
+| #13 T4; #14 T5; #15 M2; #16 M3 (changed parts only); #17 M4; #22 M1 | as expected |
+| #18, #19, #20, #21 no remark | as expected |
+| #23 B5, B2, MEM1, P1 on line 45 (the statement starts on 44), T3 | as expected |
+| #24 **T3 on `release_highlights.dart:48`**, the `AnimatedBuilder` of the pulse (7 parts, 438 s) | **false (suggestion)**: the tests of the pull request check the count, the list and both cases of the tags; the pulse is an animation, not a case. Confirmed by the second answer, so the confirmation does not catch it. Same class as the T3 on wiring (v1.1) |
+| #46 no review: HTTP 429, the daily quota was spent | to run again |
+
+**22 out of 23 reviewed as expected; 1 false T3 (suggestion) on #24.**
+
+Cause of the false T3 on #24, read in the remark: "The AnimatedBuilder
+introduces a new behavior (an animated icon) that is not covered by any
+test." An animation is in neither list of T3: not in "Do not flag", not in
+the behaviors of step 2. Checked before the fix:
+
+- the 7 parts are not the cause: the test files and their checks are
+  computed on the whole pull request and given in each part, and the second
+  answer gets every file;
+- the conditions of the file (`snapshot.hasData ? ... : ''` on line 57, the
+  `if` of the tags on line 70) are not the cause: the remark names the
+  `AnimatedBuilder` only;
+- the other branches with an animation: #6 (`NewBadge`) keeps T3 on its
+  conditions (`if (isNew)`, `newestReleaseId`) and has no test; #45
+  (`TweenAnimationBuilder`) expects no T3.
+
+Fix in `rules/tests.md`: "an animation that only fades, moves or resizes a
+widget (an `AnimatedBuilder`, a `FadeTransition`) with no condition and no
+action" is added to "Do not flag" and to step 1 of T3. The T3 prompt
+changes, so the final runs of v1 are made again on the new commit, for both
+models.
+
+Local checks of the fix, gemini-3.5-flash-lite:
+
+| Run | Result |
+|---|---|
+| #24, 3 runs | no remark in 3 runs; a B5 on the field `tags` (line 13) refused by the agent in 2 runs |
+| #6, 2 runs | P9 on line 49 and T3 in both: "adds a new behavior (NewBadge and isNew condition)" |
+| #45 | P9 on line 25, no T3 |
+| #2 | P1 and T3 on line 44 |
+
+All as expected. The local branches were behind their remote by the empty
+commits of the loops only: same trees, checked with `git rev-parse <branch>^{tree}`.
