@@ -1874,3 +1874,25 @@ Local checks of the confirmation, gemini-3.5-flash-lite (168 unit tests pass):
 |---|---|
 | #9, 5 runs | MEM2 and T3 in 5 runs, no CONVENTION proposed: the model now answers "None explicitly forbids storing context in view model" |
 | #30, 3 runs | T3 and the 3 conventions (lines 10, 53 or 54, 68) in 3 runs, each confirmed by the second answer |
+
+## Final run: `gemini-3.5-flash-lite`, on GitHub, agent `b8c474d`, the 45 pull requests
+
+| PR | Result |
+|---|---|
+| #2 P1, T3; #3 P2, T3; #4 P3, T3; #6 P9 on line 49, T3; #7 B2, T3; #8 MEM1, T3; #9 MEM2, T3 (no CONVENTION); #10 MEM3, T3; #11 B4, T3; #12 B5, T3 | as expected |
+| #13 T4; #14 T5 on line 12; #15 M2; #16 M3; #17 M4; #22 M1 | as expected |
+| #18, #19, #20, #21, #24, #27, #28, #31, #38, #39, #41 no remark; #25 B2 | as expected |
+| #23 B5, B2, MEM1 on line 23, P1, T3; #26 B5, T3; #29 B2 on lines 21 and 22, T3 | as expected |
+| #32 P1, T3; #33 M1; #34 P1, T3; #35 MEM3, T3; #36 P5, T3; #37 T3; #40 B5, T3; #43 MEM1, T3; #44 P9 on line 21, T3 (confirmed); #45 P9 on line 25; #46 P1, T3 | as expected |
+| #5 P5 on line 54, T3 | right, but answered by `gemini-3.6-flash` (flash-lite busy). To run again |
+| #30 T3 and the 3 conventions (lines 10, 54, 68) | right, but **the review names no model** ("by ``") and says the model was not measured: the second request for the conventions failed (Gemini busy, 183 s), and `answeredBy` of the client is reset by each request. A bug in the code, fixed below. To run again |
+| #42 **B2 only, T3 missed** | expected B2 and T3 (`snapshot.data ?? 'No search yet.'` in a widget, no test). T3 was found in every GitHub run of #42 before. To check in local |
+
+Fix: the review keeps the model that answered the review; a second request,
+to confirm a remark, no longer changes it. 1 unit test (a failed second
+request keeps the remark and the model). The prompts do not change.
+
+Local checks (169 unit tests pass): #42, 3 runs, gemini-3.5-flash-lite: B2
+and T3 in 3 runs ("it is a widget with conditional behavior
+(snapshot.data)"). The miss on GitHub was one run; its log is read to know
+whether the model missed T3 or the agent refused it.

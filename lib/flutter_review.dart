@@ -231,6 +231,10 @@ Future<ReviewResult> review({
     ...files,
     ...deleted,
   ], whole: sources.isNotEmpty);
+  // The model that the review names. A second request, to confirm a remark,
+  // must not change it: a failed one leaves no model (#30).
+  final String? reviewedBy = client.answeredBy;
+  final bool reviewedByDiscoveredModel = client.answeredByDiscoveredModel;
   String? note;
   if (answers.length > 1 || changedPartsOnly) {
     final List<String> how = <String>[
@@ -723,6 +727,9 @@ Future<ReviewResult> review({
     }
   }
 
+  client
+    ..answeredBy = reviewedBy
+    ..answeredByDiscoveredModel = reviewedByDiscoveredModel;
   final String notes = <String>[?note, ...confirmations].join(' ');
   return ReviewResult(
     accepted: reviewed,

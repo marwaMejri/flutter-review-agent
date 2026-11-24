@@ -260,6 +260,54 @@ void main() {
       expect(prompts.last, isNot(contains('## P1. t')));
     });
 
+    test(
+      'keeps the model of the review when the second request fails',
+      () async {
+        // Pull request #30: Gemini was busy for the second request, and the
+        // review named no model.
+        int calls = 0;
+        final ModelClient client = ModelClient(
+          provider: 'test-provider',
+          baseUrl: 'https://example.com/v1/',
+          models: <String>['test-model'],
+          apiKey: 'test-key',
+          maxAttempts: 1,
+          httpClient: MockClient((http.Request request) async {
+            calls++;
+            if (calls > 1) {
+              return http.Response('busy', 503);
+            }
+            return http.Response(
+              jsonEncode(<String, Object>{
+                'choices': <Object>[
+                  <String, Object>{
+                    'message': <String, String>{'content': finding('C1')},
+                  },
+                ],
+              }),
+              200,
+            );
+          }),
+        );
+
+        final ReviewResult result = await review(
+          diff: sampleDiff,
+          rules: <Rule>[],
+          client: client,
+          conventions: conventions,
+        );
+
+        expect(calls, 2);
+        expect(result.accepted.single.rule, 'CONVENTION');
+        expect(
+          result.note,
+          'The conventions could not be asked a second time: the first answer '
+          'is kept.',
+        );
+        expect(client.answeredBy, 'test-model');
+      },
+    );
+
     test('is not asked again when no convention is flagged', () async {
       final List<String> prompts = <String>[];
       await review(
