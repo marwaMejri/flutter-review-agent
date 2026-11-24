@@ -301,9 +301,12 @@ void main() {
         expect(result.accepted.single.rule, 'CONVENTION');
         expect(
           result.note,
-          'The conventions could not be asked a second time: the first answer '
-          'is kept.',
+          startsWith(
+            'The conventions could not be asked a second time (No model of '
+            'test-provider could answer (test-model: busy, HTTP 503',
+          ),
         );
+        expect(result.note, endsWith('): the first answer is kept.'));
         expect(client.answeredBy, 'test-model');
       },
     );

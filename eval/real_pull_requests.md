@@ -1896,3 +1896,124 @@ Local checks (169 unit tests pass): #42, 3 runs, gemini-3.5-flash-lite: B2
 and T3 in 3 runs ("it is a widget with conditional behavior
 (snapshot.data)"). The miss on GitHub was one run; its log is read to know
 whether the model missed T3 or the agent refused it.
+
+Log of #42 on GitHub (agent `b8c474d`): the model missed T3, the agent
+refused nothing. "T3: Step 1: yes, it is a widget showing a text with no
+condition and no action. Do not flag." Line 15 is
+`Text(snapshot.data ?? 'No search yet.')`: a `??`, and the prompt gave it as
+a fact ("added lines with a condition or an action inside a widget ... no
+test of this pull request checks them"). The model answered against a fact
+of the agent, in 1 run (3 local runs and every GitHub run before found T3).
+
+Runs again on GitHub, agent `2f9f95e`, gemini-3.5-flash-lite:
+
+| PR | Result |
+|---|---|
+| #5 | P5 on line 56, T3, by flash-lite |
+| #30 | T3 and the 3 conventions (lines 10, 53, 68), by flash-lite: the model is named now. **The second request for the conventions failed again**, after 183 s (the limit of one call is 3 minutes) |
+| #42 | B2 and T3 (line 6), by flash-lite |
+
+The second request for the conventions of #30 failed in the 2 GitHub runs,
+and worked in the 3 local runs. The review does not say why: the error is
+not kept.
+
+Note of the second request: when it fails, the note of the review now says
+why ("could not be asked a second time (<reason>)"), for T3 and for the
+conventions, to understand the failures of #30 on GitHub.
+
+## v1 without T3
+
+Decision (24/11): v1 ships with the rules that give the same remarks run
+after run. T3 needs the judgment of the model ("is this a behavior, and does
+a test check it?"), and its errors went both ways: false T3 (#24, refactors
+of real pull requests) and missed T3 (#42). It is reworked for the next
+version, from its own design, measured on many real pull requests.
+
+- The T3 section moves from `rules/tests.md` to `drafts/T3.md`, which the
+  agent does not load. `rules/README.md` says where it is.
+- The fact "added lines with a condition or an action inside a widget ... no
+  test of this pull request checks them" is given only to a rule with
+  "Only when: an added line under lib/ shows a behavior", such as T3: with no
+  such rule, it is text the model does not need. 1 unit test.
+- The old local cases (`eval/cases`, `eval/expected.json`) are not changed:
+  T3 is only "allowed" in them, except `T3-flag`.
+
+Expected remarks of the 45 pull requests without T3: #2 P1; #3 P2; #4 P3;
+#5 P5; #6 P9; #7 B2; #8 MEM1; #9 MEM2; #10 MEM3; #11 B4; #12 B5; #13 T4;
+#14 T5; #15 M2; #16 M3; #17 M4; #22 M1; #23 B5, B2, MEM1, P1; #25 B2; #26
+B5; #29 B2 on lines 21 and 22; #30 the conventions on lines 10, 53 or 54,
+68; #32 P1; #33 M1; #34 P1; #35 MEM3; #36 P5; #40 B5; #42 B2; #43 MEM1; #44
+P9 on line 21; #45 P9 on line 25; #46 P1. No remark: #18, #19, #20, #21,
+#24, #27, #28, #31, #37, #38, #39, #41.
+
+Local checks without T3, gemini-3.5-flash-lite (170 unit tests pass):
+
+| Run | Result |
+|---|---|
+| #24 | no remark, as expected |
+| #30 | the conventions on lines 10 and 68, both confirmed; **the convention on line 53 (a view reads a repository) missed**: the Presentation answer names the import of line 10 |
+| #46 | **P1 missed**: "Step 2: yes, sort is called on a collection. Step 3: yes, it uses join which is a simple operation on each item", while step 3 says that sorting is never simple |
+
+Two misses in 3 runs, where the runs with T3 found them (#30 in 6 runs, #46
+in every run). One run is not a measure: 3 more runs of each before any
+conclusion.
+
+3 more runs of each, without T3:
+
+| Run | Result |
+|---|---|
+| #46, 3 runs | P1 in 3 runs ("sorting is never simple"): 3 out of 4 with the first run |
+| #30, 3 runs | flash-lite (2 runs): lines 10 (and 11 once) and 68, **line 53/54 missed in both**; `gemini-3.6-flash` (1 run, flash-lite busy): lines 10, 11, 54, 68 |
+
+Line 11 imports `releases/domain/repositories/release_repository.dart` in the
+settings feature: a right remark of the same convention as line 10.
+
+The view that reads a repository (`context.read<ReleaseRepository>()` in an
+`onPressed:` of `SettingsView`, line 53) was found by flash-lite in 6 runs
+out of 6 with T3, and in 0 runs out of 3 without it. Not variability: the
+prompt without T3 lost something. Two differences: the T3 rule, and the fact
+of the widget lines (#30 has no test, so the fact listed the added lines with
+a condition or an action, the `onPressed:` of line 52 among them).
+
+Test of the cause: the fact of the widget lines is given again as before
+(the filter on "Only when" is taken out, the prompt code is the same as in
+`2f9f95e`), with T3 still out. 3 runs of #30 with flash-lite.
+
+| Run | Result |
+|---|---|
+| #30, 3 runs, the fact given again, no T3 | line 53 in 1 run out of 3; lines 10 and/or 11, and 68, in 3 runs. In 2 runs, the model wrote one check entry for several sections |
+
+Line 53 of #30: 6 out of 6 with T3, 0 out of 3 without T3 and without the
+fact, 1 out of 3 without T3 and with the fact. The fact is not the cause: T3
+was. To answer T3, the model read the actions of the buttons ("adds button
+actions and logic (fetching releases)"); without T3, the conventions check
+does not read the code inside the `onPressed:` callback, where the
+repository is read.
+
+Fix in `lib/src/prompt.dart`, in the part of the conventions: "**Read:**
+every added line, the code inside callbacks such as `onPressed: () {...}`
+included." The fact of the widget lines is given again only to a rule with
+"Only when" (T3). 1 unit test for each. To measure: #30, 3 runs (line 53 in
+each), and #9, 2 runs (no false CONVENTION).
+
+| Run | Result |
+|---|---|
+| #30, 3 runs, with "Read: every added line ..." and no T3 | line 68 in 3 runs, line 10 in 1 run, **line 53 in 0 runs**; in each run the model wrote one check entry for several sections |
+| #9, 2 runs | MEM2 only, no CONVENTION |
+
+The sentence did not help: #30 is worse (line 10 lost in 2 runs). Without
+T3, the conventions of #30 change with each change of the prompt (0, 1, 0
+runs out of 3 for line 53), while with T3 they were found in 6 runs out of 6.
+The rules of one request are not independent: taking out one rule changed
+how the model reads the conventions.
+
+Decision (24/11): v1 keeps T3, as measured on `b8c474d`. Everything done to
+take T3 out is undone: `rules/tests.md`, `rules/README.md`,
+`lib/src/prompt.dart` and their tests are back to `2f9f95e`. The prompt of
+v1 is the prompt of the Gemini run on `b8c474d`. Kept from today: the model
+of the review is kept when a second request fails, and the note says why the
+second request failed (code only, the prompt does not change).
+
+T3 is reworked for the next version, from precise tests that show why it
+fails, and with this in mind: T3 also makes the model read the actions of
+the widgets, where the conventions of #30 are broken.

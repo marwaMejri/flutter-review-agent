@@ -607,6 +607,7 @@ Future<ReviewResult> review({
   final bool onlyLifecycle = _onlyLifecycleBehavior(files);
   final List<Finding> confirmed = <Finding>[];
   final Map<String, String?> secondAnswers = <String, String?>{};
+  final Map<String, String> secondFailures = <String, String>{};
   final Set<String> confirmations = <String>{};
   for (final Finding finding in shown) {
     final Rule? rule = sent
@@ -634,8 +635,9 @@ Future<ReviewResult> review({
             builders: builders,
           ),
         );
-      } on Exception {
+      } on Exception catch (error) {
         secondAnswers[rule.id] = null;
+        secondFailures[rule.id] = _failure(error);
       }
     }
     final String? again = secondAnswers[rule.id];
@@ -644,8 +646,8 @@ Future<ReviewResult> review({
       confirmed.add(finding);
       confirmations.add(
         again == null
-            ? '${rule.id} could not be asked a second time: the first answer '
-                  'is kept.'
+            ? '${rule.id} could not be asked a second time '
+                  '(${secondFailures[rule.id]}): the first answer is kept.'
             : '${rule.id} was asked a second time, alone: both answers flag '
                   'it.',
       );
@@ -670,6 +672,7 @@ Future<ReviewResult> review({
   // second request keeps the remark.
   final List<Finding> reviewed = <Finding>[];
   String? conventionsAgain;
+  String? conventionsFailure;
   bool conventionsAsked = false;
   for (final Finding finding in confirmed) {
     if (finding.rule != conventionRuleId) {
@@ -691,8 +694,9 @@ Future<ReviewResult> review({
             packages: packages,
           ),
         );
-      } on Exception {
+      } on Exception catch (error) {
         conventionsAgain = null;
+        conventionsFailure = _failure(error);
       }
     }
     final String? again = conventionsAgain;
@@ -712,8 +716,8 @@ Future<ReviewResult> review({
       reviewed.add(finding);
       confirmations.add(
         again == null
-            ? 'The conventions could not be asked a second time: the first '
-                  'answer is kept.'
+            ? 'The conventions could not be asked a second time '
+                  '($conventionsFailure): the first answer is kept.'
             : 'The conventions were asked a second time, alone: each '
                   'convention remark below is flagged by both answers.',
       );
@@ -952,6 +956,14 @@ String _buildCode(Map<String, String> sources) => <String>[
 /// Sends one request, and asks once more when the answer is not the expected
 /// JSON: the same question usually gets a correct answer the second time. A
 /// cut answer would be cut again: asking again would only use the quota.
+/// Why a second request failed, short enough for the note of the review.
+String _failure(Exception error) {
+  final String text = error is ModelException
+      ? error.message
+      : error.toString();
+  return text.length <= 300 ? text : '${text.substring(0, 300)}...';
+}
+
 Future<String> _ask(ModelClient client, String user) async {
   for (int attempt = 1; ; attempt++) {
     final String answer = await client.complete(
