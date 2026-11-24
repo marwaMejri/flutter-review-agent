@@ -42,6 +42,8 @@ Every rule has the same parts:
     file.
   - "a widget that is not `const`" (P9): the first widget of the line must not
     be `const`.
+  - "a method that returns a `Widget`" (P3): the line must declare a method or
+    a getter that returns a `Widget`, not a widget class.
   - "in `build()`, or in a method that a `build()` calls" (P1): a remark in
     the body of another method, such as `initState` or `load`, is refused
     when no `build()` of the project names that method. A line in a getter

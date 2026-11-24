@@ -232,6 +232,12 @@ diff --git a/lib/app/router.dart b/lib/app/router.dart
     final Rule b5 = rules.firstWhere((Rule r) => r.id == 'B5');
 
     expect(b5.remarkOnNullableReturn, isTrue);
+    expect(
+      parseRules(
+        File('rules/performance.md').readAsStringSync(),
+      ).firstWhere((Rule r) => r.id == 'P3').remarkOnWidgetMethod,
+      isTrue,
+    );
     expect(b5.remarkLine, isEmpty);
     expect(rules.firstWhere((Rule r) => r.id == 'B4').remarkLine, isEmpty);
     expect(

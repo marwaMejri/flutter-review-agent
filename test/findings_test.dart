@@ -241,6 +241,89 @@ new file mode 100644
     expect(result.rejected.single.reason, 'file not in the diff');
   });
 
+  test('adds the folder of the app when the model leaves it out', () {
+    // immich #32784: `lib/presentation/actions/passkey.action.dart` for
+    // `mobile/lib/...`, with two other files named `passkey.dart`.
+    const String diff = '''
+diff --git a/mobile/lib/data/server/passkey.dart b/mobile/lib/data/server/passkey.dart
+new file mode 100644
+--- /dev/null
++++ b/mobile/lib/data/server/passkey.dart
+@@ -0,0 +1,1 @@
++class ServerPasskey {}
+diff --git a/mobile/lib/data/store/passkey.dart b/mobile/lib/data/store/passkey.dart
+new file mode 100644
+--- /dev/null
++++ b/mobile/lib/data/store/passkey.dart
+@@ -0,0 +1,1 @@
++class StorePasskey {}
+diff --git a/mobile/lib/presentation/actions/passkey.action.dart b/mobile/lib/presentation/actions/passkey.action.dart
+new file mode 100644
+--- /dev/null
++++ b/mobile/lib/presentation/actions/passkey.action.dart
+@@ -0,0 +1,1 @@
++class PasskeyRenameAction {}
+''';
+    final ({List<Finding> accepted, List<RejectedFinding> rejected}) result =
+        validateFindings(
+          <Finding>[
+            Finding(
+              rule: 'T3',
+              file: 'lib/presentation/actions/passkey.action.dart',
+              line: 1,
+              message: 'm',
+              evidence: 'class PasskeyRenameAction',
+            ),
+          ],
+          files: parseDiff(diff),
+          ruleIds: <String>{'T3'},
+        );
+
+    expect(
+      result.accepted.single.file,
+      'mobile/lib/presentation/actions/passkey.action.dart',
+    );
+  });
+
+  test('refuses P3 on a widget class', () {
+    // flutter/samples #2769: P3 on a `StatelessWidget`, which is what P3
+    // asks for.
+    const String diff = '''
+diff --git a/lib/a.dart b/lib/a.dart
+new file mode 100644
+--- /dev/null
++++ b/lib/a.dart
+@@ -0,0 +1,4 @@
++class _Placeholder extends StatelessWidget {
++  @override
++  Widget build(BuildContext context) => const Text('x');
++  Widget _buildRow(BuildContext context) => const Row();
+''';
+    Finding p3(int line, String evidence) => Finding(
+      rule: 'P3',
+      file: 'lib/a.dart',
+      line: line,
+      message: 'm',
+      evidence: evidence,
+    );
+    final ({List<Finding> accepted, List<RejectedFinding> rejected}) result =
+        validateFindings(
+          <Finding>[
+            p3(1, 'class _Placeholder extends StatelessWidget'),
+            p3(4, 'Widget _buildRow(BuildContext context)'),
+          ],
+          files: parseDiff(diff),
+          ruleIds: <String>{'P3'},
+          widgetMethodRules: <String>{'P3'},
+        );
+
+    expect(result.accepted.single.line, 4);
+    expect(
+      result.rejected.single.reason,
+      'the line declares no method that returns a Widget',
+    );
+  });
+
   test('fixes a wrong extension when one file has the same name', () {
     // Pull request #3: `release_detail_view.tsx` for the `.dart` file.
     final List<DiffFile> files = parseDiff(sampleDiff);

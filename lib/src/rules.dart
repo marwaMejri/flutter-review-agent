@@ -143,6 +143,12 @@ class Rule {
   bool get remarkOnNullableReturn =>
       _field('Remark line') == 'a return type that ends with `>?`';
 
+  /// Whether the line of a remark must declare a method or a getter that
+  /// returns a `Widget`, from a
+  /// `Remark line: a method that returns a Widget` line.
+  bool get remarkOnWidgetMethod =>
+      _field('Remark line') == 'a method that returns a `Widget`';
+
   /// Whether the first widget of the line of a remark must not be `const`,
   /// from a `Remark line: a widget that is not const` line.
   bool get remarkOnNonConstWidget =>

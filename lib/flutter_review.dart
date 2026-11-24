@@ -283,6 +283,10 @@ Future<ReviewResult> review({
           for (final Rule rule in sent)
             if (rule.remarkOnNonConstWidget) rule.id,
         },
+        widgetMethodRules: <String>{
+          for (final Rule rule in sent)
+            if (rule.remarkOnWidgetMethod) rule.id,
+        },
       );
 
   // A rule with a "Remark place", such as T5, gets its remark on the test

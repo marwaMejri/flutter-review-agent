@@ -2017,3 +2017,52 @@ second request failed (code only, the prompt does not change).
 T3 is reworked for the next version, from precise tests that show why it
 fails, and with this in mind: T3 also makes the model read the actions of
 the widgets, where the conventions of #30 are broken.
+
+#30 on GitHub, agent `8fb7e56`: the second request for the conventions
+worked this time (14 s); the reason of the 2 failures before is not known.
+The note now says why when it fails again.
+
+## Real pull requests on v1 (agent `8fb7e56`, prompt of `b8c474d`), gemini-3.5-flash-lite
+
+The 35 pull requests, local, with `Review-Commit` (the clone checked out on
+the commit, its diff with its parent, no conventions, no pack). 28 reviewed
+by flash-lite; 6 answered by `gemini-3.6-flash` (flash-lite busy) and 1 with
+no answer (HTTP 503 on every model): those 7 are run again.
+
+| | Pull requests (flash-lite) |
+|---|---|
+| right | immich #33408 T3; localsend #3558, #3609, #3608, #3597 T3; bloc #4566 T3 (6) |
+| debatable | bloc #4760 T3 (1) |
+| **false** | samples #2769 **P3 on `class _ActivityErrorPlaceholder extends StatelessWidget {`** (line 71): P3 is about a method that returns a widget tree, and this line is a widget class, what P3 asks for; lichess #4014 T4 (the same false T4 as before) (2) |
+| refused by a bug of the agent | immich #32784: T3 refused, "file not in the diff": the model wrote `lib/presentation/actions/passkey.action.dart` without `mobile/`, and the fallback on the file name found 3 files named `passkey` |
+| right silence | samples #2741, #2841; immich #32522, #33030, #33242; localsend the 3 tested ones and #3192; bloc #4814, #4584; lichess #4000, #3952, #4011, #3985, #4048, #3792, #3992, #3949 (19, #32784 included) |
+
+Refused rightly by the agent: T3 with no behavior (#2741, #4814), P5 and P9
+on unchanged lines (#3192, #3608), T5 with no navigation test (#4566).
+
+Fix of the bug, in `lib/src/findings.dart` (code only): when the file of a
+remark is not in the diff, a file of the diff whose path ends with
+`/<file of the remark>` is taken first, before the fallback on the name. 1
+unit test (the 3 `passkey` files of #32784).
+
+Fix of the false P3, in the code only: P3 has `Remark line: a method that
+returns a Widget` (the model does not get this line, the prompt does not
+change), and the agent refuses a P3 remark on a line that declares no method
+or getter returning a `Widget`, such as `class _ActivityErrorPlaceholder
+extends StatelessWidget {`. Checked: the P3 line of #4
+(`Widget _buildAboutSection(BuildContext context) {`) is kept. 1 unit test.
+
+Runs again (171 unit tests pass), gemini-3.5-flash-lite:
+
+| Pull request | Result |
+|---|---|
+| immich #32784 | no remark: "test for update exists" (the test checks the API call, not the rename dialog): T3 missed, debatable, as on `3a0dd40` |
+| localsend #3591 | T3 on the new copy buttons: right (no P1 in the `onPressed:`) |
+| localsend `e05d12a` (tested) | no remark: right |
+| samples #2819 | answered by `gemini-3.6-flash` again: not counted |
+| samples #2839, #2838, #2769; immich #32771; lichess #3981 | no review: flash-lite busy (HTTP 503), the other models of the preset out of their quota of the day (HTTP 429) |
+
+So far, 30 pull requests reviewed by flash-lite on v1: 7 right remarks, 1
+debatable, 2 false (P3 on #2769, now refused by the agent, to check in a
+run; T4 on lichess #4014); 1 debatable miss (#32784); 19 right silences.
+28 pull requests out of 30 with no false remark.

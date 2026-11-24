@@ -226,7 +226,8 @@ const int evidenceWindow = 3;
 /// must contain. For the rules in [nullableReturnRules], such as B5, the line
 /// must declare a return type that ends with `>?`. For the rules in
 /// [nonConstRules], such as P9, the first widget of the line must not be
-/// `const`.
+/// `const`. For the rules in [widgetMethodRules], such as P3, the line must
+/// declare a method or a getter that returns a `Widget`.
 ///
 /// A remark on a `///` comment is moved to the member that the comment
 /// documents.
@@ -238,6 +239,7 @@ const int evidenceWindow = 3;
   Map<String, List<String>> remarkLines = const <String, List<String>>{},
   Set<String> nonConstRules = const <String>{},
   Set<String> nullableReturnRules = const <String>{},
+  Set<String> widgetMethodRules = const <String>{},
 }) {
   final Map<String, DiffFile> filesByPath = <String, DiffFile>{
     for (final DiffFile file in files) file.path: file,
@@ -248,6 +250,25 @@ const int evidenceWindow = 3;
   for (final Finding original in findings) {
     Finding finding = original;
     DiffFile? file = filesByPath[finding.file];
+    if (file == null) {
+      // Models sometimes leave out the folder that holds the app, in a
+      // repository such as immich (`lib/a.dart` for `mobile/lib/a.dart`).
+      final List<DiffFile> inFolder = <DiffFile>[
+        for (final DiffFile candidate in files)
+          if (candidate.path.endsWith('/${finding.file}')) candidate,
+      ];
+      if (inFolder.length == 1) {
+        file = inFolder.single;
+        finding = Finding(
+          rule: finding.rule,
+          file: file.path,
+          line: finding.line,
+          message: finding.message,
+          evidence: finding.evidence,
+          convention: finding.convention,
+        );
+      }
+    }
     if (file == null) {
       // Models sometimes get the folder wrong in a pull request with many
       // files (`lib/widgets/a.dart` for `lib/features/a.dart`), or the
@@ -306,6 +327,16 @@ const int evidenceWindow = 3;
             'the line declares no return type that ends with >?',
           ),
         );
+      } else if (widgetMethodRules.contains(finding.rule) &&
+          !declaresWidgetMethod(code)) {
+        // A widget class is what P3 asks for, not a method that returns a
+        // widget tree (flutter/samples #2769).
+        rejected.add(
+          RejectedFinding(
+            placed,
+            'the line declares no method that returns a Widget',
+          ),
+        );
       } else if (nonConstRules.contains(finding.rule) &&
           startsWithConstWidget(code)) {
         // A `const` widget is built once: the rule does not apply to it.
@@ -359,6 +390,12 @@ int _memberLine(DiffFile file, int line) {
 /// (`final List<String>? tags;`) or a parameter does not.
 bool declaresNullableReturn(String code) => RegExp(
   r'>\?\s+(get\s+[A-Za-z_$][\w$]*|[A-Za-z_$][\w$]*\s*(<[^()]*>)?\s*\()',
+).hasMatch(code);
+
+/// Whether [code] declares a method or a getter that returns a `Widget`, as
+/// `Widget _buildHeader(BuildContext context) {` or `Widget get _title =>`.
+bool declaresWidgetMethod(String code) => RegExp(
+  r'^\s*(static\s+)?Widget\??\s+(get\s+)?[A-Za-z_$][\w$]*\s*(\(|=>|\{)',
 ).hasMatch(code);
 
 /// Whether the first widget created on [code] is marked `const`, as in

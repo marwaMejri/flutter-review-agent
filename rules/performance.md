@@ -218,6 +218,7 @@
   rebuilds.
 - **Source:** [Performance best practices](https://docs.flutter.dev/perf/best-practices#control-build-cost), [StatefulWidget, Performance considerations](https://api.flutter.dev/flutter/widgets/StatefulWidget-class.html#performance-considerations) and the video [Widgets vs helper methods](https://www.youtube.com/watch?v=IOyq-eTRhvo) (official Flutter channel)
 - **Level:** suggestion
+- **Remark line:** a method that returns a `Widget`
 - **Triggers:** `Widget _`, `Widget build`
 
 ## P5. A long list built without a builder
