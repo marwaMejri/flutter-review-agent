@@ -38,6 +38,10 @@ void main() {
     expect(prompt, contains('- [C1] Screens never use `Navigator.push`.'));
     expect(
       prompt,
+      contains('a good practice that the conventions do not write'),
+    );
+    expect(
+      prompt,
       contains('add one entry "CONVENTION" for each convention that the'),
     );
     expect(systemPrompt, contains('report two findings, each on its own line'));

@@ -142,10 +142,135 @@ void main() {
       conventions: '- Fields are named x.',
     );
 
-    expect(calls, 1);
+    // The second request asks the conventions again, alone.
+    expect(calls, 2);
     expect(result.sentRules, <String>['CONVENTION']);
     expect(result.accepted.single.rule, 'CONVENTION');
     expect(result.checks.single.rule, 'CONVENTION');
+  });
+
+  group('a CONVENTION remark', () {
+    String finding(String id) =>
+        '{"checks": [], "findings": [{"rule": "CONVENTION", "file": '
+        '"lib/a.dart", "line": 11, "evidence": "final int z;", "message": '
+        '"m", "convention": "$id"}]}';
+    const String none =
+        '{"checks": [{"rule": "CONVENTION", "applies": false, "reason": '
+        '"Names: no convention broken."}], "findings": []}';
+    const String conventions =
+        '## Names\n- Fields are named x.\n- Fields are final.';
+
+    ModelClient clientOf(List<String> answers, List<String> prompts) =>
+        ModelClient(
+          provider: 'test-provider',
+          baseUrl: 'https://example.com/v1/',
+          models: <String>['test-model'],
+          apiKey: 'test-key',
+          httpClient: MockClient((http.Request request) async {
+            prompts.add(request.body);
+            return http.Response(
+              jsonEncode(<String, Object>{
+                'choices': <Object>[
+                  <String, Object>{
+                    'message': <String, String>{
+                      'content': answers[prompts.length - 1],
+                    },
+                  },
+                ],
+              }),
+              200,
+            );
+          }),
+        );
+
+    test('is kept when the second answer flags it too', () async {
+      final List<String> prompts = <String>[];
+      final ReviewResult result = await review(
+        diff: sampleDiff,
+        rules: <Rule>[],
+        client: clientOf(<String>[finding('C1'), finding('C1')], prompts),
+        conventions: conventions,
+      );
+
+      expect(prompts, hasLength(2));
+      expect(result.accepted.single.convention, 'Fields are named x.');
+      expect(
+        result.note,
+        'The conventions were asked a second time, alone: each convention '
+        'remark below is flagged by both answers.',
+      );
+    });
+
+    test('is refused when the second answer flags nothing', () async {
+      final List<String> prompts = <String>[];
+      final ReviewResult result = await review(
+        diff: sampleDiff,
+        rules: <Rule>[],
+        client: clientOf(<String>[finding('C1'), none], prompts),
+        conventions: conventions,
+      );
+
+      expect(prompts, hasLength(2));
+      expect(result.accepted, isEmpty);
+      expect(
+        result.rejected.single.reason,
+        'convention not flagged again by a second answer',
+      );
+    });
+
+    test(
+      'is refused when the second answer flags another convention',
+      () async {
+        final List<String> prompts = <String>[];
+        final ReviewResult result = await review(
+          diff: sampleDiff,
+          rules: <Rule>[],
+          client: clientOf(<String>[finding('C1'), finding('C2')], prompts),
+          conventions: conventions,
+        );
+
+        expect(result.accepted, isEmpty);
+        expect(
+          result.rejected.single.reason,
+          'convention not flagged again by a second answer',
+        );
+      },
+    );
+
+    test('is asked again once, with the conventions and no rule', () async {
+      final List<String> prompts = <String>[];
+      await review(
+        diff: sampleDiff,
+        rules: <Rule>[Rule(id: 'P1', title: 't', text: '## P1. t')],
+        client: clientOf(<String>[
+          '{"checks": [], "findings": ['
+              '{"rule": "CONVENTION", "file": "lib/a.dart", "line": 11, '
+              '"evidence": "final int z;", "message": "m", '
+              '"convention": "C1"}, '
+              '{"rule": "CONVENTION", "file": "lib/a.dart", "line": 12, '
+              '"evidence": "final int w;", "message": "m", '
+              '"convention": "C2"}]}',
+          finding('C1'),
+        ], prompts),
+        conventions: conventions,
+      );
+
+      expect(prompts, hasLength(2));
+      expect(prompts.last, contains('# Project conventions'));
+      expect(prompts.last, isNot(contains('## P1. t')));
+    });
+
+    test('is not asked again when no convention is flagged', () async {
+      final List<String> prompts = <String>[];
+      await review(
+        diff: sampleDiff,
+        rules: <Rule>[],
+        client: clientOf(<String>[none], prompts),
+        conventions: conventions,
+      );
+
+      expect(prompts, hasLength(1));
+    });
   });
 
   test('does not call the model when nothing applies', () async {

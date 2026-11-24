@@ -1809,3 +1809,68 @@ Local checks of the fix, gemini-3.5-flash-lite:
 
 All as expected. The local branches were behind their remote by the empty
 commits of the loops only: same trees, checked with `git rev-parse <branch>^{tree}`.
+
+## Final run: `gemini-3.5-flash-lite`, on GitHub, agent `dfd5b0f`, the 45 pull requests
+
+| PR | Result |
+|---|---|
+| #2 P1, T3; #3 P2, T3; #4 P3, T3; #5 P5 on line 56, T3; #7 B2, T3; #8 MEM1, T3; #10 MEM3, T3; #11 B4, T3; #12 B5, T3 | as expected |
+| #13 T4; #14 T5 on line 12; #15 M2; #16 M3; #17 M4; #22 M1 | as expected |
+| #18, #19, #20, #21, #24, #27, #28, #31, #38, #39, #41 no remark; #25 B2 | as expected |
+| #23 B5, B2, MEM1 on line 23, P1, T3; #26 B5, T3; #29 B2 on lines 21 and 22, T3; #30 T3 and the conventions on lines 10, 54, 68 | as expected |
+| #32 P1, T3; #33 M1; #34 P1, T3; #35 MEM3, T3; #36 P5, T3; #37 T3 (no P1); #40 B5, T3; #42 B2, T3; #43 MEM1, T3; #44 P9 on line 21, T3 (confirmed by a second answer); #45 P9 on line 25; #46 P1 and T3 | as expected |
+| #6 P9 on line 49, T3 | as expected, but answered by `gemini-3.6-flash`: flash-lite was busy, the agent took the next model of the preset. To run again |
+| #9 | no review: HTTP 503 three times, "This model is currently experiencing high demand". To run again |
+
+43 out of 43 reviewed by flash-lite as expected; #6 and #9 run again.
+
+Runs again (24/11):
+
+| PR | Result |
+|---|---|
+| #6 | P9 on line 49, T3; answered again by `gemini-3.6-flash` (flash-lite busy, 75 s). To run again |
+| #9 | MEM2 on line 16, T3 on line 34, and **a false CONVENTION on line 1** |
+
+The CONVENTION on #9 line 1 (`import 'package:material_ui/material_ui.dart';`,
+which replaces `package:flutter/foundation.dart`): "Presentation view models
+should not depend on UI libraries like material_ui", with the convention
+"Widgets of the design system come from `package:material_ui/material_ui.dart`,
+never from `package:flutter/material.dart`". The line follows that convention;
+the message is a good practice that `CONVENTIONS.md` does not write, put on a
+real ID. The checks of the agent let it pass: the ID exists, and the line is
+an import. Second false CONVENTION on #9: the first (an invented convention)
+was fixed by the IDs.
+
+Fix in `lib/src/prompt.dart`, in the part of the conventions: "**Do not
+flag:** a line that follows the convention, or a good practice that the
+conventions do not write. A convention is broken only when an added line does
+what it forbids, or does not do what it asks." A check in the code was
+looked at and not kept: the agent cannot tell which package a convention
+allows and which one it forbids without reading the sentence.
+
+Local checks of the conventions fix, gemini-3.5-flash-lite:
+
+| Run | Result |
+|---|---|
+| #9, 5 runs | MEM2 and T3 in 5 runs. **Run 4: the model flagged a CONVENTION again**, "Presentation: C20 ... Storing BuildContext in a view model breaks architectural layers", on line 16: the same error (a good practice put on a real convention). It was refused by the agent only because its ID was not found |
+| #30, 3 runs | T3 and the 3 conventions (lines 10, 53, 68) in 3 runs |
+| #46 | P1 and T3, no CONVENTION |
+| #22 | no remark: no false CONVENTION (M1 is a pack, not sent by the local runs) |
+
+The sentence does not stop the error: 1 run out of 5 on #9.
+
+Fix in `lib/flutter_review.dart`: a CONVENTION remark is asked a second
+time, with the conventions alone and no rule, once for the pull request. The
+remark is kept only when the second answer flags the same convention in the
+same file; a failed second request keeps it, as for T3. One more request,
+only when the review has a CONVENTION remark. 5 unit tests: kept, refused
+when the second answer flags nothing, refused when it flags another
+convention, asked once with no rule, not asked when no convention is
+flagged.
+
+Local checks of the confirmation, gemini-3.5-flash-lite (168 unit tests pass):
+
+| Run | Result |
+|---|---|
+| #9, 5 runs | MEM2 and T3 in 5 runs, no CONVENTION proposed: the model now answers "None explicitly forbids storing context in view model" |
+| #30, 3 runs | T3 and the 3 conventions (lines 10, 53 or 54, 68) in 3 runs, each confirmed by the second answer |

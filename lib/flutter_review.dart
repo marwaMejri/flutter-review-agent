@@ -659,9 +659,73 @@ Future<ReviewResult> review({
     }
   }
 
+  // A CONVENTION remark is asked again too, with the conventions alone: a
+  // model was seen to put a good practice of its own on the ID of a real
+  // convention, in 1 run out of 5 (#9). The remark is kept only when the
+  // second answer flags the same convention in the same file. A failed
+  // second request keeps the remark.
+  final List<Finding> reviewed = <Finding>[];
+  String? conventionsAgain;
+  bool conventionsAsked = false;
+  for (final Finding finding in confirmed) {
+    if (finding.rule != conventionRuleId) {
+      reviewed.add(finding);
+      continue;
+    }
+    if (!conventionsAsked) {
+      conventionsAsked = true;
+      try {
+        conventionsAgain = await _ask(
+          client,
+          buildUserPrompt(
+            rules: const <Rule>[],
+            files: files,
+            conventions: conventions,
+            sources: changedPartsOnly ? const <String, String>{} : sources,
+            testFiles: testFiles,
+            testExpects: testExpects,
+            packages: packages,
+          ),
+        );
+      } on Exception {
+        conventionsAgain = null;
+      }
+    }
+    final String? again = conventionsAgain;
+    final bool flaggedAgain =
+        again != null &&
+        validateFindings(
+          parseFindings(again),
+          files: files,
+          ruleIds: <String>{conventionRuleId},
+        ).accepted.any(
+          (Finding f) =>
+              f.rule == conventionRuleId &&
+              f.file == finding.file &&
+              conventionTexts[conventionId(f)] == finding.convention,
+        );
+    if (again == null || flaggedAgain) {
+      reviewed.add(finding);
+      confirmations.add(
+        again == null
+            ? 'The conventions could not be asked a second time: the first '
+                  'answer is kept.'
+            : 'The conventions were asked a second time, alone: each '
+                  'convention remark below is flagged by both answers.',
+      );
+    } else {
+      rejected.add(
+        RejectedFinding(
+          finding,
+          'convention not flagged again by a second answer',
+        ),
+      );
+    }
+  }
+
   final String notes = <String>[?note, ...confirmations].join(' ');
   return ReviewResult(
-    accepted: confirmed,
+    accepted: reviewed,
     rejected: rejected,
     reviewedFiles: <String>[for (final DiffFile file in files) file.path],
     sentRules: <String>[

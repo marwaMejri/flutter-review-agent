@@ -150,6 +150,14 @@ String buildUserPrompt({
                   'Flag."',
       )
       ..writeln(
+        // A model was seen to put a good practice of its own on the ID of a
+        // real convention, on a line that follows that convention (#9).
+        '- **Do not flag:** a line that follows the convention, or a good '
+        'practice that the conventions do not write. A convention is broken '
+        'only when an added line does what it forbids, or does not do what '
+        'it asks.',
+      )
+      ..writeln(
         // The form of the answer shows no "convention" field: without this
         // example, a small model often leaves it out.
         '- **Finding:** a broken convention is reported with its ID in '
