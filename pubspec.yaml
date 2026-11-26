@@ -1,6 +1,6 @@
 name: flutter_review
 description: A pull request review agent for Flutter projects. Every remark cites a rule and its source.
-version: 0.1.0
+version: 1.0.0
 publish_to: none
 
 environment:

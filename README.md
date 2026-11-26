@@ -72,9 +72,10 @@ linked), is in [`rules/`](rules/).
    - the rule allows a remark on that line: B5 only on a return type that
      ends with `>?`, P1 and B2 only in `build()` or in a method that a
      `build()` of the project calls, never in a callback such as
-     `onPressed: () {...}`, P5 only in a list widget, MEM1 never on an object
-     that the file disposes, T5 only when the pull request adds a navigation
-     test, a convention about a package only on an import;
+     `onPressed: () {...}`, P3 only on a method that returns a `Widget`, P5
+     only in a list widget, MEM1 never on an object that the file disposes,
+     T5 only when the pull request adds a navigation test, a convention about
+     a package only on an import;
    - one remark per rule and line, one per pull request for T3 and T5, one
      per field for MEM2.
 5. **The agent puts some remarks on the right line:** T5 on the
@@ -127,6 +128,7 @@ jobs:
 | `base-url` | no | Address of an OpenAI-compatible API, for a provider with no preset. |
 | `packs` | no | Packs to turn on, separated by spaces. |
 | `conventions` | no | Path of the conventions. Default: `CONVENTIONS.md`. |
+| `github-token` | no | Token that writes the review. Default: the token of the workflow. |
 
 Any provider with an OpenAI-compatible API works with `base-url`, a local
 model included. When the chosen model is busy or out of quota, the agent

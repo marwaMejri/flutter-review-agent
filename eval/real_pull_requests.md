@@ -1,5 +1,11 @@
 # Final test on real pull requests
 
+This log is written in time order: each run, each error with its cause, and
+each fix. In the first sections, "v1" is the first version of the rules
+(October 2026). The released v1 is agent `56564bd`: its results are in the
+last sections, from "Final run: `gemini-3.5-flash-lite`, on GitHub, agent
+`b8c474d`" (the same prompt) to the end.
+
 Each pull request of
 [flutter-review-example](https://github.com/marwaMejri/flutter-review-example)
 targets one rule, or none (a clean pull request). The agent version stays the
@@ -36,7 +42,7 @@ only a large model applies is an error to fix, not a limit to accept.
 | [#21](https://github.com/marwaMejri/flutter-review-example/pull/21) | Beta warning in a `ValueListenableBuilder` with `const` widgets, tested (clean) | none | nothing, as expected (P9 sent and rightly not raised) | 0 | 1 s |
 | [#22](https://github.com/marwaMejri/flutter-review-example/pull/22) | Shared section title: `lib/core/ui.dart` exports `package:flutter/material.dart` | M1 | yes: M1 on the export | 0 | 2 s |
 
-## Summary of the test (gemini-3.5-flash-lite, agent v1)
+## Summary of the test (gemini-3.5-flash-lite, first version of the rules)
 
 - Rules aimed at: **14 found out of 17**. Missed: P2 and P9 (rules that need
   judgment), and T5 (never sent because of its triggers).
@@ -1756,7 +1762,7 @@ got no review in the loop: the `test` job of the example app failed, so the
 | #23 B5, B2, MEM1 on line 23, P1, T3; #26 B5, T3; #29 B2 on lines 21 and 22, T3; #30 T3 and the conventions on lines 10, 54, 68 | as expected |
 | #32 P1, T3; #33 M1; #34 P1, T3; #35 MEM3, T3; #36 P5, T3; #37 T3 (no P1); #40 B5, T3; #42 B2, T3; #43 MEM1, T3; #44 P9 on line 21, T3 (allowed); #45 P9 on line 25; #46 P1 and T3 in `packages/release_badges` | as expected |
 
-**gemini-3.5-flash-lite: 45 out of 45 as expected.** `4fb1669` (v1) only adds
+**gemini-3.5-flash-lite: 45 out of 45 as expected.** `4fb1669` (then planned as v1) only adds
 a check that refuses P5 outside a list widget and makes T3 a suggestion: the
 prompts are the same, and no remark of this run is refused by the new check.
 
