@@ -182,7 +182,8 @@ for each rule.
   one (`openai/gpt-oss-120b`, Groq), on the free plans of their providers.
 - **Every error is in the log**
   [`eval/real_pull_requests.md`](eval/real_pull_requests.md): the remark, its
-  cause read in the answer of the model, the fix, and the run after it.
+  cause when the answer of the model shows it, and the fix with the run after
+  it.
 
 ## Measured results
 
