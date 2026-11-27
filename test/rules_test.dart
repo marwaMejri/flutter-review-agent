@@ -174,6 +174,11 @@ diff --git a/lib/app/router.dart b/lib/app/router.dart
       'packs/material_ui_migration.md',
     ]) {
       for (final Rule rule in parseRules(File(name).readAsStringSync())) {
+        // A rule checked by the code of the agent says how, instead.
+        if (rule.checkedByCode) {
+          expect(rule.text, contains('- **How the agent checks it:**'));
+          continue;
+        }
         final int start = rule.text.indexOf('- **Decide:**');
         final int end = rule.text.indexOf('\n- **Bad', start);
         expect(start, isNot(-1), reason: rule.id);
@@ -249,13 +254,13 @@ diff --git a/lib/app/router.dart b/lib/app/router.dart
     );
   });
 
-  test('reads which rules need a widget that is not const', () {
+  test('reads the checks of the agent on the line of a remark', () {
     final Rule p9 = parseRules(File('rules/performance.md').readAsStringSync())
         .firstWhere((Rule r) => r.id == 'P9');
     final Rule b5 = parseRules(File('rules/dart.md').readAsStringSync())
         .firstWhere((Rule r) => r.id == 'B5');
 
-    expect(p9.remarkOnNonConstWidget, isTrue);
+    expect(p9.checkedByCode, isTrue);
     expect(
       parseRules(File('rules/performance.md').readAsStringSync())
           .firstWhere((Rule r) => r.id == 'P5')
@@ -263,7 +268,7 @@ diff --git a/lib/app/router.dart b/lib/app/router.dart
       isTrue,
     );
     expect(p9.remarkLine, isEmpty);
-    expect(b5.remarkOnNonConstWidget, isFalse);
+    expect(b5.checkedByCode, isFalse);
     expect(
       parseRules(File('rules/performance.md').readAsStringSync())
           .firstWhere((Rule r) => r.id == 'P1')
@@ -277,7 +282,6 @@ diff --git a/lib/app/router.dart b/lib/app/router.dart
           .remarkInBuild,
       isTrue,
     );
-    expect(p9.remarkOnBuilderChild, isTrue);
     expect(
       parseRules(File('rules/memory.md').readAsStringSync())
           .firstWhere((Rule r) => r.id == 'MEM1')
@@ -285,7 +289,6 @@ diff --git a/lib/app/router.dart b/lib/app/router.dart
       isTrue,
     );
     expect(p9.remarkPlace, isNull);
-    expect(b5.remarkOnBuilderChild, isFalse);
     final Rule p5 = parseRules(File('rules/performance.md').readAsStringSync())
         .firstWhere((Rule r) => r.id == 'P5');
     expect(p5.remarkOnListWithLoop, isTrue);

@@ -322,7 +322,8 @@ diff --git a/lib/a.dart b/lib/a.dart
     test('cuts a long value and leaves out library;', () {
       final String values =
           '<int>[${<int>[for (int i = 1; i <= 40; i++) i].join(', ')}]';
-      final String diff = '''
+      final String diff =
+          '''
 diff --git a/lib/c.dart b/lib/c.dart
 new file mode 100644
 --- /dev/null

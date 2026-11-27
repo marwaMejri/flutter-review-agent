@@ -310,27 +310,28 @@
   - the widget is given to the `child:` argument of the `AnimatedBuilder`,
     `ListenableBuilder`, `ValueListenableBuilder` or `TweenAnimationBuilder`
     itself: it is outside the `builder`, and built once. This is the fix the
-    rule asks for.
-- **Decide:**
-  1. Does the pull request add or change the `builder` of an `AnimatedBuilder`,
-     a `ListenableBuilder`, a `ValueListenableBuilder` or a
-     `TweenAnimationBuilder`? If yes, go to step 2. If no, do not flag.
-  2. Look only inside the `builder` function. The widget given to the `child:`
-     argument of the `AnimatedBuilder`, `ListenableBuilder`,
-     `ValueListenableBuilder` or `TweenAnimationBuilder` itself is outside the
-     `builder`: it is built once, so skip it. Do not judge the `builder` as a whole either: it always uses
-     the animation somewhere. Search inside it for one widget whose arguments
-     use only fields of the widget (`widget.version`), constants, `context`, or
-     variables of `build()` set before the `builder` (such as `theme` from
-     `Theme.of(context)`), and not the animation, the listenable or `value`. For
-     example, in `Row(children: [Transform.rotate(angle: _controller.value,
-     ...), Padding(child: Text(widget.version))])`, the `Padding` is such a
-     widget, and so is `Text('Saved.', style:
-     Theme.of(context).textTheme.bodySmall)`. If you found one, go to step 3. If
-     not, do not flag.
-  3. Is that widget marked `const`? If yes, do not flag. If no, flag it, even
-     when it is small and even when it reads `context`: it can be built once,
-     outside the `builder`, and passed through the `child` parameter.
+    rule asks for;
+  - the pull request does not write the line of the widget, for example
+    when it only re-indents it.
+- **How the agent checks it:** with the Dart analyzer, and no model. What
+  changes when the `builder` runs again: the object given to `animation:`,
+  `listenable:` or `valueListenable:` (the whole expression, such as
+  `widget.controller`, or the expression of a variable given there), the
+  value and the child parameters of the `builder`, and the variables of the
+  `builder` computed from them, and the variables that the code can change
+  while the builder lives (a field assigned outside `setState(...)` and the
+  methods followed by a build, a variable assigned in a callback). A widget
+  reads them when its code does, or when it calls a method of its class, or
+  a function of its file, that does; a function given to the widget, such as
+  `onPressed: () { ... }`, runs later and does not count.
+  The agent starts from the widget that the `builder` returns and goes down
+  through `child:`, the elements of `children:`, and the two branches of a
+  condition; the first widget there that is not `const` and reads nothing
+  that changes gets the remark. A widget that calls a method that is not in
+  its file is not decided: it gets no remark, and the log says why. A widget
+  in another argument, such as `title:`, is not checked: without the types,
+  `padding: EdgeInsets.all(8)` looks like a widget too. The tests are not
+  checked: a test builds its widgets a few times.
 - **Bad:**
 
   ```dart
@@ -364,6 +365,4 @@
   change of the value. A subtree passed as `child` is built once.
 - **Source:** [Performance best practices, Control build() cost](https://docs.flutter.dev/perf/best-practices#control-build-cost) (the rebuild stops at "the same instance of the child widget"), [StatefulWidget, Performance considerations](https://api.flutter.dev/flutter/widgets/StatefulWidget-class.html#performance-considerations) ("If a subtree does not change, cache the widget that represents that subtree"), [Pitfalls](https://docs.flutter.dev/perf/best-practices#pitfalls), [AnimatedBuilder, Performance optimizations](https://api.flutter.dev/flutter/widgets/AnimatedBuilder-class.html#performance-optimizations), [ValueListenableBuilder](https://api.flutter.dev/flutter/widgets/ValueListenableBuilder-class.html), [ListenableBuilder.child](https://api.flutter.dev/flutter/widgets/ListenableBuilder/child.html) and [TweenAnimationBuilder.child](https://api.flutter.dev/flutter/widgets/TweenAnimationBuilder/child.html) ("it's more efficient to build that subtree once instead of rebuilding it on every animation tick")
 - **Level:** issue
-- **Remark line:** a widget that is not `const`
-- **Remark place:** the outermost widget of the builder that reads neither the animation nor the value
-- **Triggers:** `AnimatedBuilder`, `ListenableBuilder`, `ValueListenableBuilder`, `TweenAnimationBuilder`
+- **Checked by:** the code of the agent

@@ -497,55 +497,6 @@ diff --git a/lib/v.dart b/lib/v.dart
     expect(result.accepted.single.line, 3);
   });
 
-  test('refuses a remark on a const widget for P9', () {
-    // flash-lite put P9 on a const Padding, in pull request #21.
-    const String diff = '''
-diff --git a/lib/w.dart b/lib/w.dart
---- a/lib/w.dart
-+++ b/lib/w.dart
-@@ -1,1 +1,3 @@
- Widget f() =>
-+    ? const Padding(padding: EdgeInsets.zero)
-+    : DecoratedBox(decoration: d);
-''';
-    final ({List<Finding> accepted, List<RejectedFinding> rejected}) result =
-        validateFindings(
-          <Finding>[
-            Finding(
-              rule: 'P9',
-              file: 'lib/w.dart',
-              line: 2,
-              message: 'm',
-              evidence: 'const Padding(',
-            ),
-            Finding(
-              rule: 'P9',
-              file: 'lib/w.dart',
-              line: 3,
-              message: 'm',
-              evidence: 'DecoratedBox(',
-            ),
-          ],
-          files: parseDiff(diff),
-          ruleIds: <String>{'P9'},
-          nonConstRules: <String>{'P9'},
-        );
-
-    expect(result.accepted.single.line, 3);
-    expect(result.rejected.single.reason, 'the widget on the line is const');
-  });
-
-  test('finds the first widget of a line and whether it is const', () {
-    expect(startsWithConstWidget('? const Padding('), isTrue);
-    expect(startsWithConstWidget('child: const Text("x"),'), isTrue);
-    expect(startsWithConstWidget('DecoratedBox('), isFalse);
-    expect(
-      startsWithConstWidget('Text(widget.title, style: const TextStyle())'),
-      isFalse,
-    );
-    expect(startsWithConstWidget('final int x = 1;'), isFalse);
-  });
-
   test('finds a return type that ends with >?', () {
     expect(
       declaresNullableReturn('List<Release>? get majorReleases {'),

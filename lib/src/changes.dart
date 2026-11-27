@@ -337,9 +337,7 @@ List<String> describeChanges(ChangeReport report) {
       }
     }
     if (report.outside[file] case final List<int> outside) {
-      lines.add(
-        '  added lines outside a declaration: ${_ranges(outside)}',
-      );
+      lines.add('  added lines outside a declaration: ${_ranges(outside)}');
     }
   }
   for (final MapEntry<String, String> entry in report.unread.entries) {

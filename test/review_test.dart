@@ -1171,90 +1171,56 @@ class _AState extends State<A> {
     expect(withProject.accepted, hasLength(3));
   });
 
-  test('moves P9 to the widget that does not read the animation', () async {
+  test('decides P9 with its code, and calls no model for it alone', () async {
     const String badge = '''
-return AnimatedBuilder(
-  animation: _controller,
-  builder: (BuildContext context, Widget? child) {
-    return Opacity(
+class _BadgeState extends State<Badge> {
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: _controller,
+    builder: (BuildContext context, Widget? child) => Opacity(
       opacity: _controller.value,
-      child: DecoratedBox(
-        decoration: BoxDecoration(color: colors.primary),
-        child: Text('NEW', style: Theme.of(context).textTheme.labelSmall),
-      ),
-    );
-  },
-);''';
-    const String pulse = '''
-return AnimatedBuilder(
-  animation: _pulse,
-  child: const Icon(Icons.star),
-  builder: (BuildContext context, Widget? child) =>
-      Opacity(opacity: _pulse.value, child: child),
-);''';
-    String newFile(String path, String code) => <String>[
-      'diff --git a/$path b/$path',
-      'new file mode 100644',
-      '--- /dev/null',
-      '+++ b/$path',
-      '@@ -0,0 +1,${code.split('\n').length} @@',
-      for (final String line in code.split('\n')) '+$line',
-    ].join('\n');
+      child: DecoratedBox(decoration: BoxDecoration(color: colors.primary)),
+    ),
+  );
+}''';
+    int requests = 0;
     final ModelClient client = ModelClient(
       provider: 'test-provider',
       baseUrl: 'https://example.com/v1/',
       models: <String>['test-model'],
       apiKey: 'test-key',
       httpClient: MockClient((http.Request request) async {
-        return http.Response(
-          jsonEncode(<String, Object>{
-            'choices': <Object>[
-              <String, Object>{
-                'message': <String, String>{
-                  'content':
-                      '{"checks": [], "findings": ['
-                      '{"rule": "P9", "file": "lib/badge.dart", "line": 4, '
-                      '"evidence": "return Opacity(", "message": "m"}, '
-                      '{"rule": "P9", "file": "lib/pulse.dart", "line": 5, '
-                      '"evidence": "Opacity(opacity: _pulse.value", '
-                      '"message": "m"}]}',
-                },
-              },
-            ],
-          }),
-          200,
-        );
+        requests++;
+        return http.Response('{}', 500);
       }),
     );
 
     final ReviewResult result = await review(
-      diff:
-          '${newFile('lib/badge.dart', badge)}\n'
-          '${newFile('lib/pulse.dart', pulse)}\n',
+      diff: <String>[
+        'diff --git a/lib/badge.dart b/lib/badge.dart',
+        'new file mode 100644',
+        '--- /dev/null',
+        '+++ b/lib/badge.dart',
+        '@@ -0,0 +1,10 @@',
+        for (final String line in badge.split('\n')) '+$line',
+      ].join('\n'),
       rules: <Rule>[
         Rule(
           id: 'P9',
           title: 't',
-          text:
-              '## P9. t\n\n- **Remark place:** the outermost widget of the '
-              'builder that reads neither the animation nor the value',
+          text: '## P9. t\n\n- **Checked by:** the code of the agent',
         ),
       ],
       client: client,
-      readSource: (String path) => switch (path) {
-        'lib/badge.dart' => badge,
-        'lib/pulse.dart' => pulse,
-        _ => null,
-      },
+      readSource: (String path) => path == 'lib/badge.dart' ? badge : null,
     );
 
-    expect(result.accepted.single.file, 'lib/badge.dart');
+    expect(requests, 0);
+    expect(result.sentRules, isEmpty);
+    expect(result.codeRules, <String>['P9']);
     expect(result.accepted.single.line, 6);
-    expect(
-      result.rejected.single.reason,
-      'every widget of the builder reads the animation or the value, or is '
-      'const',
-    );
+    expect(result.accepted.single.rule, 'P9');
+    expect(result.checks.single.rule, 'P9');
+    expect(result.checks.single.applies, isTrue);
   });
 
   test('refuses MEM1 on an object that the file disposes', () {

@@ -582,60 +582,6 @@ deleted file mode 100644
     });
   });
 
-  test('gives the changed builders to a rule such as P9', () {
-    // Pull request #6: the `builder` rebuilds the `DecoratedBox`.
-    const String source = '''
-class _NewBadgeState extends State<NewBadge> {
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (BuildContext context, Widget? child) {
-        return Opacity(
-          opacity: _controller.value,
-          child: DecoratedBox(
-            decoration: BoxDecoration(color: colors.primary),
-            child: const Text('NEW'),
-          ),
-        );
-      },
-    );
-  }
-}
-''';
-    final List<DiffFile> diff = parseDiff('''
-diff --git a/lib/new_badge.dart b/lib/new_badge.dart
-new file mode 100644
---- /dev/null
-+++ b/lib/new_badge.dart
-@@ -0,0 +1,17 @@
-${source.trimRight().split('\n').map((String line) => '+$line').join('\n')}
-''');
-    final Rule p9 = Rule(
-      id: 'P9',
-      title: 't',
-      text:
-          '## P9. t\n\n- **Remark place:** the outermost widget of the '
-          'builder that reads neither the animation nor the value',
-    );
-    const Map<String, String> sources = <String, String>{
-      'lib/new_badge.dart': source,
-    };
-
-    expect(builderFacts(diff, sources), <String>[
-      '`lib/new_badge.dart:4`: `lib/new_badge.dart:9` '
-          '(`child: DecoratedBox(`)',
-    ]);
-    expect(
-      buildUserPrompt(rules: <Rule>[p9], files: diff, sources: sources),
-      contains('- `lib/new_badge.dart:4`: `lib/new_badge.dart:9`'),
-    );
-    expect(
-      buildUserPrompt(rules: rules, files: diff, sources: sources),
-      isNot(contains('Builders changed by this pull request')),
-    );
-  });
-
   test('sends only the changed parts when the file is unknown', () {
     final String prompt = buildUserPrompt(rules: rules, files: files);
 

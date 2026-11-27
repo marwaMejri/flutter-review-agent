@@ -40,8 +40,6 @@ Every rule has the same parts:
     `SliverChildListDelegate(`, `SingleChildScrollView(`), or open one, and a
     remark on a `Column` or a `Row` needs a `SingleChildScrollView` in the
     file.
-  - "a widget that is not `const`" (P9): the first widget of the line must not
-    be `const`.
   - "a method that returns a `Widget`" (P3): the line must declare a method or
     a getter that returns a `Widget`, not a widget class.
   - "in `build()`, or in a method that a `build()` calls" (P1): a remark in
@@ -57,13 +55,7 @@ Every rule has the same parts:
   is moved to that line; with no such line, the remark is refused. With "right after a" and a second text, as `tap(`
   for T5, the first such line whose line before contains the second text is
   taken first: the `pumpAndSettle()` after a tap, not the one after
-  `pumpWidget`. With "the outermost widget of the builder that reads neither
-  the animation nor the value", as for P9, a remark in the `builder` of an
-  `AnimatedBuilder`, a `ListenableBuilder`, a `ValueListenableBuilder` or a
-  `TweenAnimationBuilder` is moved to the outermost widget given to
-  `child:`, returned or listed in `children:` that is not `const` and reads
-  neither the animation, nor the listenable, nor the value, nor the `child`
-  parameter; it is refused when the builder has no such widget. With "the
+  `pumpWidget`. With "the
   list widget built with the loop or the `.map`, not a widget around it", as
   for P5, a remark on a `Column`, a `Row`, a list widget or a
   `SingleChildScrollView` that holds the list is moved to the innermost list
@@ -89,6 +81,13 @@ Every rule has the same parts:
   a behavior, or wiring?). The remark is kept only when the second answer
   flags it too. This costs one more request, only in these cases. The model
   does not get this line.
+- **Checked by:** optional. With "the code of the agent", as for P9, the
+  rule is never sent to the model: the agent decides it with the Dart
+  analyzer, writes its remarks, and its log says why. The rule then has a
+  **How the agent checks it** part, in place of **Decide**, and no
+  **Triggers**: its check says when it applies, from the code. P9 applies
+  when a builder in the code of the app (under `lib/`) holds a line that the
+  pull request adds, even when the line of the builder itself is unchanged.
 - **Triggers:** the rule is sent to the model only when a line added by the
   pull request contains one of these texts, or, for `file:…`, when the path
   of a changed file in its package starts with it: `file:lib/` matches

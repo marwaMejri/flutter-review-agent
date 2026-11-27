@@ -2,6 +2,7 @@
 library;
 
 import 'src/builders.dart';
+import 'src/code_rules.dart';
 import 'src/diff.dart';
 import 'src/findings.dart';
 import 'src/model_client.dart';
@@ -10,6 +11,7 @@ import 'src/prompt.dart';
 import 'src/rules.dart';
 
 export 'src/builders.dart';
+export 'src/code_rules.dart';
 export 'src/changes.dart';
 export 'src/config.dart';
 export 'src/dart_model.dart';
@@ -29,6 +31,7 @@ class ReviewResult {
     required this.rejected,
     required this.reviewedFiles,
     this.sentRules = const <String>[],
+    this.codeRules = const <String>[],
     this.checks = const <RuleCheck>[],
     this.note,
   });
@@ -47,7 +50,12 @@ class ReviewResult {
   /// not called at all.
   final List<String> sentRules;
 
-  /// The model's answer for each rule sent, with its reason.
+  /// Rules decided by the code of the agent, with no model, after the
+  /// triggers (see [codeChecks]).
+  final List<String> codeRules;
+
+  /// The answer for each rule, with its reason: the model's for a rule sent,
+  /// the agent's for a rule decided by its code.
   final List<RuleCheck> checks;
 
   /// What the agent changed to get a review, for example a pull request
@@ -91,7 +99,7 @@ Future<ReviewResult> review({
       .where((DiffFile file) => isReviewed(file.path))
       .toList();
 
-  final List<Rule> sent = rules
+  final List<Rule> triggered = rules
       .where(
         (Rule rule) => rule.isTriggeredBy(
           paths: <String>[for (final DiffFile file in files) file.path],
@@ -104,12 +112,22 @@ Future<ReviewResult> review({
         ),
       )
       .toList();
+  // A rule decided by the code of the agent is not sent to the model, and
+  // has no triggers: its check says whether it applies (see codeChecks).
+  final List<Rule> sent = <Rule>[
+    for (final Rule rule in triggered)
+      if (!rule.checkedByCode) rule,
+  ];
+  final List<Rule> codeRules = <Rule>[
+    for (final Rule rule in rules)
+      if (rule.checkedByCode) rule,
+  ];
 
   // The conventions are checked on every change to a reviewed file, even
   // when no rule is triggered: they have no triggers.
   final bool hasConventions =
       conventions != null && conventions.trim().isNotEmpty;
-  if (files.isEmpty || (sent.isEmpty && !hasConventions)) {
+  if (files.isEmpty || (sent.isEmpty && codeRules.isEmpty && !hasConventions)) {
     return ReviewResult(
       accepted: <Finding>[],
       rejected: <RejectedFinding>[],
@@ -150,12 +168,45 @@ Future<ReviewResult> review({
     files,
     sources,
   );
-  final List<String> builders = builderFacts(files, sources);
   final List<String> widgetLines = untestedWidgetLines(
     files,
     sources,
     deletedFiles: deleted,
   );
+
+  final List<RuleCheck> codeAnswers = <RuleCheck>[];
+  final List<Finding> codeFindings = <Finding>[];
+  final List<Rule> byCode = <Rule>[];
+  for (final Rule rule in codeRules) {
+    final CodeDecision Function(List<DiffFile>, Map<String, String>)? check =
+        codeChecks[rule.id];
+    if (check == null) {
+      throw StateError(
+        '${rule.id} says "Checked by: the code of the agent", but the agent '
+        'has no check for it.',
+      );
+    }
+    final CodeDecision decision = check(files, sources);
+    if (!decision.applies) {
+      continue;
+    }
+    byCode.add(rule);
+    codeFindings.addAll(decision.findings);
+    codeAnswers.add(
+      RuleCheck(
+        rule: rule.id,
+        applies: decision.findings.isNotEmpty,
+        reason: decision.reason,
+      ),
+    );
+  }
+  if (sent.isEmpty && byCode.isEmpty && !hasConventions) {
+    return ReviewResult(
+      accepted: <Finding>[],
+      rejected: <RejectedFinding>[],
+      reviewedFiles: <String>[for (final DiffFile file in files) file.path],
+    );
+  }
 
   // A request too large for the provider is sent again with the changed
   // parts only, then cut in two until each part fits: the diff while it is
@@ -199,7 +250,6 @@ Future<ReviewResult> review({
             packages: packages,
             routerLines: routerLines,
             widgetLines: widgetLines,
-            builders: builders,
           ),
         ),
       );
@@ -229,10 +279,13 @@ Future<ReviewResult> review({
     }
   }
 
-  await reviewPart(sent, hasConventions, <DiffFile>[
-    ...files,
-    ...deleted,
-  ], whole: sources.isNotEmpty);
+  // With only rules decided by the code, the model is not called.
+  if (sent.isNotEmpty || hasConventions) {
+    await reviewPart(sent, hasConventions, <DiffFile>[
+      ...files,
+      ...deleted,
+    ], whole: sources.isNotEmpty);
+  }
   // The model that the review names. A second request, to confirm a remark,
   // must not change it: a failed one leaves no model (#30).
   final String? reviewedBy = client.answeredBy;
@@ -280,10 +333,6 @@ Future<ReviewResult> review({
         nullableReturnRules: <String>{
           for (final Rule rule in sent)
             if (rule.remarkOnNullableReturn) rule.id,
-        },
-        nonConstRules: <String>{
-          for (final Rule rule in sent)
-            if (rule.remarkOnNonConstWidget) rule.id,
         },
         widgetMethodRules: <String>{
           for (final Rule rule in sent)
@@ -361,62 +410,17 @@ Future<ReviewResult> review({
     }
   }
 
-  // A rule with "Remark place: the outermost widget of the builder ...",
-  // such as P9, gets its remark on the widget that reads neither the
-  // animation nor the value, and is refused when the builder has none.
   final List<RejectedFinding> rejected = <RejectedFinding>[
     ...checked.rejected,
     ...noPlace,
   ];
-  final List<Finding> placed = <Finding>[];
-  for (final Finding finding in checked.accepted) {
-    final String? source = sources[finding.file];
-    final DiffFile? file = files
-        .where((DiffFile f) => f.path == finding.file)
-        .firstOrNull;
-    final BuilderPlace? builder =
-        source == null ||
-            file == null ||
-            !sent.any(
-              (Rule r) => r.id == finding.rule && r.remarkOnBuilderChild,
-            )
-        ? null
-        : builderPlaces(source)
-              .where(
-                (BuilderPlace b) =>
-                    b.first <= finding.line && finding.line <= b.last,
-              )
-              .firstOrNull;
-    if (builder == null) {
-      placed.add(finding);
-    } else if (builder.line == null) {
-      rejected.add(
-        RejectedFinding(
-          finding,
-          'every widget of the builder reads the animation or the value, or '
-          'is const',
-        ),
-      );
-    } else if (file!.commentableLines.contains(builder.line)) {
-      placed.add(
-        Finding(
-          rule: finding.rule,
-          file: finding.file,
-          line: builder.line!,
-          message: finding.message,
-          evidence: file.newLineText[builder.line]!.trim(),
-          convention: finding.convention,
-        ),
-      );
-    } else {
-      placed.add(finding);
-    }
-  }
+  // The remarks decided by the code of the agent need no check: they are on
+  // an added line, by construction.
+  final List<Finding> placed = <Finding>[...checked.accepted, ...codeFindings];
 
   // A rule marked "one per pull request" keeps its first remark only, and a
   // rule marked "one per field" its first remark for each field. Two remarks
-  // of a rule on the same line are one: a model flagged three widgets of one
-  // builder, and P9 put the three remarks on the same widget.
+  // of a rule on the same line are one.
   final Set<String> seen = <String>{};
   final List<Finding> accepted = <Finding>[];
   for (final Finding finding in placed) {
@@ -638,7 +642,6 @@ Future<ReviewResult> review({
             packages: packages,
             routerLines: routerLines,
             widgetLines: widgetLines,
-            builders: builders,
           ),
         );
       } on Exception catch (error) {
@@ -750,9 +753,13 @@ Future<ReviewResult> review({
       for (final Rule rule in sent) rule.id,
       if (hasConventions) conventionRuleId,
     ],
-    checks: _mergeChecks(<List<RuleCheck>>[
-      for (final String answer in answers) parseChecks(answer),
-    ]),
+    codeRules: <String>[for (final Rule rule in byCode) rule.id],
+    checks: <RuleCheck>[
+      ..._mergeChecks(<List<RuleCheck>>[
+        for (final String answer in answers) parseChecks(answer),
+      ]),
+      ...codeAnswers,
+    ],
     note: notes.isEmpty ? null : notes,
   );
 }

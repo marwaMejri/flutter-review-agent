@@ -52,6 +52,8 @@ linked), is in [`rules/`](rules/).
 1. **Only the rules that apply are sent.** Each rule has triggers, such as
    `setState` for P2. A rule with no trigger in the added lines is not sent:
    the request is shorter, and there are fewer chances for a false remark.
+   A rule that the code of the agent can decide is never sent: P9 is
+   decided with the Dart analyzer, the same way on every run.
 2. **Each rule is a list of yes/no steps**, answered in order. The model gives
    the answer of each step, and the log shows it: a wrong remark shows which
    step to make clearer.
@@ -61,8 +63,6 @@ linked), is in [`rules/`](rules/).
      `verify`, `blocTest` arguments);
    - the added conditions of a widget when no test of the pull request
      renders a widget;
-   - for each changed builder, the widget that reads neither the animation
-     nor the value;
    - the feature and the layer of each added import;
    - the added lines inside a router (`GoRouter`, `GoRoute`, `MaterialApp`);
    - the added exports of the SDK Material or Cupertino.
@@ -79,9 +79,7 @@ linked), is in [`rules/`](rules/).
    - one remark per rule and line, one per pull request for T3 and T5, one
      per field for MEM2.
 5. **The agent puts some remarks on the right line:** T5 on the
-   `pumpAndSettle()` after the tap, P9 on the widget of the builder that
-   reads neither the animation nor the value, P5 on the list built with the
-   loop.
+   `pumpAndSettle()` after the tap, P5 on the list built with the loop.
 6. **Some remarks are confirmed by a second answer.** When a test of the
    pull request has an added check, or when the only new behavior is a
    lifecycle method such as `initState()`, T3 is asked a second time, alone.
@@ -156,7 +154,7 @@ for each rule.
 
 ## How it was tested
 
-- **171 unit tests** (`dart test`): one for each check, fact and placement
+- **196 unit tests** (`dart test`): one for each check, fact and placement
   of the agent.
 - **45 test pull requests** in
   [flutter-review-example](https://github.com/marwaMejri/flutter-review-example/pulls),

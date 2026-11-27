@@ -83,14 +83,9 @@ class Rule {
     return _code.allMatches(field).elementAtOrNull(1)?.group(1);
   }
 
-  /// Whether a remark of the rule goes to the widget of the `builder` that
-  /// reads neither the animation nor the value (see `builderPlaces`), from
-  /// `Remark place: the outermost widget of the builder that reads neither
-  /// the animation nor the value`.
-  bool get remarkOnBuilderChild =>
-      _field('Remark place') ==
-      'the outermost widget of the builder that reads neither the animation '
-          'nor the value';
+  /// Whether the code of the agent decides the rule, with no model (see
+  /// `codeChecks`), from a `Checked by: the code of the agent` line.
+  bool get checkedByCode => _field('Checked by') == 'the code of the agent';
 
   /// Whether a remark of the rule is asked again when a test of the pull
   /// request has an added check, or when the only new behavior of the pull
@@ -148,11 +143,6 @@ class Rule {
   /// `Remark line: a method that returns a Widget` line.
   bool get remarkOnWidgetMethod =>
       _field('Remark line') == 'a method that returns a `Widget`';
-
-  /// Whether the first widget of the line of a remark must not be `const`,
-  /// from a `Remark line: a widget that is not const` line.
-  bool get remarkOnNonConstWidget =>
-      _field('Remark line') == 'a widget that is not `const`';
 
   String? _field(String name) {
     final Match? match = RegExp(

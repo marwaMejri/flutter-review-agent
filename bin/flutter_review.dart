@@ -187,11 +187,21 @@ Future<void> main(List<String> arguments) async {
   watch.stop();
 
   if (result.sentRules.isEmpty) {
-    stdout.writeln('No rule applies to this change: the model was not called.');
+    stdout.writeln(
+      result.codeRules.isEmpty
+          ? 'No rule applies to this change: the model was not called.'
+          : 'Only rules checked by the code of the agent apply: the model was '
+                'not called.',
+    );
   } else {
     stdout
       ..writeln('Model: ${client.answeredBy} (${config.provider})')
       ..writeln('Rules applied: ${result.sentRules.join(', ')}');
+  }
+  if (result.codeRules.isNotEmpty) {
+    stdout.writeln(
+      'Rules checked by the code of the agent: ${result.codeRules.join(', ')}',
+    );
   }
   if (result.note case final String note) {
     stdout.writeln('Note: $note');
@@ -222,6 +232,7 @@ Future<void> main(List<String> arguments) async {
         'seconds': watch.elapsedMilliseconds / 1000,
         'files': result.reviewedFiles,
         'rules': result.sentRules,
+        'codeRules': result.codeRules,
         if (result.note case final String note) 'note': note,
         'findings': <Map<String, Object>>[
           for (final Finding finding in result.accepted)
@@ -331,7 +342,8 @@ void _printReport(ReviewResult result, List<Rule> rules) {
       );
     }
   }
-  // The answer of the model for each rule: why a rule applies or not.
+  // The answer for each rule, of the model or of the code of the agent: why
+  // a rule applies or not.
   if (result.checks.isNotEmpty) {
     stdout
       ..writeln()

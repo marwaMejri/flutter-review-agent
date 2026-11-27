@@ -225,8 +225,7 @@ const int evidenceWindow = 3;
 /// [remarkLines] gives, for a rule, the texts that the line of its remark
 /// must contain. For the rules in [nullableReturnRules], such as B5, the line
 /// must declare a return type that ends with `>?`. For the rules in
-/// [nonConstRules], such as P9, the first widget of the line must not be
-/// `const`. For the rules in [widgetMethodRules], such as P3, the line must
+/// [widgetMethodRules], such as P3, the line must
 /// declare a method or a getter that returns a `Widget`.
 ///
 /// A remark on a `///` comment is moved to the member that the comment
@@ -237,7 +236,6 @@ const int evidenceWindow = 3;
   required Set<String> ruleIds,
   Map<String, List<String>> fileScopes = const <String, List<String>>{},
   Map<String, List<String>> remarkLines = const <String, List<String>>{},
-  Set<String> nonConstRules = const <String>{},
   Set<String> nullableReturnRules = const <String>{},
   Set<String> widgetMethodRules = const <String>{},
 }) {
@@ -337,12 +335,6 @@ const int evidenceWindow = 3;
             'the line declares no method that returns a Widget',
           ),
         );
-      } else if (nonConstRules.contains(finding.rule) &&
-          startsWithConstWidget(code)) {
-        // A `const` widget is built once: the rule does not apply to it.
-        rejected.add(
-          RejectedFinding(placed, 'the widget on the line is const'),
-        );
       } else {
         accepted.add(placed);
       }
@@ -397,16 +389,6 @@ bool declaresNullableReturn(String code) => RegExp(
 bool declaresWidgetMethod(String code) => RegExp(
   r'^\s*(static\s+)?Widget\??\s+(get\s+)?[A-Za-z_$][\w$]*\s*(\(|=>|\{)',
 ).hasMatch(code);
-
-/// Whether the first widget created on [code] is marked `const`, as in
-/// `? const Padding(`.
-bool startsWithConstWidget(String code) {
-  final Match? widget = RegExp(r'[A-Z]\w*(\.\w+)?\(').firstMatch(code);
-  if (widget == null) {
-    return false;
-  }
-  return RegExp(r'\bconst\s+$').hasMatch(code.substring(0, widget.start));
-}
 
 /// The ID of the convention that a `CONVENTION` remark cites, such as `C19`:
 /// the first one in its "convention" field, as `C19`, `[C19]` or

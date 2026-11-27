@@ -49,8 +49,10 @@ String reviewSummary(Map<String, Object?> result) {
   final List<Object?> findings =
       result['findings'] as List<Object?>? ?? <Object?>[];
   final List<Object?> rules = result['rules'] as List<Object?>? ?? <Object?>[];
+  final List<Object?> codeRules =
+      result['codeRules'] as List<Object?>? ?? <Object?>[];
   final StringBuffer text = StringBuffer('**Flutter review**');
-  if (rules.isEmpty) {
+  if (rules.isEmpty && codeRules.isEmpty) {
     text.write(': no rule applies to this change, so no model was called.');
     return text.toString();
   }
@@ -58,11 +60,19 @@ String reviewSummary(Map<String, Object?> result) {
   final String provider = result['provider'] as String? ?? '';
   final Object? seconds = result['seconds'];
   text
-    ..write(' by `$model` ($provider)')
+    ..write(
+      rules.isEmpty
+          ? ' by the code of the agent, with no model'
+          : ' by `$model` ($provider)',
+    )
     ..write(seconds is num ? ' in ${seconds.toStringAsFixed(0)} s' : '')
     ..writeln('.')
     ..writeln()
-    ..writeln('Rules checked: ${rules.join(', ')}.')
+    ..writeln(
+      'Rules checked: ${<Object?>[...rules, ...codeRules].join(', ')}'
+      '${codeRules.isEmpty || rules.isEmpty ? '' : ' (${codeRules.join(', ')} '
+                'by the code of the agent)'}.',
+    )
     ..write(
       findings.isEmpty
           ? 'No remark.'
@@ -75,7 +85,7 @@ String reviewSummary(Map<String, Object?> result) {
       ..writeln()
       ..write(note);
   }
-  if (result['measured'] == false) {
+  if (result['measured'] == false && rules.isNotEmpty) {
     text
       ..writeln()
       ..writeln()

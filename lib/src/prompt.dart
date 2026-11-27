@@ -76,9 +76,7 @@ Answer with JSON only, in this form:
 /// line (see [routerLinesOf]); they are found in [sources] when not given.
 /// [widgetLines] are the added lines of a widget that no test of the pull
 /// request renders (see [untestedWidgetLines]); they are found in [files] and
-/// [sources] when not given. [builders] are the changed builders, for a rule
-/// such as P9 (see [builderFacts]); they are found in [files] and [sources]
-/// when not given.
+/// [sources] when not given.
 String buildUserPrompt({
   required List<Rule> rules,
   required List<DiffFile> files,
@@ -90,7 +88,6 @@ String buildUserPrompt({
   Map<String, String> packages = const <String, String>{},
   Map<String, Map<int, String>>? routerLines,
   List<String>? widgetLines,
-  List<String>? builders,
 }) {
   // A fact the model cannot guess wrong: without it, a small model sometimes
   // answers that a test checks a behavior when the pull request has no test.
@@ -233,25 +230,6 @@ String buildUserPrompt({
       )
       ..writeln();
   }
-  // A fact the model cannot read wrong: a model answered "no" to P9 while
-  // the `builder` rebuilt a `DecoratedBox` that reads neither the animation
-  // nor the value. The agent places P9 on the same widget.
-  final List<String> changedBuilders =
-      !rules.any((Rule rule) => rule.remarkOnBuilderChild)
-      ? const <String>[]
-      : builders ?? builderFacts(files, sources);
-  if (changedBuilders.isNotEmpty) {
-    buffer
-      ..writeln(
-        'Builders changed by this pull request (`AnimatedBuilder`, '
-        '`ListenableBuilder`, `ValueListenableBuilder`, '
-        '`TweenAnimationBuilder`), with the outermost widget of their '
-        '`builder` that is not `const` and reads neither the animation, nor '
-        'the listenable, nor the value:',
-      )
-      ..writeAll(changedBuilders.map((String fact) => '- $fact\n'))
-      ..writeln();
-  }
   // A fact the model cannot read wrong: a model answered "no" to M1 for an
   // added `export 'package:flutter/cupertino.dart';`.
   final List<String> sdkExports = <String>[
@@ -379,41 +357,6 @@ List<String> addedExpects(List<DiffFile> files) => <String>[
         if (_expectCall.hasMatch(file.newLineText[line] ?? ''))
           '`${file.path}:$line` `${_statement(file, line)}`',
 ];
-
-/// The builders of [files] that hold an added line (see [builderPlaces]),
-/// each with the outermost widget of its `builder` that is not `const` and
-/// reads neither the animation, nor the listenable, nor the value, such as
-/// `` `lib/a.dart:12`: `lib/a.dart:17` (`child: DecoratedBox(`) ``, or with
-/// "none: every widget reads one of them, or is `const`". A file with no
-/// source in [sources] is left out.
-List<String> builderFacts(
-  List<DiffFile> files,
-  Map<String, String> sources,
-) => <String>[
-  for (final DiffFile file in files)
-    if (sources[file.path] case final String source)
-      for (final BuilderPlace place in builderPlaces(source))
-        if (file.addedLines.any(
-          (int line) => place.first <= line && line <= place.last,
-        ))
-          switch (place.line) {
-            null =>
-              '`${file.path}:${place.first}`: none: every widget reads one of '
-                  'them, or is `const`',
-            final int line =>
-              '`${file.path}:${place.first}`: `${file.path}:$line` '
-                  '(`${_lineText(source, line)}`)',
-          },
-];
-
-/// The code of [line] of [source], trimmed, at most 80 characters.
-String _lineText(String source, int line) {
-  final String text = source
-      .replaceAll('\r\n', '\n')
-      .split('\n')[line - 1]
-      .trim();
-  return text.length > 80 ? '${text.substring(0, 79)}…' : text;
-}
 
 /// The start of a test that renders a widget: `testWidgets(` of
 /// `flutter_test`, `patrolTest(` of `patrol`, `testGoldens(` of
