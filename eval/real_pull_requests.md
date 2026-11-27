@@ -2275,3 +2275,40 @@ again).
 On the same 45 pull requests, `gemini-3.5-flash-lite` gave 43 out of 44 as
 expected (98 %) and no false remark: the small model, with the facts and
 the checks of the agent, does as well as the large one, and better here.
+
+## v1.1: the hidden set, chosen before any fix
+
+Written on 26 November 2026, before any fix of v1.1 and before any of these
+pull requests is reviewed. They are reviewed once, at the end of v1.1, and
+their result is written as it is.
+
+Rule for the projects: the Dart repositories of GitHub with more than 3,000
+stars and a push after 1 September 2026, sorted by stars (search of 26
+November 2026); in this order, the first 10 that have a `lib/main.dart` at
+their root, are not used before by this evaluation, and have at least 5
+pull requests that fit the rule below, merged in the last 3 months.
+
+Rule for the pull requests: for each project, the 5 most recent merged pull
+requests whose merge commit, compared with its first parent, changes 20 to
+400 lines of Dart, at least one Dart file under `lib/`, and fewer than 100
+files. The review runs on that diff, as for the other real pull requests.
+
+Projects and pull requests picked by the rule (26 November 2026). Not used:
+projects with no `lib/main.dart` at their root (frameworks, packages,
+lists, apps in a folder), projects whose pull requests cannot be read
+(FlClash, namida), and projects with fewer than 5 pull requests that fit in
+their last 100 closed ones (karing, gsy_github_app_flutter, proxypin,
+anx-reader, Bettbox, harmonoid, and others with none).
+
+| Project | Pull requests (merge commit) |
+|---|---|
+| [Kazumi](https://github.com/Predidit/Kazumi) | #2892 `78318977b`, #2799 `60288c335`, #2781 `16735534b`, #2773 `87543b51f`, #2736 `6485e3533` |
+| [hiddify-app](https://github.com/hiddify/hiddify-app) | #2662 `66c17f83a`, #2515 `42a1bf201`, #2510 `2a7dee63a`, #2508 `27d131aa6`, #2514 `31bd209fd` |
+| [Obtainium](https://github.com/ImranR98/Obtainium) | #3545 `3d7598e53`, #3539 `3ca5f2f2d`, #3535 `1dcd2398b`, #3524 `ba9ea37cf`, #3512 `7baa72d31` |
+| [PiliPlus](https://github.com/bggRGjQaUbCoE/PiliPlus) | #3533 `86f4759d4`, #3517 `4fce4bb5a`, #3507 `8006ace0a`, #3463 `e3aff4435`, #3478 `bcb55d268` |
+| [lantern](https://github.com/getlantern/lantern) | #9369 `230202415`, #9367 `f4a136820`, #9363 `8dd09d293`, #9352 `1f923f7c4`, #9347 `8180f7e6b` |
+| [pixez-flutter](https://github.com/Notsfsssf/pixez-flutter) | #1445 `442aee147`, #1438 `1e640fa40`, #1412 `aec62187e`, #1392 `373446241`, #1437 `facba6a64` |
+| [flutter_server_box](https://github.com/lollipopkit/flutter_server_box) | #1986 `379ac49ca`, #1979 `48e3d3b3e`, #1964 `f98937c2f`, #1958 `8c5812403`, #1951 `9e1992ef4` |
+| [Mornye](https://github.com/mornyeapp/Mornye) | #789 `3c98201b4`, #788 `2635cd364`, #768 `ec5a355bf`, #787 `1669422cc`, #731 `7c9ff72a2` |
+| [saber](https://github.com/saber-notes/saber) | #1878 `2f284a45e`, #1870 `dd321df3b`, #1823 `1f9151a3a`, #1829 `9413c9c81`, #1865 `c06f19794` |
+| [kelivo](https://github.com/Chevey339/kelivo) | #1320 `03f6e9f15`, #1246 `a408a1f04`, #1244 `ea387848b`, #1057 `23d917855`, #1023 `9747bd9a2` |
