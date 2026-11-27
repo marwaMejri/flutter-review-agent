@@ -34,13 +34,18 @@ const Set<String> _builders = <String>{
 /// A widget in the `builder` of an `AnimatedBuilder`, a `ListenableBuilder`,
 /// a `ValueListenableBuilder` or a `TweenAnimationBuilder` that reads
 /// nothing that changes when the `builder` runs again, and is not `const`
-/// (P9). [widget] is its name, such as `DecoratedBox`. [childTaken]: the
-/// builder already has a `child` argument.
+/// (P9). [widget] is its name, such as `DecoratedBox`; [builder] is the
+/// kind of builder, and [builderLine] its first line. [childTaken]: the
+/// builder already has a `child` argument. [leaf]: the widget has no widget
+/// inside it, such as a `Text`: no `child:` or `children:` anywhere inside
+/// it, and no function that can build widgets.
 typedef StaticWidget = ({
   int line,
   String widget,
   String builder,
+  int builderLine,
   bool childTaken,
+  bool leaf,
 });
 
 /// The widgets of the builders of [source] that P9 is about (see
@@ -91,11 +96,13 @@ staticBuilderWidgets(String source) {
     final _Builder builder = _Builder(call.$1, node, call.$2, result.unit);
     builder.search(
       line,
-      (int at, String widget) => widgets.add((
+      (int at, String widget, bool leaf) => widgets.add((
         line: at,
         widget: widget,
         builder: call.$1,
+        builderLine: line(node.offset),
         childTaken: _argument(call.$2, 'child') != null,
+        leaf: leaf,
       )),
       (int at, String why) => undecided.add('line $at: $why'),
     );
@@ -137,6 +144,8 @@ CodeDecision rebuiltSubtrees(
       continue;
     }
     applies = true;
+    // One remark for each builder: a builder has one `child`.
+    final Map<int, List<StaticWidget>> byBuilder = <int, List<StaticWidget>>{};
     for (final StaticWidget widget in found.widgets) {
       if (!file.addedLines.contains(widget.line)) {
         notes.add(
@@ -149,26 +158,12 @@ CodeDecision rebuiltSubtrees(
         '`${widget.widget}` (${file.path}, line ${widget.line}) reads '
         'nothing that changes',
       );
-      final String fix = widget.childTaken
-          ? 'Build it once, outside the `builder`: the `child` argument of '
-                'the `${widget.builder}` is already used, so keep it in a '
-                'variable written before the `${widget.builder}`, and use '
-                'that variable here.'
-          : 'Build it once: give it to the `child` argument of the '
-                '`${widget.builder}`, and use the `child` parameter of the '
-                '`builder`.';
-      findings.add(
-        Finding(
-          rule: 'P9',
-          file: file.path,
-          line: widget.line,
-          message:
-              '`${widget.widget}` reads nothing that changes when the '
-              '`builder` of this `${widget.builder}` runs again, and is not '
-              '`const`: it is built again each time. $fix',
-          evidence: file.newLineText[widget.line]?.trim() ?? '',
-        ),
-      );
+      byBuilder
+          .putIfAbsent(widget.builderLine, () => <StaticWidget>[])
+          .add(widget);
+    }
+    for (final List<StaticWidget> widgets in byBuilder.values) {
+      findings.add(_remark(file, widgets));
     }
     for (final String why in found.undecided) {
       notes.add('not decided in ${file.path}, $why');
@@ -312,7 +307,7 @@ class _Builder {
 
   void search(
     int Function(int offset) line,
-    void Function(int line, String widget) found,
+    void Function(int line, String widget, bool leaf) found,
     void Function(int line, String why) undecided,
   ) {
     final Expression? function = _argument(arguments, 'builder');
@@ -582,7 +577,7 @@ class _Builder {
   void _visit(
     CollectionElement e,
     int Function(int offset) line,
-    void Function(int line, String widget) found,
+    void Function(int line, String widget, bool leaf) found,
     void Function(int line, String why) undecided,
   ) {
     switch (e) {
@@ -613,7 +608,19 @@ class _Builder {
     }
     final String? reads = _reads(e, <String>{});
     if (reads == '') {
-      found(line(e.offset), widget);
+      // A leaf has no `child:` or `children:` anywhere inside it, as in
+      // `Navigator(pages: [MaterialPage(child: ...)])`, and no function that
+      // can build widgets, as in `itemBuilder: (...) => ...`. A call of a
+      // method that builds widgets is not a leaf: its tree is not known here.
+      final bool leaf =
+          _isType(widget) &&
+          !_nodes(e).any(
+            (AstNode n) =>
+                n is FunctionExpression ||
+                (n is NamedArgument &&
+                    (n.name.lexeme == 'child' || n.name.lexeme == 'children')),
+          );
+      found(line(e.offset), widget, leaf);
       return;
     }
     // The outermost widget that a call cannot decide is given, once.
@@ -633,4 +640,47 @@ class _Builder {
       }
     }
   }
+}
+
+/// The P9 remark on the first of [widgets], which are in the same builder.
+///
+/// Its level is `suggestion` when each widget has no widget inside it, such
+/// as a `Text`: the Flutter documentation counts the cost of a build in the
+/// nodes that it creates ("Minimize the number of nodes transitively created
+/// by the build method"), and says that the `child` of a builder "can
+/// improve performance significantly in some cases". A subtree keeps the
+/// level of the rule.
+Finding _remark(DiffFile file, List<StaticWidget> widgets) {
+  final StaticWidget first = widgets.first;
+  final String builder = first.builder;
+  final List<StaticWidget> others = widgets.sublist(1);
+  final String what = others.isEmpty
+      ? '`${first.widget}` reads'
+      : others.length == 1
+      ? '`${first.widget}`, and the widget of line ${others.single.line}, '
+            'read'
+      : '`${first.widget}`, and the widgets of lines '
+            '${others.map((StaticWidget w) => w.line).join(', ')}, read';
+  final String fix = others.isNotEmpty
+      ? 'Only one widget can be the `child` of the `$builder`: build them '
+            'once, in variables written before the `$builder`, and use the '
+            'variables here.'
+      : first.childTaken
+      ? 'Build it once, outside the `builder`: the `child` argument of the '
+            '`$builder` is already used, so keep it in a variable written '
+            'before the `$builder`, and use that variable here.'
+      : 'Build it once: give it to the `child` argument of the `$builder`, '
+            'and use the `child` parameter of the `builder`.';
+  return Finding(
+    rule: 'P9',
+    file: file.path,
+    line: first.line,
+    message:
+        '$what nothing that changes when the `builder` of this `$builder` '
+        'runs again, and ${others.isEmpty ? 'is' : 'are'} not `const`: '
+        '${others.isEmpty ? 'it is' : 'they are'} built again each time. '
+        '$fix',
+    evidence: file.newLineText[first.line]?.trim() ?? '',
+    level: widgets.every((StaticWidget w) => w.leaf) ? 'suggestion' : null,
+  );
 }

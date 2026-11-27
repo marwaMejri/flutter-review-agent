@@ -331,7 +331,17 @@
   its file is not decided: it gets no remark, and the log says why. A widget
   in another argument, such as `title:`, is not checked: without the types,
   `padding: EdgeInsets.all(8)` looks like a widget too. The tests are not
-  checked: a test builds its widgets a few times.
+  checked: a test builds its widgets a few times. A builder gets one remark,
+  on its first such widget, with the lines of the others: it has one
+  `child`. The remark is a suggestion when each widget has no widget inside
+  it, such as a `Text` or an `Icon`: no `child:` or `children:` anywhere
+  inside it, and no function that can build widgets. The cost of a build
+  is in the nodes that it creates ("Minimize the number of nodes
+  transitively created by the build method", in
+  [StatefulWidget, Performance considerations](https://api.flutter.dev/flutter/widgets/StatefulWidget-class.html#performance-considerations)),
+  and a pre-built `child` "can improve performance significantly in some
+  cases" ([AnimatedBuilder, Performance optimizations](https://api.flutter.dev/flutter/widgets/AnimatedBuilder-class.html#performance-optimizations)).
+  A subtree, such as `DecoratedBox` > `Padding` > `Text`, is an issue.
 - **Bad:**
 
   ```dart

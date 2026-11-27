@@ -412,6 +412,92 @@ ${taken.trimRight().split('\n').map((String l) => '+$l').join('\n')}
       );
     });
 
+    test('makes one remark for each builder, with the other widgets', () {
+      const String two = '''
+class A {
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: _fields,
+    builder: (BuildContext context, Widget? child) => Column(
+      children: <Widget>[
+        Text(_fields.text),
+        Text(widget.title),
+        Icon(widget.icon),
+      ],
+    ),
+  );
+}
+''';
+      final CodeDecision decision = rebuiltSubtrees(
+        parseDiff('''
+diff --git a/lib/a.dart b/lib/a.dart
+new file mode 100644
+--- /dev/null
++++ b/lib/a.dart
+@@ -0,0 +1,12 @@
+${two.trimRight().split('\n').map((String l) => '+$l').join('\n')}
+'''),
+        <String, String>{'lib/a.dart': two},
+      );
+
+      expect(decision.findings, hasLength(1));
+      expect(decision.findings.single.line, 7);
+      expect(
+        decision.findings.single.message,
+        contains('`Text`, and the widget of line 8, read nothing'),
+      );
+      expect(
+        decision.findings.single.message,
+        contains('Only one widget can be the `child`'),
+      );
+      // A `Text` and an `Icon` have no widget inside them.
+      expect(decision.findings.single.level, 'suggestion');
+    });
+
+    test('keeps the level of the rule for a subtree', () {
+      // `source`: `Text(widget.label)` alone is a leaf.
+      const String subtree = '''
+class A {
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: _controller,
+    builder: (BuildContext context, Widget? child) => Opacity(
+      opacity: _controller.value,
+      child: Padding(padding: p, child: Text(widget.label)),
+    ),
+  );
+}
+''';
+      CodeDecision decide(String code) => rebuiltSubtrees(
+        parseDiff('''
+diff --git a/lib/a.dart b/lib/a.dart
+new file mode 100644
+--- /dev/null
++++ b/lib/a.dart
+@@ -0,0 +1,${code.trimRight().split('\n').length} @@
+${code.trimRight().split('\n').map((String l) => '+$l').join('\n')}
+'''),
+        <String, String>{'lib/a.dart': code},
+      );
+
+      // `Navigator` has a widget inside its pages.
+      const String pages = '''
+class A {
+  Widget build(BuildContext context) => ValueListenableBuilder<int>(
+    valueListenable: _position,
+    builder: (BuildContext context, int position, Widget? child) => Stack(
+      children: <Widget>[
+        Positioned(top: position.toDouble(), child: const Logo()),
+        Navigator(pages: <Page<void>>[MaterialPage(child: CallPage(id))]),
+      ],
+    ),
+  );
+}
+''';
+      expect(decide(subtree).findings.single.level, isNull);
+      expect(decide(pages).findings.single.line, 7);
+      expect(decide(pages).findings.single.level, isNull);
+      expect(decide(source).findings.single.level, 'suggestion');
+    });
+
     test('does not check the tests', () {
       final CodeDecision decision = rebuiltSubtrees(
         parseDiff('''

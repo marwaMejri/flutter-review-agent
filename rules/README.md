@@ -107,7 +107,7 @@ Every rule has the same parts:
 | P2 | `setState` higher in the tree than needed | performance.md | suggestion |
 | P3 | A method that returns a widget tree instead of a widget | performance.md | suggestion |
 | P5 | A long list built without a builder | performance.md | suggestion |
-| P9 | A builder (`AnimatedBuilder`, `ListenableBuilder`, `ValueListenableBuilder`, `TweenAnimationBuilder`) that rebuilds a subtree that does not change | performance.md | issue |
+| P9 | A builder (`AnimatedBuilder`, `ListenableBuilder`, `ValueListenableBuilder`, `TweenAnimationBuilder`) that rebuilds a subtree that does not change | performance.md | issue (suggestion for one widget with nothing inside) |
 | B2 | A resource created in `build()` | memory.md | issue |
 | MEM1 | An object with `dispose()` that is never disposed | memory.md | issue |
 | MEM2 | A `BuildContext` stored in a field | memory.md | issue |

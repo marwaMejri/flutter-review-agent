@@ -16,6 +16,7 @@ class Finding {
     required this.message,
     this.evidence = '',
     this.convention = '',
+    this.level,
   });
 
   final String rule;
@@ -31,6 +32,11 @@ class Finding {
   /// Empty for a rule.
   final String convention;
 
+  /// The level of this remark when it is not the level of its rule: a P9
+  /// remark on a widget with no widget inside it is a `suggestion`. Null for
+  /// the level of the rule.
+  final String? level;
+
   /// The same remark on another line.
   Finding atLine(int newLine) => Finding(
     rule: rule,
@@ -39,6 +45,7 @@ class Finding {
     message: message,
     evidence: evidence,
     convention: convention,
+    level: level,
   );
 
   Map<String, Object> toJson() => <String, Object>{

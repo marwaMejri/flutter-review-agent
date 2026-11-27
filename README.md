@@ -23,7 +23,7 @@ belongs in `analysis_options.yaml`, not here.
 | P2 | `setState` higher in the tree than needed | suggestion |
 | P3 | A method that returns a widget tree instead of a widget | suggestion |
 | P5 | A long list built without a builder | suggestion |
-| P9 | A builder that rebuilds a subtree that does not change | issue |
+| P9 | A builder that rebuilds a subtree that does not change | issue (suggestion for one widget with nothing inside, such as a `Text`) |
 | B2 | A resource created in `build()` | issue |
 | MEM1 | An object with `dispose()` that is never disposed | issue |
 | MEM2 | A `BuildContext` stored in a field | issue |
@@ -154,7 +154,7 @@ for each rule.
 
 ## How it was tested
 
-- **196 unit tests** (`dart test`): one for each check, fact and placement
+- **198 unit tests** (`dart test`): one for each check, fact and placement
   of the agent.
 - **45 test pull requests** in
   [flutter-review-example](https://github.com/marwaMejri/flutter-review-example/pulls),

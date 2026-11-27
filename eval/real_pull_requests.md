@@ -2353,3 +2353,60 @@ Errors found by these checks, and fixed before the numbers above:
   parameter of a constructor in the header, or a record type (1 real pull
   request). Fix: the header is compared token by token, up to the body that
   the analyzer gives.
+
+## v1.1, step 2: P9 decided by the code of the agent
+
+P9 is no longer sent to the model. The agent decides it with the Dart
+analyzer (`lib/src/code_rules.dart`), and the review says "P9 by the code
+of the agent". How it decides is written in the rule, under **How the
+agent checks it**. Before, the model decided P9 with a fact computed by
+regular expressions, and the log shows it unstable: P9 missed on #6 in
+several runs, a false P9 on a `const` widget of #21.
+
+Measured with no model, then on the whole review with
+`gemini-3.5-flash-lite`:
+
+| Set | Remarks expected | Result |
+|---|---|---|
+| The 4 P9 cases of `eval/cases` | P9-flag line 30-33 or 40-43, P9-flag-listenable line 17, none on the 2 others | as expected (line 40, line 17) |
+| The 6 test pull requests with a builder | #6 line 49, #44 line 21, #45 line 25, none on #7, #21, #24 | as expected |
+| The 50 real pull requests | none known | 1 new remark: immich #32771 (`433209c4d`) line 293, a `Row` that reads only fields of the widget, rebuilt on every change of `offset`; right by the rule, missed by v1 |
+| 381 new merged pull requests since 2025 of samples, localsend, bloc, thunder, fluffychat and lichess, that change a file with a builder (P9 applies to 76) | not known before the run | 8 remarks on 8 pull requests, each one read in the code: all right by the rule; 0 undecided |
+
+The other remarks of the whole reviews are the ones of v1 (T3 on #6, #44,
+immich, ente, localsend; B2 and T3 on #7).
+
+Time: 2 to 220 ms for a pull request, the most with the warm-up of the
+analyzer. A review where P9 is the only rule that applies calls no model.
+
+Errors found by these runs, and fixed before the numbers above:
+
+- In the prototype: `animation: _controller` was not read as what the
+  builder listens to (P9 on `Opacity` in place of `DecoratedBox` on #6);
+  `_Booking()` was read as a method; `context` of
+  `context.read<ReleasesViewModel>().unread` was read as the listened
+  object, as the model did in v1 (#44 missed). Fix: the whole expression
+  given to `valueListenable:` is the listened object, and a name with an
+  upper-case letter after its `_` is a type.
+- On the whole review: P9 was still triggered by the text of the added
+  lines, so immich #32771, where only the `Row` inside the builder is
+  added, got no P9. Fix: a rule decided by the code has no triggers; P9
+  applies when a builder under `lib/` holds an added line.
+- On the 381 new pull requests: 2 false remarks in tests (lichess
+  `move_expiration_test`, `game_layout_test`) and 5 widgets not decided
+  because of `setState()` or `showModalBottomSheet()` in an `onPressed`.
+  Fixes: the tests are not checked; a variable that the code can change
+  while the builder lives (a field assigned outside `setState(...)` and the
+  methods followed by a build, a variable assigned in a callback) counts as
+  changing; a function given to a widget runs later and does not count.
+- Two remarks on one builder (thunder `ea27fa45d`) asked for two `child`, and a
+  builder can take one. Fix: one remark for each builder, with the lines of
+  the other widgets, and the advice to build them in variables before the
+  builder; the same advice when the `child` of the builder is already used.
+- Level: a remark on one widget with nothing inside it, such as a `Text`,
+  is a suggestion, and a subtree is an issue, from the Flutter
+  documentation: "Minimize the number of nodes transitively created by the
+  build method" (StatefulWidget, Performance considerations), and a
+  pre-built `child` "can improve performance significantly in some cases"
+  (AnimatedBuilder, Performance optimizations). Of the 14 remarks above, 9
+  are issues and 5 suggestions.

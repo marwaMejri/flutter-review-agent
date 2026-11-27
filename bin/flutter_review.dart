@@ -239,7 +239,8 @@ Future<void> main(List<String> arguments) async {
             <String, Object>{
               ...finding.toJson(),
               'title': rulesById[finding.rule]?.title ?? 'Project convention',
-              if (rulesById[finding.rule]?.level case final String level)
+              if ((finding.level ?? rulesById[finding.rule]?.level)
+                  case final String level)
                 'level': level,
               if (rulesById[finding.rule]?.source case final String source)
                 'source': source,
