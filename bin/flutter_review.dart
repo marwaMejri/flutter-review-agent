@@ -39,6 +39,13 @@ Future<void> main(List<String> arguments) async {
     )
     ..addOption('json', help: 'Also write the result as JSON to this path.')
     ..addFlag(
+      'changes-only',
+      negatable: false,
+      help:
+          'Print the changes of the pull request, as the Dart analyzer reads '
+          'them, then stop: no model is called and no key is needed.',
+    )
+    ..addFlag(
       'list-models',
       negatable: false,
       help: 'Print the models of the provider, then stop.',
@@ -67,6 +74,11 @@ Future<void> main(List<String> arguments) async {
         '(default ${defaultReviewTimeout.inSeconds})',
       )
       ..writeln(parser.usage);
+    return;
+  }
+
+  if (options.flag('changes-only')) {
+    _printChanges(await _readDiff(options.option('diff')!), options);
     return;
   }
 
@@ -117,10 +129,7 @@ Future<void> main(List<String> arguments) async {
     return;
   }
 
-  final String diffPath = options.option('diff')!;
-  final String diff = diffPath == '-'
-      ? await stdin.transform(utf8.decoder).join()
-      : await File(diffPath).readAsString();
+  final String diff = await _readDiff(options.option('diff')!);
 
   final List<Rule> rules = readRules(
     rulesFolder: options.option('rules')!,
@@ -199,6 +208,7 @@ Future<void> main(List<String> arguments) async {
     );
   }
   _printReport(result, rules);
+  _printChanges(diff, options);
 
   if (jsonPath != null) {
     final Map<String, Rule> rulesById = <String, Rule>{
@@ -236,11 +246,58 @@ Future<void> main(List<String> arguments) async {
   }
 }
 
+Future<String> _readDiff(String path) => path == '-'
+    ? stdin.transform(utf8.decoder).join()
+    : File(path).readAsString();
+
+/// Prints the changes of the pull request, as the Dart analyzer reads them,
+/// with the time it took. They do not change the review yet: they are shown
+/// to be checked against the diff.
+void _printChanges(String diff, ArgResults options) {
+  final String? project = options.option('project');
+  stdout
+    ..writeln()
+    ..write('Changes');
+  if (project == null) {
+    stdout.writeln(
+      ': not computed, they need the files after the pull request '
+      '(--project).',
+    );
+    return;
+  }
+  final Stopwatch watch = Stopwatch()..start();
+  final List<DiffFile> files = parseDiff(diff)
+      .where((DiffFile file) => isReviewed(file.path))
+      .toList();
+  final Map<String, String> sources = <String, String>{};
+  for (final DiffFile file in files) {
+    final File source = File('$project/${file.path}');
+    if (source.existsSync()) {
+      sources[file.path] = source.readAsStringSync();
+    }
+  }
+  final ChangeReport report = codeChanges(
+    files: files,
+    sources: sources,
+    deletedFiles: parseDeletedFiles(diff)
+        .where((DiffFile file) => isReviewed(file.path))
+        .toList(),
+  );
+  watch.stop();
+  stdout.writeln(' (${watch.elapsedMilliseconds} ms):');
+  final List<String> lines = describeChanges(report);
+  if (lines.isEmpty) {
+    stdout.writeln('  none in the Dart files');
+  }
+  for (final String line in lines) {
+    stdout.writeln('  $line');
+  }
+}
+
 Future<void> _writeError(String? jsonPath, String message) async {
   if (jsonPath != null) {
-    await File(
-      jsonPath,
-    ).writeAsString(jsonEncode(<String, String>{'error': message}));
+    await File(jsonPath)
+        .writeAsString(jsonEncode(<String, String>{'error': message}));
   }
 }
 

@@ -20,8 +20,7 @@ final Map<String, Object?> result = <String, Object?>{
       'evidence': 'sorted',
       'title': 'Expensive work in `build()`',
       'level': 'issue',
-      'source':
-          '[Performance best practices](https://docs.flutter.dev/perf/best-practices)',
+      'source': '[Performance best practices](https://docs.flutter.dev/perf/best-practices)',
     },
   ],
 };

@@ -28,6 +28,12 @@ class DiffFile {
   /// The removed lines, by the number of the new line that follows them.
   final Map<int, List<String>> removedBefore = <int, List<String>>{};
 
+  /// The added lines and the removed lines as the diff gives them, before the
+  /// re-indented lines are shown as unchanged. The version of the file before
+  /// the pull request is rebuilt from them.
+  final Set<int> diffAddedLines = <int>{};
+  final Map<int, List<String>> diffRemovedBefore = <int, List<String>>{};
+
   /// The diff of this file, with the line number of the new version in front
   /// of each line, so the model can cite exact lines.
   final List<String> annotated = <String>[];
@@ -150,6 +156,7 @@ List<DiffFile> parseDeletedFiles(String diff) => _parse(diff).deleted;
         current.hunkAddedLines.last.add(newLine);
       }
       current.addedLines.add(newLine);
+      current.diffAddedLines.add(newLine);
       current.addedCode.add(line.substring(1));
       current.newLineText[newLine] = line.substring(1);
       current.commentableLines.add(newLine);
@@ -157,6 +164,9 @@ List<DiffFile> parseDeletedFiles(String diff) => _parse(diff).deleted;
       newLine++;
     } else if (line.startsWith('-')) {
       current.removedBefore
+          .putIfAbsent(newLine, () => <String>[])
+          .add(line.substring(1));
+      current.diffRemovedBefore
           .putIfAbsent(newLine, () => <String>[])
           .add(line.substring(1));
       current.annotated.add('      |$line');

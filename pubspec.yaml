@@ -4,9 +4,10 @@ version: 1.0.0
 publish_to: none
 
 environment:
-  sdk: ^3.9.0
+  sdk: ^3.13.0
 
 dependencies:
+  analyzer: ^14.6.0
   args: ^2.5.0
   http: ^1.2.0
 

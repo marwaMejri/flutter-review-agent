@@ -458,9 +458,8 @@ Duration? parseRetryDelay(http.Response response) {
   if (header != null) {
     return Duration(seconds: header);
   }
-  final Match? match = RegExp(
-    r'"retryDelay"\s*:\s*"(\d+(?:\.\d+)?)s"',
-  ).firstMatch(utf8.decode(response.bodyBytes));
+  final Match? match = RegExp(r'"retryDelay"\s*:\s*"(\d+(?:\.\d+)?)s"')
+      .firstMatch(utf8.decode(response.bodyBytes));
   if (match != null) {
     return Duration(
       milliseconds: (double.parse(match.group(1)!) * 1000).round(),

@@ -106,10 +106,8 @@ void main() {
 
     expect(resolveConfig(settings).timeout, defaultReviewTimeout);
     expect(
-      resolveConfig(<String, String>{
-        ...settings,
-        timeoutVariable: '60',
-      }).timeout,
+      resolveConfig(<String, String>{...settings, timeoutVariable: '60'})
+          .timeout,
       const Duration(seconds: 60),
     );
     expect(

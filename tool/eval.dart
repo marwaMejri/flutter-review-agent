@@ -57,9 +57,9 @@ Future<void> main(List<String> arguments) async {
   final int runs = int.parse(options.option('runs')!);
   final Duration pause = Duration(seconds: int.parse(options.option('pause')!));
   final List<String> only = options.multiOption('case');
-  final Map<String, Object?> expected =
-      jsonDecode(File('eval/expected.json').readAsStringSync())
-          as Map<String, Object?>;
+  final Map<String, Object?> expected = jsonDecode(
+    File('eval/expected.json').readAsStringSync(),
+  ) as Map<String, Object?>;
   final List<EvalCase> cases =
       <EvalCase>[
             for (final Object? item in expected['cases']! as List<Object?>)
@@ -111,9 +111,8 @@ Future<void> main(List<String> arguments) async {
 
     caseLoop:
     for (final EvalCase evalCase in cases) {
-      final String diff = File(
-        'eval/cases/${evalCase.name}.diff',
-      ).readAsStringSync();
+      final String diff = File('eval/cases/${evalCase.name}.diff')
+          .readAsStringSync();
       String? readSource(String path) {
         final File file = File('eval/files/${evalCase.name}/$path');
         return file.existsSync() ? file.readAsStringSync() : null;

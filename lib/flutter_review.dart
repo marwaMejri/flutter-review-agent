@@ -10,7 +10,9 @@ import 'src/prompt.dart';
 import 'src/rules.dart';
 
 export 'src/builders.dart';
+export 'src/changes.dart';
 export 'src/config.dart';
+export 'src/dart_model.dart';
 export 'src/diff.dart';
 export 'src/evaluation.dart';
 export 'src/findings.dart';
@@ -85,9 +87,9 @@ Future<ReviewResult> review({
   String? Function(String path)? readSource,
   List<String> Function()? projectFiles,
 }) async {
-  final List<DiffFile> files = parseDiff(
-    diff,
-  ).where((DiffFile file) => isReviewed(file.path)).toList();
+  final List<DiffFile> files = parseDiff(diff)
+      .where((DiffFile file) => isReviewed(file.path))
+      .toList();
 
   final List<Rule> sent = rules
       .where(
@@ -115,9 +117,9 @@ Future<ReviewResult> review({
     );
   }
 
-  final List<DiffFile> deleted = parseDeletedFiles(
-    diff,
-  ).where((DiffFile file) => isReviewed(file.path)).toList();
+  final List<DiffFile> deleted = parseDeletedFiles(diff)
+      .where((DiffFile file) => isReviewed(file.path))
+      .toList();
   final Map<String, String> sources = <String, String>{
     if (readSource != null)
       for (final DiffFile file in files)
@@ -656,9 +658,10 @@ Future<ReviewResult> review({
                   'it.',
       );
     } else {
-      final String? reason = parseChecks(
-        again,
-      ).where((RuleCheck check) => check.rule == rule.id).firstOrNull?.reason;
+      final String? reason = parseChecks(again)
+          .where((RuleCheck check) => check.rule == rule.id)
+          .firstOrNull
+          ?.reason;
       rejected.add(
         RejectedFinding(
           finding,
@@ -791,9 +794,8 @@ bool _columnWithNoScrollView(
   }
   final String code = file.newLineText[finding.line] ?? '';
   if (!RegExp(r'\b(Column|Row)\s*\(').hasMatch(code) ||
-      RegExp(
-        r'\b(ListView|GridView|SliverChildListDelegate)\b',
-      ).hasMatch(code)) {
+      RegExp(r'\b(ListView|GridView|SliverChildListDelegate)\b')
+          .hasMatch(code)) {
     return false;
   }
   final String fileCode =
@@ -874,9 +876,9 @@ String? disposedOnLine(String source, int line) {
     ).allMatches(lines[line - 1]))
       name.group(1)!,
   };
-  bool disposed(String name) => RegExp(
-    '\\b${RegExp.escape(name)}\\??\\.(dispose|cancel|close)\\(',
-  ).hasMatch(text);
+  bool disposed(String name) =>
+      RegExp('\\b${RegExp.escape(name)}\\??\\.(dispose|cancel|close)\\(')
+          .hasMatch(text);
   bool created(String name) => RegExp(
     '\\b${RegExp.escape(name)}\\s*=\\s*(?:const\\s+)?[A-Z][\\w\$]*'
     '(?:\\.[\\w\$]+)?\\s*(?:<[^;]*?>)?\\(',

@@ -496,9 +496,8 @@ int? _lineWithEvidence(DiffFile file, Finding finding) {
         break;
       }
       joined.write(_compact(text));
-      final int index = _withoutTrailingCommas(
-        joined.toString(),
-      ).indexOf(wanted);
+      final int index = _withoutTrailingCommas(joined.toString())
+          .indexOf(wanted);
       if (index >= 0) {
         // The evidence must start on this line, not on a later one.
         if (index < _compact(first).length) {

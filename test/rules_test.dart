@@ -191,9 +191,8 @@ diff --git a/lib/app/router.dart b/lib/app/router.dart
   });
 
   test('reads the level and the source of a rule', () {
-    final Rule rule = parseRules(
-      File('rules/memory.md').readAsStringSync(),
-    ).firstWhere((Rule r) => r.id == 'B2');
+    final Rule rule = parseRules(File('rules/memory.md').readAsStringSync())
+        .firstWhere((Rule r) => r.id == 'B2');
 
     expect(rule.level, 'issue');
     expect(
@@ -233,9 +232,9 @@ diff --git a/lib/app/router.dart b/lib/app/router.dart
 
     expect(b5.remarkOnNullableReturn, isTrue);
     expect(
-      parseRules(
-        File('rules/performance.md').readAsStringSync(),
-      ).firstWhere((Rule r) => r.id == 'P3').remarkOnWidgetMethod,
+      parseRules(File('rules/performance.md').readAsStringSync())
+          .firstWhere((Rule r) => r.id == 'P3')
+          .remarkOnWidgetMethod,
       isTrue,
     );
     expect(b5.remarkLine, isEmpty);
@@ -251,47 +250,44 @@ diff --git a/lib/app/router.dart b/lib/app/router.dart
   });
 
   test('reads which rules need a widget that is not const', () {
-    final Rule p9 = parseRules(
-      File('rules/performance.md').readAsStringSync(),
-    ).firstWhere((Rule r) => r.id == 'P9');
-    final Rule b5 = parseRules(
-      File('rules/dart.md').readAsStringSync(),
-    ).firstWhere((Rule r) => r.id == 'B5');
+    final Rule p9 = parseRules(File('rules/performance.md').readAsStringSync())
+        .firstWhere((Rule r) => r.id == 'P9');
+    final Rule b5 = parseRules(File('rules/dart.md').readAsStringSync())
+        .firstWhere((Rule r) => r.id == 'B5');
 
     expect(p9.remarkOnNonConstWidget, isTrue);
     expect(
-      parseRules(
-        File('rules/performance.md').readAsStringSync(),
-      ).firstWhere((Rule r) => r.id == 'P5').remarkInScrollView,
+      parseRules(File('rules/performance.md').readAsStringSync())
+          .firstWhere((Rule r) => r.id == 'P5')
+          .remarkInScrollView,
       isTrue,
     );
     expect(p9.remarkLine, isEmpty);
     expect(b5.remarkOnNonConstWidget, isFalse);
     expect(
-      parseRules(
-        File('rules/performance.md').readAsStringSync(),
-      ).firstWhere((Rule r) => r.id == 'P1').remarkInBuild,
+      parseRules(File('rules/performance.md').readAsStringSync())
+          .firstWhere((Rule r) => r.id == 'P1')
+          .remarkInBuild,
       isTrue,
     );
     expect(p9.remarkInBuild, isFalse);
     expect(
-      parseRules(
-        File('rules/memory.md').readAsStringSync(),
-      ).firstWhere((Rule r) => r.id == 'B2').remarkInBuild,
+      parseRules(File('rules/memory.md').readAsStringSync())
+          .firstWhere((Rule r) => r.id == 'B2')
+          .remarkInBuild,
       isTrue,
     );
     expect(p9.remarkOnBuilderChild, isTrue);
     expect(
-      parseRules(
-        File('rules/memory.md').readAsStringSync(),
-      ).firstWhere((Rule r) => r.id == 'MEM1').remarkOnUndisposed,
+      parseRules(File('rules/memory.md').readAsStringSync())
+          .firstWhere((Rule r) => r.id == 'MEM1')
+          .remarkOnUndisposed,
       isTrue,
     );
     expect(p9.remarkPlace, isNull);
     expect(b5.remarkOnBuilderChild, isFalse);
-    final Rule p5 = parseRules(
-      File('rules/performance.md').readAsStringSync(),
-    ).firstWhere((Rule r) => r.id == 'P5');
+    final Rule p5 = parseRules(File('rules/performance.md').readAsStringSync())
+        .firstWhere((Rule r) => r.id == 'P5');
     expect(p5.remarkOnListWithLoop, isTrue);
     expect(p5.remarkPlace, isNull);
     expect(p9.remarkOnListWithLoop, isFalse);

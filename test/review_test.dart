@@ -997,10 +997,8 @@ new file mode 100644
     });
   });
 
-  test(
-    'refuses P5 on a Column in a file with no SingleChildScrollView',
-    () async {
-      const String diff = '''
+  test('refuses P5 on a Column in a file with no SingleChildScrollView', () async {
+    const String diff = '''
 diff --git a/lib/a.dart b/lib/a.dart
 --- a/lib/a.dart
 +++ b/lib/a.dart
@@ -1014,53 +1012,52 @@ diff --git a/lib/b.dart b/lib/b.dart
  Widget b() => SingleChildScrollView(
 +  child: Column(children: items),
 ''';
-      final ModelClient client = ModelClient(
-        provider: 'test-provider',
-        baseUrl: 'https://example.com/v1/',
-        models: <String>['test-model'],
-        apiKey: 'test-key',
-        httpClient: MockClient((http.Request request) async {
-          return http.Response(
-            jsonEncode(<String, Object>{
-              'choices': <Object>[
-                <String, Object>{
-                  'message': <String, String>{
-                    'content':
-                        '{"checks": [], "findings": ['
-                        '{"rule": "P5", "file": "lib/a.dart", "line": 2, '
-                        '"evidence": "child: Column(", "message": "m"}, '
-                        '{"rule": "P5", "file": "lib/b.dart", "line": 2, '
-                        '"evidence": "child: Column(", "message": "m"}]}',
-                  },
+    final ModelClient client = ModelClient(
+      provider: 'test-provider',
+      baseUrl: 'https://example.com/v1/',
+      models: <String>['test-model'],
+      apiKey: 'test-key',
+      httpClient: MockClient((http.Request request) async {
+        return http.Response(
+          jsonEncode(<String, Object>{
+            'choices': <Object>[
+              <String, Object>{
+                'message': <String, String>{
+                  'content':
+                      '{"checks": [], "findings": ['
+                      '{"rule": "P5", "file": "lib/a.dart", "line": 2, '
+                      '"evidence": "child: Column(", "message": "m"}, '
+                      '{"rule": "P5", "file": "lib/b.dart", "line": 2, '
+                      '"evidence": "child: Column(", "message": "m"}]}',
                 },
-              ],
-            }),
-            200,
-          );
-        }),
-      );
+              },
+            ],
+          }),
+          200,
+        );
+      }),
+    );
 
-      final ReviewResult result = await review(
-        diff: diff,
-        rules: <Rule>[
-          Rule(
-            id: 'P5',
-            title: 't',
-            text:
-                '## P5. t\n\n- **Remark line:** a list widget, or a `Column` or '
-                '`Row` in a file with a `SingleChildScrollView`',
-          ),
-        ],
-        client: client,
-      );
+    final ReviewResult result = await review(
+      diff: diff,
+      rules: <Rule>[
+        Rule(
+          id: 'P5',
+          title: 't',
+          text:
+              '## P5. t\n\n- **Remark line:** a list widget, or a `Column` or '
+              '`Row` in a file with a `SingleChildScrollView`',
+        ),
+      ],
+      client: client,
+    );
 
-      expect(result.accepted.single.file, 'lib/b.dart');
-      expect(
-        result.rejected.single.reason,
-        'no SingleChildScrollView in the file',
-      );
-    },
-  );
+    expect(result.accepted.single.file, 'lib/b.dart');
+    expect(
+      result.rejected.single.reason,
+      'no SingleChildScrollView in the file',
+    );
+  });
 
   test('refuses P1 in a method that no build() calls', () async {
     const String source = '''

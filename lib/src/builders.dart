@@ -31,9 +31,8 @@ List<BuilderPlace> builderPlaces(String source) {
       ).allMatches(call))
         ..._chainEnds(_argument(call, argument.end)),
     };
-    final Match? parameters = RegExp(
-      r'\bbuilder\s*:\s*\(([^)]*)\)',
-    ).firstMatch(call);
+    final Match? parameters = RegExp(r'\bbuilder\s*:\s*\(([^)]*)\)')
+        .firstMatch(call);
     if (parameters == null) {
       continue;
     }
