@@ -2410,3 +2410,15 @@ Errors found by these runs, and fixed before the numbers above:
   pre-built `child` "can improve performance significantly in some cases"
   (AnimatedBuilder, Performance optimizations). Of the 14 remarks above, 9
   are issues and 5 suggestions.
+- When the `child` of the builder is already used, or for several widgets,
+  the remark gives the two ways of the documentation to build a widget
+  once: a variable written before the builder, or a widget class with a
+  `const` constructor (StatefulWidget, Performance considerations: "cache
+  the widget that represents that subtree and re-use it", "Use `const`
+  widgets where possible"). A method that returns the widget is not one of
+  them: it runs each time the builder calls it (P3).
+
+Remarks checked by a Flutter developer: lichess `022091d6e`
+(`engine_gauge.dart` line 174) and fluffychat `72895c4b2`
+(`call_overlay.dart` line 55), both right. The other new remarks were
+checked by reading the code only.

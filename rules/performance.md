@@ -333,7 +333,14 @@
   `padding: EdgeInsets.all(8)` looks like a widget too. The tests are not
   checked: a test builds its widgets a few times. A builder gets one remark,
   on its first such widget, with the lines of the others: it has one
-  `child`. The remark is a suggestion when each widget has no widget inside
+  `child`. When the `child` is already used, or for several widgets, the
+  remark gives the two ways of the documentation to build a widget once: a
+  variable written before the builder ("cache the widget that represents
+  that subtree and re-use it"), or a widget class with a `const`
+  constructor ("Use `const` widgets where possible"), both in
+  [StatefulWidget, Performance considerations](https://api.flutter.dev/flutter/widgets/StatefulWidget-class.html#performance-considerations).
+  A method that returns the widget does not build it once: it runs each
+  time the builder calls it (see P3). The remark is a suggestion when each widget has no widget inside
   it, such as a `Text` or an `Icon`: no `child:` or `children:` anywhere
   inside it, and no function that can build widgets. The cost of a build
   is in the nodes that it creates ("Minimize the number of nodes

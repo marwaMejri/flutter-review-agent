@@ -410,6 +410,10 @@ ${taken.trimRight().split('\n').map((String l) => '+$l').join('\n')}
         decision.findings.single.message,
         contains('keep it in a variable written before the `AnimatedBuilder`'),
       );
+      expect(
+        decision.findings.single.message,
+        contains('or make it a widget class with a `const` constructor'),
+      );
     });
 
     test('makes one remark for each builder, with the other widgets', () {
@@ -448,6 +452,10 @@ ${two.trimRight().split('\n').map((String l) => '+$l').join('\n')}
       expect(
         decision.findings.single.message,
         contains('Only one widget can be the `child`'),
+      );
+      expect(
+        decision.findings.single.message,
+        contains('or as widget classes with a `const` constructor'),
       );
       // A `Text` and an `Icon` have no widget inside them.
       expect(decision.findings.single.level, 'suggestion');

@@ -661,14 +661,18 @@ Finding _remark(DiffFile file, List<StaticWidget> widgets) {
             'read'
       : '`${first.widget}`, and the widgets of lines '
             '${others.map((StaticWidget w) => w.line).join(', ')}, read';
+  // The two ways of the Flutter documentation to build a widget once: cache
+  // it ("cache the widget that represents that subtree and re-use it"), or
+  // make it `const` ("Use const widgets where possible").
   final String fix = others.isNotEmpty
       ? 'Only one widget can be the `child` of the `$builder`: build them '
-            'once, in variables written before the `$builder`, and use the '
-            'variables here.'
+            'once, outside the `builder`, in variables written before the '
+            '`$builder`, or as widget classes with a `const` constructor.'
       : first.childTaken
       ? 'Build it once, outside the `builder`: the `child` argument of the '
             '`$builder` is already used, so keep it in a variable written '
-            'before the `$builder`, and use that variable here.'
+            'before the `$builder` and use the variable here, or make it a '
+            'widget class with a `const` constructor.'
       : 'Build it once: give it to the `child` argument of the `$builder`, '
             'and use the `child` parameter of the `builder`.';
   return Finding(
