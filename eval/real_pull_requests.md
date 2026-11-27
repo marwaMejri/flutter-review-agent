@@ -2312,3 +2312,44 @@ anx-reader, Bettbox, harmonoid, and others with none).
 | [Mornye](https://github.com/mornyeapp/Mornye) | #789 `3c98201b4`, #788 `2635cd364`, #768 `ec5a355bf`, #787 `1669422cc`, #731 `7c9ff72a2` |
 | [saber](https://github.com/saber-notes/saber) | #1878 `2f284a45e`, #1870 `dd321df3b`, #1823 `1f9151a3a`, #1829 `9413c9c81`, #1865 `c06f19794` |
 | [kelivo](https://github.com/Chevey339/kelivo) | #1320 `03f6e9f15`, #1246 `a408a1f04`, #1244 `ea387848b`, #1057 `23d917855`, #1023 `9747bd9a2` |
+
+## v1.1, step 1: the changes of a pull request, read with the Dart analyzer
+
+The agent reads each Dart file of the pull request with `package:analyzer`,
+after the pull request and before it, and lists what changed: the
+declarations added, changed, moved or removed, with the added lines of each
+one, and the added and removed `import` lines. The version before the pull
+request is rebuilt from the file and its diff. No rule uses the list yet:
+this step only checks that it is right. It runs with no model
+(`--changes-only`).
+
+Checked on the 45 test pull requests and on the 50 real pull requests, by
+scripts that compare the output with the diff and with the real files of
+the commits:
+
+| Check | 45 test pull requests | 50 real pull requests |
+|---|---|---|
+| Files that could not be read | 0 | 0 |
+| Version before the pull request, equal to the real file | 62 out of 62 | 145 out of 145 |
+| Changed declarations, added lines equal to the diff | 51 out of 51 | 178 out of 178 |
+| Added lines with code outside a declaration | 0 | 0 |
+
+Time to read the files and compute the changes: 6 to 689 ms for one pull
+request (median 217 ms), the first file with the warm-up of the analyzer.
+
+Errors found by these checks, and fixed before the numbers above:
+
+- The version before the pull request was rebuilt from the diff after the
+  re-indented lines were set as unchanged. A re-indented line matches a
+  removed line by its code only, such as `),` in another place of the file:
+  13 of the 62 files were rebuilt wrong, 7 of them with a syntax error.
+  Fix: the version before is rebuilt from the diff as git gives it.
+- Only classes, mixins, functions and variables were read. Enums,
+  extensions, extension types and typedefs were not, so a change in them
+  was not listed (6 of the 50 real pull requests). Fix: every kind of
+  declaration is read; a kind that the agent does not know is still listed;
+  an added line with code outside every declaration is shown.
+- The header of a class was cut at its first `{`, which can be a named
+  parameter of a constructor in the header, or a record type (1 real pull
+  request). Fix: the header is compared token by token, up to the body that
+  the analyzer gives.

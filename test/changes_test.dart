@@ -41,6 +41,76 @@ class _PageState extends State<Page> {
       expect(field.initializer, 'ScrollController()');
     });
 
+    test('reads every kind of declaration, with its members', () {
+      final DartFile file = readDartFile('''
+enum Status {
+  a,
+  b;
+
+  bool get isA => this == a;
+}
+
+extension Words on String {
+  int get count => split(' ').length;
+}
+
+extension on int {
+  int get twice => this * 2;
+}
+
+extension type Id(int value) {
+  int get next => value + 1;
+}
+
+typedef Json = Map<String, Object?>;
+
+class Tile = Base with Shape;
+
+mixin Shape {
+  void draw() {}
+}
+''');
+
+      expect(file.error, isNull);
+      expect(
+        <String>[
+          for (final DartDeclaration d in file.declarations)
+            '${d.kind} ${d.fullName} ${d.startLine}-${d.endLine}',
+        ],
+        <String>[
+          'enum Status 1-6',
+          'getter Status.isA 5-5',
+          'extension Words 8-10',
+          'getter Words.count 9-9',
+          'extension on int 12-14',
+          'getter (extension on int).twice 13-13',
+          'extension type Id 16-18',
+          'getter Id.next 17-17',
+          'typedef Json 20-20',
+          'class Tile 22-22',
+          'mixin Shape 24-26',
+          'method Shape.draw 25-25',
+        ],
+      );
+      // Every line with code is in a declaration.
+      expect(
+        file.outsideDeclarations(<int>[for (int i = 1; i <= 26; i++) i]),
+        isEmpty,
+      );
+    });
+
+    test('gives the added lines with code outside a declaration', () {
+      final DartFile file = DartFile(
+        declarations: const <DartDeclaration>[],
+        directives: const <String>[],
+        codeLines: <int>{1, 2, 3, 5},
+        declaredLines: <int>{1, 2},
+      );
+
+      // Line 4 has no code, line 6 is not added.
+      expect(file.outsideDeclarations(<int>[2, 3, 4, 5]), <int>[3, 5]);
+    });
+
     test('gives the line of a syntax error, and no declaration', () {
       final DartFile file = readDartFile('class Page {\n  void a( {\n}\n');
 
@@ -274,6 +344,116 @@ new file mode 100644
         'lib/c.dart',
         '  added    variable values: List<int> = '
             '${values.substring(0, 77)}..., line 3',
+      ]);
+    });
+
+    test('finds a value added to an enum', () {
+      const String diff = '''
+diff --git a/lib/a.dart b/lib/a.dart
+--- a/lib/a.dart
++++ b/lib/a.dart
+@@ -1,4 +1,5 @@
+ enum Status {
+   a,
+   b,
++  c,
+ }
+''';
+
+      final ChangeReport report = codeChanges(
+        files: parseDiff(diff),
+        sources: <String, String>{
+          'lib/a.dart': 'enum Status {\n  a,\n  b,\n  c,\n}\n',
+        },
+      );
+
+      expect(describeChanges(report), <String>[
+        'lib/a.dart',
+        '  changed  enum Status, lines 1-5, added line 4',
+      ]);
+    });
+
+    test('finds a changed member of an extension with no name', () {
+      const String diff = '''
+diff --git a/lib/a.dart b/lib/a.dart
+--- a/lib/a.dart
++++ b/lib/a.dart
+@@ -1,3 +1,3 @@
+ extension on int {
+-  int get twice => this * 2;
++  int get twice => this * 3;
+ }
+''';
+
+      final ChangeReport report = codeChanges(
+        files: parseDiff(diff),
+        sources: <String, String>{
+          'lib/a.dart': 'extension on int {\n  int get twice => this * 3;\n}\n',
+        },
+      );
+
+      expect(describeChanges(report), <String>[
+        'lib/a.dart',
+        '  changed  getter (extension on int).twice, line 2, added line 2',
+      ]);
+    });
+
+    test('gives the added lines of the header of a type, not its body', () {
+      const String diff = '''
+diff --git a/lib/a.dart b/lib/a.dart
+--- a/lib/a.dart
++++ b/lib/a.dart
+@@ -1,4 +1,4 @@
+-class Page implements A {
++class Page implements A, B {
+   void show() {
+-    print(1);
++    print(2);
+   }
+''';
+
+      final ChangeReport report = codeChanges(
+        files: parseDiff(diff),
+        sources: <String, String>{
+          'lib/a.dart':
+              'class Page implements A, B {\n'
+              '  void show() {\n    print(2);\n  }\n}\n',
+        },
+      );
+
+      expect(describeChanges(report), <String>[
+        'lib/a.dart',
+        '  changed  class Page, lines 1-5, added line 1',
+        '  changed  method Page.show, lines 2-4, added line 3',
+      ]);
+    });
+
+    test('compares the header of a class, not its text up to a brace', () {
+      // The `{` of a record type is not the start of the body.
+      const String diff = '''
+diff --git a/lib/a.dart b/lib/a.dart
+--- a/lib/a.dart
++++ b/lib/a.dart
+@@ -1,3 +1,3 @@
+-class Page extends Base<({int a})> {
++class Page extends Base<({int a, int b})> {
+   void show() {}
+ }
+''';
+
+      final ChangeReport report = codeChanges(
+        files: parseDiff(diff),
+        sources: <String, String>{
+          'lib/a.dart':
+              'class Page extends Base<({int a, int b})> {\n'
+              '  void show() {}\n}\n',
+        },
+      );
+
+      expect(describeChanges(report), <String>[
+        'lib/a.dart',
+        '  changed  class Page extends Base<({int a, int b})>, lines 1-3, '
+            'which extended Base<({int a})>',
       ]);
     });
 

@@ -76,6 +76,7 @@ class ChangeReport {
     this.directives =
         const <String, ({List<String> added, List<String> removed})>{},
     this.deleted = const <String>{},
+    this.outside = const <String, List<int>>{},
   });
 
   final List<CodeChange> changes;
@@ -90,6 +91,11 @@ class ChangeReport {
 
   /// The Dart files that the pull request deletes.
   final Set<String> deleted;
+
+  /// The added lines with code that are in no declaration and in no
+  /// `import` line, by file. There should be none: they are shown so that
+  /// no change is left out unseen.
+  final Map<String, List<int>> outside;
 }
 
 String _key(DartDeclaration d) => '${d.owner ?? ''}|${d.kind}|${d.name}';
@@ -175,10 +181,14 @@ ChangeReport codeChanges({
             file: path,
             declaration: entry.value,
             before: previous,
+            // For a type, the lines of its header only: its members are
+            // listed on their own, with their lines.
             addedLines: <int>[
               for (
-                int line = entry.value.startLine;
-                line <= entry.value.endLine;
+                int line = entry.value.headerEndLine == null
+                    ? entry.value.startLine
+                    : entry.value.firstLine;
+                line <= (entry.value.headerEndLine ?? entry.value.endLine);
                 line++
               )
                 if (diff?.addedLines.contains(line) ?? false) line,
@@ -273,9 +283,17 @@ ChangeReport codeChanges({
         ? byKind
         : a.declaration.startLine.compareTo(b.declaration.startLine);
   });
+  final Map<String, List<int>> outside = <String, List<int>>{
+    for (final DiffFile file in files)
+      if (after[file.path] case final DartFile now)
+        if (now.outsideDeclarations(file.addedLines) case final List<int> lines
+            when lines.isNotEmpty)
+          file.path: lines,
+  };
   return ChangeReport(
     changes: changes,
     unread: unread,
+    outside: outside,
     directives: directives,
     deleted: <String>{
       for (final DiffFile file in deletedFiles)
@@ -284,16 +302,10 @@ ChangeReport codeChanges({
   );
 }
 
-/// Whether a class or a mixin changed only in its members, which are listed
-/// on their own: its name, what it extends, its mixins and its interfaces
-/// stay the same.
-bool _onlyMembersChanged(DartDeclaration before, DartDeclaration after) {
-  if (after.kind != 'class' && after.kind != 'mixin') {
-    return false;
-  }
-  String header(String source) => source.split('{').first;
-  return header(before.source) == header(after.source);
-}
+/// Whether a type changed only in its members, which are listed on their
+/// own: its header, as the analyzer reads it, stays the same.
+bool _onlyMembersChanged(DartDeclaration before, DartDeclaration after) =>
+    after.header != null && before.header == after.header;
 
 /// The changes as the log of the agent shows them: the files in order, each
 /// with its changed `import` lines, then its changed declarations.
@@ -302,6 +314,7 @@ List<String> describeChanges(ChangeReport report) {
     for (final CodeChange change in report.changes) change.file,
     ...report.directives.keys,
     ...report.deleted,
+    ...report.outside.keys,
   }.toList()..sort();
   final List<String> lines = <String>[];
   for (final String file in files) {
@@ -322,6 +335,11 @@ List<String> describeChanges(ChangeReport report) {
       if (change.file == file) {
         lines.add(_describe(change));
       }
+    }
+    if (report.outside[file] case final List<int> outside) {
+      lines.add(
+        '  added lines outside a declaration: ${_ranges(outside)}',
+      );
     }
   }
   for (final MapEntry<String, String> entry in report.unread.entries) {
